@@ -39,6 +39,8 @@
       if (data && data.ok === false && data.error === 'forbidden') {
         clearToken();
         showGate('gateForbidden');
+      } else if (data && data.ok === false && data.error === 'insufficient_permission') {
+        showToast("You don't have permission to do that.", 'error');
       }
       return data;
     });
@@ -183,10 +185,46 @@
     requestAnimationFrame(tick);
   }
 
+  let canReviewApplications = false;
+  let canPublishContent = false;
+  let canKickStaff = false;
+  function applyRolePermissions() {
+    document.querySelectorAll('[data-requires="highStaff"]').forEach(function (el) { el.style.display = canReviewApplications ? '' : 'none'; });
+    document.querySelectorAll('[data-requires="management"]').forEach(function (el) { el.style.display = canPublishContent ? '' : 'none'; });
+  }
+  function renderStatGrid(containerId, cards) {
+    document.getElementById(containerId).innerHTML = cards.map(function (c) {
+      const targetAttr = c[0] != null ? ' data-target="' + c[0] + '"' : '';
+      return '<div class="stat-card"><div class="num' + (c[2] ? ' ' + c[2] : '') + '"' + targetAttr + '>' + (c[0] != null ? 0 : '—') + '</div><div class="label">' + escapeHtml(c[1]) + '</div></div>';
+    }).join('');
+    document.querySelectorAll('#' + containerId + ' .num[data-target]').forEach(function (el) {
+      animateCount(el, parseInt(el.dataset.target, 10) || 0);
+    });
+  }
   function loadOverview() {
-    const overviewP = callAdmin('overview').then(function (d) {
+    return callAdmin('overview').then(function (d) {
       if (!d || !d.ok) return;
-      const cards = [
+      canReviewApplications = !!d.canReviewApplications;
+      canPublishContent = !!d.canPublishContent;
+      canKickStaff = !!d.canKickStaff;
+      applyRolePermissions();
+      document.getElementById('userTag').textContent = d.role === 'management' ? 'Management' : (d.myRank || 'Staff');
+
+      if (d.role !== 'management') {
+        document.getElementById('overviewManagement').style.display = 'none';
+        document.getElementById('overviewStaff').style.display = '';
+        renderStatGrid('myOverviewStats', [
+          [d.myStats.solvedTickets, 'Solved tickets'],
+          [d.myStats.totalClaims, 'Total claims'],
+          [d.myStats.unclaimedTickets, 'Unclaimed'],
+        ]);
+        renderRankupPanel(d.myRankup ? [d.myRankup] : [], 'myRankupList');
+        return;
+      }
+
+      document.getElementById('overviewManagement').style.display = '';
+      document.getElementById('overviewStaff').style.display = 'none';
+      renderStatGrid('overviewStats', [
         [d.onlineNow, 'Discord online now'],
         [d.playingNow, 'Playing FrostClient'],
         [d.memberCount, 'Server members'],
@@ -200,22 +238,14 @@
         [d.pendingPartnerApps, 'Pending partner apps'],
         [d.scamsToday, 'Scams today', d.scamsToday > 0 ? 'warn' : ''],
         [d.scamsTotal, 'Scams logged (all-time)']
-      ];
-      document.getElementById('overviewStats').innerHTML = cards.map(function (c) {
-        const targetAttr = c[0] != null ? ' data-target="' + c[0] + '"' : '';
-        return '<div class="stat-card"><div class="num' + (c[2] ? ' ' + c[2] : '') + '"' + targetAttr + '>' + (c[0] != null ? 0 : '—') + '</div><div class="label">' + escapeHtml(c[1]) + '</div></div>';
-      }).join('');
-      document.querySelectorAll('#overviewStats .num[data-target]').forEach(function (el) {
-        animateCount(el, parseInt(el.dataset.target, 10) || 0);
-      });
+      ]);
       setBadge('badgeStaffApps', d.pendingStaffApps);
       setBadge('badgePartnerApps', d.pendingPartnerApps);
+      return Promise.all([
+        loadGrowthChart(currentGrowthGranularity),
+        callAdmin('staff.rankups').then(function (rd) { if (rd && rd.ok) renderRankupPanel(rd.rankups || []); })
+      ]);
     });
-    const growthP = loadGrowthChart(currentGrowthGranularity);
-    const rankupP = callAdmin('staff.rankups').then(function (d) {
-      if (d && d.ok) renderRankupPanel(d.rankups || []);
-    });
-    return Promise.all([overviewP, growthP, rankupP]);
   }
 
   let currentGrowthGranularity = 'day';
@@ -319,8 +349,8 @@
     });
   }
 
-  function renderRankupPanel(rankups) {
-    const list = document.getElementById('rankupList');
+  function renderRankupPanel(rankups, containerId) {
+    const list = document.getElementById(containerId || 'rankupList');
     if (!rankups.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;">Everyone is either fully ranked up or awaiting manual review.</p>'; return; }
     list.innerHTML = rankups.map(function (r) {
       const ticketsPct = Math.min(100, Math.round((r.tickets.current / r.tickets.needed) * 100));
@@ -386,10 +416,10 @@
         '<div class="app-card-head">' +
           '<div class="app-card-user"><img class="app-card-avatar" src="' + avatarUrl(m.id, m.avatar) + '"/>' + escapeHtml(m.globalName || m.username) + ' <span class="app-card-meta">@' + escapeHtml(m.username) + ' · ' + m.id + '</span></div>' +
           '<div class="app-card-actions">' +
-            (m.isStaff ? '<button class="btn-small danger" data-action="kickStaff" data-id="' + m.id + '">Kick from staff</button>' : '') +
+            (m.isStaff && canKickStaff ? '<button class="btn-small danger" data-action="kickStaff" data-id="' + m.id + '">Kick from staff</button>' : '') +
             (m.timedOutUntil ? '<button class="btn-small success" data-action="removeTimeout" data-id="' + m.id + '">Remove timeout</button>' : '<button class="btn-small" data-action="timeout" data-id="' + m.id + '">Timeout</button>') +
             '<button class="btn-small danger" data-action="kick" data-id="' + m.id + '">Kick</button>' +
-            '<button class="btn-small danger" data-action="ban" data-id="' + m.id + '">Ban</button>' +
+            (canReviewApplications ? '<button class="btn-small danger" data-action="ban" data-id="' + m.id + '">Ban</button>' : '') +
           '</div>' +
         '</div>' +
         '<div class="app-card-details">' +
@@ -707,10 +737,17 @@
         '<div class="stat-card"><div class="num">' + d.closedCount + '</div><div class="label">Closed tickets</div></div>';
       const rows = d.open.map(function (t) {
         const name = (t.isPriority ? '<span class="priority-flag" title="Priority ticket">⚡</span>' : '') + escapeHtml(t.name);
-        return '<tr class="' + (t.isPriority ? 'priority-row' : '') + '"><td>' + name + '</td><td class="mono">' + escapeHtml(t.category || '—') + '</td><td>' + (t.claimedBy ? '<span class="pill accepted">claimed</span>' : '<span class="pill pending">unclaimed</span>') + '</td><td class="mono">' + formatRelative(t.createdAt ? Date.parse(t.createdAt) : null) + '</td></tr>';
+        return '<tr class="clickable-row ' + (t.isPriority ? 'priority-row' : '') + '" data-channel="' + t.id + '"><td>' + name + '</td><td class="mono">' + escapeHtml(t.category || '—') + '</td><td>' + (t.claimedBy ? '<span class="pill accepted">claimed</span>' : '<span class="pill pending">unclaimed</span>') + '</td><td class="mono">' + formatRelative(t.createdAt ? Date.parse(t.createdAt) : null) + '</td></tr>';
       }).join('') || emptyRow(4, 'No open tickets.');
-      document.getElementById('ticketsTable').innerHTML =
+      const ticketsTable = document.getElementById('ticketsTable');
+      ticketsTable.innerHTML =
         '<thead><tr><th>Channel</th><th>Category</th><th>Claim status</th><th>Created</th></tr></thead><tbody>' + rows + '</tbody>';
+      ticketsTable.querySelectorAll('tr[data-channel]').forEach(function (row) {
+        row.addEventListener('click', function (e) {
+          if (e.target.closest('.user-link') || e.target.closest('button')) return;
+          openLiveTicket(row.dataset.channel);
+        });
+      });
     });
   }
   let currentTicketArchiveFilter = '';
@@ -731,7 +768,7 @@
         const claimed = t.claimedBy ? userLink(t.claimedBy, t.claimedByUsername || t.claimedBy) : '—';
         const closed = t.closedBy ? userLink(t.closedBy, t.closedByUsername || t.closedBy) : '—';
         const name = (t.isPriority ? '<span class="priority-flag" title="Priority ticket">⚡</span>' : '') + escapeHtml(t.channelName || t.channelId);
-        return '<tr class="' + (t.isPriority ? 'priority-row' : '') + '">' +
+        return '<tr class="clickable-row ' + (t.isPriority ? 'priority-row' : '') + '" data-channel="' + t.channelId + '">' +
           '<td>' + name + '</td>' +
           '<td class="mono">' + escapeHtml(t.category || '—') + '</td>' +
           '<td>' + created + '</td>' +
@@ -748,7 +785,32 @@
       table.querySelectorAll('button[data-transcript]').forEach(function (btn) {
         btn.addEventListener('click', function () { openTranscript(btn.dataset.transcript); });
       });
+      table.querySelectorAll('tr[data-channel]').forEach(function (row) {
+        row.addEventListener('click', function (e) {
+          if (e.target.closest('.user-link') || e.target.closest('button')) return;
+          openTranscript(row.dataset.channel);
+        });
+      });
     });
+  }
+
+  function renderTranscriptMessagesHtml(messages) {
+    return messages.map(function (m) {
+      const attachments = (m.attachments || []).map(function (a) {
+        return '<a href="' + escapeHtml(a.url) + '" target="_blank" class="transcript-attachment">📎 ' + escapeHtml(a.name) + '</a>';
+      }).join('');
+      const embeds = (m.embeds || []).map(function (e) {
+        return '<div class="transcript-embed">' + (e.title ? '<strong>' + escapeHtml(e.title) + '</strong><br/>' : '') + (e.description ? escapeHtml(e.description) : '') + '</div>';
+      }).join('');
+      return '<div class="transcript-msg">' +
+        '<img class="transcript-avatar" src="' + escapeHtml(m.authorAvatar) + '"/>' +
+        '<div class="transcript-body">' +
+          '<div class="transcript-head"><span class="transcript-author">' + escapeHtml(m.authorTag) + (m.isBot ? ' <span class="pill" style="background:rgba(255,255,255,0.06);">BOT</span>' : '') + '</span><span class="transcript-time">' + formatDateTime(m.timestamp) + '</span></div>' +
+          (m.content ? '<div class="transcript-content">' + escapeHtml(m.content) + '</div>' : '') +
+          embeds + attachments +
+        '</div>' +
+      '</div>';
+    }).join('') || '<p style="color:var(--muted);font-size:13px;">No messages captured for this ticket.</p>';
   }
 
   const transcriptModal = document.getElementById('transcriptModal');
@@ -769,27 +831,60 @@
         '<span>Created by <strong>' + userLink(t.createdBy, t.createdByUsername || t.createdBy || '—') + '</strong> · ' + formatDateTime(t.createdAt) + '</span>' +
         (t.claimedByUsername ? '<span>Claimed by <strong>' + userLink(t.claimedBy, t.claimedByUsername) + '</strong></span>' : '') +
         (t.closedByUsername ? '<span>Closed by <strong>' + userLink(t.closedBy, t.closedByUsername) + '</strong>' + (t.closeReason ? ' — ' + escapeHtml(t.closeReason) : '') + '</span>' : '');
-      const messages = t.messages || [];
-      transcriptMessages.innerHTML = messages.map(function (m) {
-        const attachments = (m.attachments || []).map(function (a) {
-          return '<a href="' + escapeHtml(a.url) + '" target="_blank" class="transcript-attachment">📎 ' + escapeHtml(a.name) + '</a>';
-        }).join('');
-        const embeds = (m.embeds || []).map(function (e) {
-          return '<div class="transcript-embed">' + (e.title ? '<strong>' + escapeHtml(e.title) + '</strong><br/>' : '') + (e.description ? escapeHtml(e.description) : '') + '</div>';
-        }).join('');
-        return '<div class="transcript-msg">' +
-          '<img class="transcript-avatar" src="' + escapeHtml(m.authorAvatar) + '"/>' +
-          '<div class="transcript-body">' +
-            '<div class="transcript-head"><span class="transcript-author">' + escapeHtml(m.authorTag) + (m.isBot ? ' <span class="pill" style="background:rgba(255,255,255,0.06);">BOT</span>' : '') + '</span><span class="transcript-time">' + formatDateTime(m.timestamp) + '</span></div>' +
-            (m.content ? '<div class="transcript-content">' + escapeHtml(m.content) + '</div>' : '') +
-            embeds + attachments +
-          '</div>' +
-        '</div>';
-      }).join('') || '<p style="color:var(--muted);font-size:13px;">No messages captured for this ticket.</p>';
+      transcriptMessages.innerHTML = renderTranscriptMessagesHtml(t.messages || []);
     });
   }
   document.getElementById('transcriptCloseBtn').addEventListener('click', function () { transcriptModal.classList.remove('active'); });
   transcriptModal.addEventListener('click', function (e) { if (e.target === transcriptModal) transcriptModal.classList.remove('active'); });
+
+  const liveTicketModal = document.getElementById('liveTicketModal');
+  const liveTicketTitle = document.getElementById('liveTicketTitle');
+  const liveTicketMeta = document.getElementById('liveTicketMeta');
+  const liveTicketMessages = document.getElementById('liveTicketMessages');
+  const liveTicketInput = document.getElementById('liveTicketInput');
+  const liveTicketSendBtn = document.getElementById('liveTicketSendBtn');
+  let currentLiveTicketChannelId = null;
+  function openLiveTicket(channelId) {
+    currentLiveTicketChannelId = channelId;
+    liveTicketTitle.textContent = 'Loading ticket…';
+    liveTicketMeta.innerHTML = '';
+    liveTicketMessages.innerHTML = '';
+    liveTicketInput.value = '';
+    liveTicketModal.classList.add('active');
+    callAdmin('tickets.get', { channelId: channelId }).then(function (d) {
+      if (!d || !d.ok) { liveTicketTitle.textContent = 'Failed to load ticket'; return; }
+      const t = d.ticket;
+      liveTicketTitle.textContent = (t.isPriority ? '⚡ ' : '') + (t.channelName || t.channelId);
+      liveTicketMeta.innerHTML =
+        (t.isPriority ? '<span class="pill priority">Priority</span>' : '') +
+        '<span>Category: <strong>' + escapeHtml(t.category || '—') + '</strong></span>' +
+        '<span>Created by <strong>' + userLink(t.createdBy, t.createdBy || '—') + '</strong></span>' +
+        (t.claimedBy ? '<span>Claimed by <strong>' + userLink(t.claimedBy, t.claimedBy) + '</strong></span>' : '<span>Unclaimed</span>');
+      liveTicketMessages.innerHTML = renderTranscriptMessagesHtml(t.messages || []);
+      liveTicketMessages.scrollTop = liveTicketMessages.scrollHeight;
+    });
+  }
+  function sendLiveTicketMessage() {
+    const content = liveTicketInput.value.trim();
+    if (!content || !currentLiveTicketChannelId) return;
+    liveTicketSendBtn.disabled = true;
+    callAdmin('tickets.sendMessage', { channelId: currentLiveTicketChannelId, content: content }).then(function (d) {
+      liveTicketSendBtn.disabled = false;
+      if (d && d.ok) {
+        liveTicketInput.value = '';
+        showToast('Message sent.', 'success');
+        openLiveTicket(currentLiveTicketChannelId);
+      } else {
+        showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+      }
+    });
+  }
+  liveTicketSendBtn.addEventListener('click', sendLiveTicketMessage);
+  liveTicketInput.addEventListener('keydown', function (e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') sendLiveTicketMessage();
+  });
+  document.getElementById('liveTicketCloseBtn').addEventListener('click', function () { liveTicketModal.classList.remove('active'); });
+  liveTicketModal.addEventListener('click', function (e) { if (e.target === liveTicketModal) liveTicketModal.classList.remove('active'); });
   function showGate(id) {
     document.querySelectorAll('.gate-screen').forEach(function (el) { el.classList.toggle('active', el.id === id); });
     document.getElementById('appShell').classList.remove('active');

@@ -21,7 +21,7 @@
 <div id="gateLogin" class="gate-screen">
   <div class="gate-box">
     <div class="gate-logo">FROST<span>ADMIN</span></div>
-    <p class="gate-text">Server & bot management console.<br/>Owner access only.</p>
+    <p class="gate-text">Server & bot management console.<br/>Staff team access only.</p>
     <button type="button" class="btn-discord" id="loginBtn">
       <img src="https://frostclient.eu/icons/discord.webp" alt=""/> Sign in with Discord
     </button>
@@ -31,7 +31,7 @@
 <div id="gateForbidden" class="gate-screen">
   <div class="gate-box">
     <div class="gate-logo forbidden">ACCESS<span>DENIED</span></div>
-    <p class="gate-text">This console is restricted to the server owner account.</p>
+    <p class="gate-text">This console is restricted to the FrostClient staff team.</p>
     <button type="button" class="btn-secondary" id="forbiddenBackBtn">Try a different account</button>
   </div>
 </div>
@@ -56,16 +56,16 @@
       <button type="button" class="nav-item" data-view="members"><span class="nav-icon">◆</span>Members</button>
       <button type="button" class="nav-item" data-view="leaderboard"><span class="nav-icon">◆</span>Leaderboards</button>
       <button type="button" class="nav-item" data-view="staff"><span class="nav-icon">◆</span>Staff Team</button>
-      <div class="nav-group-label">Applications</div>
-      <button type="button" class="nav-item" data-view="staffApps"><span class="nav-icon">◆</span>Staff Applications<span class="nav-badge" id="badgeStaffApps" style="display:none;">0</span></button>
-      <button type="button" class="nav-item" data-view="partnerApps"><span class="nav-icon">◆</span>Partner Applications<span class="nav-badge" id="badgePartnerApps" style="display:none;">0</span></button>
+      <div class="nav-group-label" data-requires="highStaff" style="display:none;">Applications</div>
+      <button type="button" class="nav-item" data-view="staffApps" data-requires="highStaff" style="display:none;"><span class="nav-icon">◆</span>Staff Applications<span class="nav-badge" id="badgeStaffApps" style="display:none;">0</span></button>
+      <button type="button" class="nav-item" data-view="partnerApps" data-requires="highStaff" style="display:none;"><span class="nav-icon">◆</span>Partner Applications<span class="nav-badge" id="badgePartnerApps" style="display:none;">0</span></button>
       <div class="nav-group-label">Security</div>
       <button type="button" class="nav-item" data-view="scams"><span class="nav-icon">◆</span>Scam Database</button>
       <button type="button" class="nav-item" data-view="logs"><span class="nav-icon">◆</span>Action Logs</button>
       <div class="nav-group-label">Content</div>
       <button type="button" class="nav-item" data-view="reviews"><span class="nav-icon">◆</span>Reviews</button>
-      <button type="button" class="nav-item" data-view="drops"><span class="nav-icon">◆</span>Publish Drop</button>
-      <button type="button" class="nav-item" data-view="giveaway"><span class="nav-icon">◆</span>Publish Giveaway</button>
+      <button type="button" class="nav-item" data-view="drops" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Publish Drop</button>
+      <button type="button" class="nav-item" data-view="giveaway" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Publish Giveaway</button>
       <button type="button" class="nav-item" data-view="tickets"><span class="nav-icon">◆</span>Tickets</button>
       <button type="button" class="nav-item" data-view="ticketArchive"><span class="nav-icon">◆</span>Ticket Archive</button>
     </nav>
@@ -74,7 +74,7 @@
         <img class="sidebar-user-avatar" id="userAvatar" src="" alt=""/>
         <div class="sidebar-user-meta">
           <div class="sidebar-user-name" id="userName">—</div>
-          <div class="sidebar-user-tag">Owner</div>
+          <div class="sidebar-user-tag" id="userTag">Staff</div>
         </div>
       </div>
       <button type="button" class="sidebar-logout-btn" id="logoutBtn" title="Sign out">⏻</button>
@@ -92,30 +92,47 @@
     </header>
 
     <div class="view active" id="view-overview">
-      <div class="stat-grid" id="overviewStats"></div>
-      <div class="panel">
-        <div class="panel-head">
-          <h2>New members</h2>
-          <span class="panel-sub" id="growthChartSub">Daily joins, last 30 days</span>
-          <div class="filter-pills" id="growthGranularityFilter">
-            <button type="button" class="filter-pill active" data-granularity="day">Day</button>
-            <button type="button" class="filter-pill" data-granularity="week">Week</button>
+      <div id="overviewManagement">
+        <div class="stat-grid" id="overviewStats"></div>
+        <div class="panel">
+          <div class="panel-head">
+            <h2>New members</h2>
+            <span class="panel-sub" id="growthChartSub">Daily joins, last 30 days</span>
+            <div class="filter-pills" id="growthGranularityFilter">
+              <button type="button" class="filter-pill active" data-granularity="day">Day</button>
+              <button type="button" class="filter-pill" data-granularity="week">Week</button>
+            </div>
+          </div>
+          <div class="chart-wrap"><svg class="chart-svg" id="growthChart"></svg><div class="chart-tooltip" id="growthChartTooltip"></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>🎯 Next rankups</h2><span class="panel-sub">Staff progress toward their next rank</span></div>
+          <div class="rankup-list" id="rankupList"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>Quick actions</h2></div>
+          <div class="quick-actions" id="managementQuickActions">
+            <button type="button" class="quick-action-btn" data-goto="staffApps" data-requires="highStaff" style="display:none;">Review staff applications</button>
+            <button type="button" class="quick-action-btn" data-goto="partnerApps" data-requires="highStaff" style="display:none;">Review partner applications</button>
+            <button type="button" class="quick-action-btn" data-goto="scams">View scam database</button>
+            <button type="button" class="quick-action-btn" data-goto="drops" data-requires="management" style="display:none;">Publish a drop</button>
+            <button type="button" class="quick-action-btn" data-goto="giveaway" data-requires="management" style="display:none;">Start a giveaway</button>
           </div>
         </div>
-        <div class="chart-wrap"><svg class="chart-svg" id="growthChart"></svg><div class="chart-tooltip" id="growthChartTooltip"></div></div>
       </div>
-      <div class="panel">
-        <div class="panel-head"><h2>🎯 Next rankups</h2><span class="panel-sub">Staff progress toward their next rank</span></div>
-        <div class="rankup-list" id="rankupList"></div>
-      </div>
-      <div class="panel">
-        <div class="panel-head"><h2>Quick actions</h2></div>
-        <div class="quick-actions">
-          <button type="button" class="quick-action-btn" data-goto="staffApps">Review staff applications</button>
-          <button type="button" class="quick-action-btn" data-goto="partnerApps">Review partner applications</button>
-          <button type="button" class="quick-action-btn" data-goto="scams">View scam database</button>
-          <button type="button" class="quick-action-btn" data-goto="drops">Publish a drop</button>
-          <button type="button" class="quick-action-btn" data-goto="giveaway">Start a giveaway</button>
+
+      <div id="overviewStaff" style="display:none;">
+        <div class="stat-grid" id="myOverviewStats"></div>
+        <div class="panel">
+          <div class="panel-head"><h2>🎯 Your next rankup</h2></div>
+          <div class="rankup-list" id="myRankupList"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>Quick actions</h2></div>
+          <div class="quick-actions" id="staffQuickActions">
+            <button type="button" class="quick-action-btn" data-goto="scams">View scam database</button>
+            <button type="button" class="quick-action-btn" data-goto="tickets">View open tickets</button>
+          </div>
         </div>
       </div>
     </div>
@@ -295,6 +312,21 @@
     <div class="transcript-scroll" id="transcriptMessages"></div>
     <div class="modal-actions">
       <button type="button" class="btn-secondary" id="transcriptCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="liveTicketModal" class="modal-overlay">
+  <div class="modal-box transcript-box">
+    <div class="modal-title" id="liveTicketTitle">Ticket</div>
+    <div class="transcript-meta" id="liveTicketMeta"></div>
+    <div class="transcript-scroll" id="liveTicketMessages"></div>
+    <div class="ticket-compose">
+      <textarea id="liveTicketInput" class="text-input" placeholder="Message this ticket as the dashboard…" rows="2"></textarea>
+      <button type="button" class="btn-primary" id="liveTicketSendBtn">Send</button>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="liveTicketCloseBtn">Close</button>
     </div>
   </div>
 </div>
