@@ -11,6 +11,8 @@
 <link rel="stylesheet" href="admin.css">
 </head>
 <body>
+<canvas id="snowCanvas"></canvas>
+<div id="cursorGlow"></div>
 
 <div id="gateLoading" class="gate-screen active">
   <div class="gate-spinner"></div>
@@ -92,7 +94,14 @@
     <div class="view active" id="view-overview">
       <div class="stat-grid" id="overviewStats"></div>
       <div class="panel">
-        <div class="panel-head"><h2>New members</h2><span class="panel-sub">Daily joins, last 30 days</span></div>
+        <div class="panel-head">
+          <h2>New members</h2>
+          <span class="panel-sub" id="growthChartSub">Daily joins, last 30 days</span>
+          <div class="filter-pills" id="growthGranularityFilter">
+            <button type="button" class="filter-pill active" data-granularity="day">Day</button>
+            <button type="button" class="filter-pill" data-granularity="week">Week</button>
+          </div>
+        </div>
         <div class="chart-wrap"><svg class="chart-svg" id="growthChart"></svg><div class="chart-tooltip" id="growthChartTooltip"></div></div>
       </div>
       <div class="panel">
@@ -286,6 +295,16 @@
     <div class="transcript-scroll" id="transcriptMessages"></div>
     <div class="modal-actions">
       <button type="button" class="btn-secondary" id="transcriptCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="memberModal" class="modal-overlay">
+  <div class="modal-box member-modal-box">
+    <div class="modal-title">Member details</div>
+    <div id="memberModalBody"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="memberModalCloseBtn">Close</button>
     </div>
   </div>
 </div>
