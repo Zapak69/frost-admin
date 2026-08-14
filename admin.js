@@ -136,14 +136,16 @@
   const VIEW_TITLES = {
     overview: 'Overview', members: 'Members', leaderboard: 'Leaderboards', staff: 'Staff Team',
     staffApps: 'Staff Applications', partnerApps: 'Partner Applications', scams: 'Scam Database',
-    logs: 'Action Logs', reviews: 'Reviews', drops: 'Publish Drop', giveaway: 'Publish Giveaway', tickets: 'Tickets'
+    logs: 'Action Logs', reviews: 'Reviews', drops: 'Publish Drop', giveaway: 'Publish Giveaway', tickets: 'Tickets',
+    ticketArchive: 'Ticket Archive'
   };
   const VIEW_LOADERS = {
     overview: loadOverview, members: function () {}, leaderboard: loadLeaderboard, staff: loadStaff,
     staffApps: function () { loadStaffApps(currentStaffAppsFilter); },
     partnerApps: function () { loadPartnerApps(currentPartnerAppsFilter); },
     scams: function () { loadScams(currentScamsFilter); }, logs: loadLogs, reviews: loadReviews,
-    drops: function () {}, giveaway: function () {}, tickets: loadTickets
+    drops: function () {}, giveaway: function () {}, tickets: loadTickets,
+    ticketArchive: function () { loadTicketArchive(currentTicketArchiveFilter); }
   };
   let currentView = 'overview';
 
@@ -530,6 +532,83 @@
         '<thead><tr><th>Channel</th><th>Category</th><th>Claim status</th><th>Created</th></tr></thead><tbody>' + rows + '</tbody>';
     });
   }
+
+  // ================= TICKET ARCHIVE =================
+  let currentTicketArchiveFilter = '';
+  document.querySelectorAll('#ticketArchiveFilter .filter-pill').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('#ticketArchiveFilter .filter-pill').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      currentTicketArchiveFilter = btn.dataset.status;
+      loadTicketArchive(currentTicketArchiveFilter);
+    });
+  });
+  const TICKET_ARCHIVE_STATUS_PILL = { open: 'pending', closed: 'accepted', deleted: 'denied' };
+  function loadTicketArchive(status) {
+    return callAdmin('ticketArchive.list', { status: status }).then(function (d) {
+      if (!d || !d.ok) return;
+      const rows = d.entries.map(function (t) {
+        const created = escapeHtml(t.createdByUsername || t.createdBy || '—');
+        const claimed = t.claimedByUsername || t.claimedBy || '—';
+        const closed = t.closedByUsername || t.closedBy || '—';
+        return '<tr>' +
+          '<td>' + escapeHtml(t.channelName || t.channelId) + '</td>' +
+          '<td class="mono">' + escapeHtml(t.category || '—') + '</td>' +
+          '<td>' + created + '</td>' +
+          '<td class="mono">' + formatRelative(t.createdAt) + '</td>' +
+          '<td>' + escapeHtml(claimed) + '</td>' +
+          '<td>' + escapeHtml(closed) + '</td>' +
+          '<td><span class="pill ' + (TICKET_ARCHIVE_STATUS_PILL[t.status] || '') + '">' + escapeHtml(t.status) + '</span></td>' +
+          '<td><button class="btn-small" data-transcript="' + t.channelId + '">View chat</button></td>' +
+        '</tr>';
+      }).join('') || emptyRow(8, 'No archived tickets yet.');
+      const table = document.getElementById('ticketArchiveTable');
+      table.innerHTML =
+        '<thead><tr><th>Ticket</th><th>Category</th><th>Created by</th><th>Created</th><th>Claimed by</th><th>Closed by</th><th>Status</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
+      table.querySelectorAll('button[data-transcript]').forEach(function (btn) {
+        btn.addEventListener('click', function () { openTranscript(btn.dataset.transcript); });
+      });
+    });
+  }
+
+  const transcriptModal = document.getElementById('transcriptModal');
+  const transcriptTitle = document.getElementById('transcriptTitle');
+  const transcriptMeta = document.getElementById('transcriptMeta');
+  const transcriptMessages = document.getElementById('transcriptMessages');
+  function openTranscript(channelId) {
+    transcriptTitle.textContent = 'Loading transcript…';
+    transcriptMeta.innerHTML = '';
+    transcriptMessages.innerHTML = '';
+    transcriptModal.classList.add('active');
+    callAdmin('ticketArchive.get', { channelId: channelId }).then(function (d) {
+      if (!d || !d.ok) { transcriptTitle.textContent = 'Failed to load transcript'; return; }
+      const t = d.ticket;
+      transcriptTitle.textContent = t.channelName || t.channelId;
+      transcriptMeta.innerHTML =
+        '<span>Created by <strong>' + escapeHtml(t.createdByUsername || t.createdBy || '—') + '</strong> · ' + formatDateTime(t.createdAt) + '</span>' +
+        (t.claimedByUsername ? '<span>Claimed by <strong>' + escapeHtml(t.claimedByUsername) + '</strong></span>' : '') +
+        (t.closedByUsername ? '<span>Closed by <strong>' + escapeHtml(t.closedByUsername) + '</strong>' + (t.closeReason ? ' — ' + escapeHtml(t.closeReason) : '') + '</span>' : '');
+      const messages = t.messages || [];
+      transcriptMessages.innerHTML = messages.map(function (m) {
+        const attachments = (m.attachments || []).map(function (a) {
+          return '<a href="' + escapeHtml(a.url) + '" target="_blank" class="transcript-attachment">📎 ' + escapeHtml(a.name) + '</a>';
+        }).join('');
+        const embeds = (m.embeds || []).map(function (e) {
+          return '<div class="transcript-embed">' + (e.title ? '<strong>' + escapeHtml(e.title) + '</strong><br/>' : '') + (e.description ? escapeHtml(e.description) : '') + '</div>';
+        }).join('');
+        return '<div class="transcript-msg">' +
+          '<img class="transcript-avatar" src="' + escapeHtml(m.authorAvatar) + '"/>' +
+          '<div class="transcript-body">' +
+            '<div class="transcript-head"><span class="transcript-author">' + escapeHtml(m.authorTag) + (m.isBot ? ' <span class="pill" style="background:rgba(255,255,255,0.06);">BOT</span>' : '') + '</span><span class="transcript-time">' + formatDateTime(m.timestamp) + '</span></div>' +
+            (m.content ? '<div class="transcript-content">' + escapeHtml(m.content) + '</div>' : '') +
+            embeds + attachments +
+          '</div>' +
+        '</div>';
+      }).join('') || '<p style="color:var(--muted);font-size:13px;">No messages captured for this ticket.</p>';
+    });
+  }
+  document.getElementById('transcriptCloseBtn').addEventListener('click', function () { transcriptModal.classList.remove('active'); });
+  transcriptModal.addEventListener('click', function (e) { if (e.target === transcriptModal) transcriptModal.classList.remove('active'); });
 
   // ================= AUTH =================
   function showGate(id) {
