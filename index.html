@@ -92,6 +92,14 @@
     <div class="view active" id="view-overview">
       <div class="stat-grid" id="overviewStats"></div>
       <div class="panel">
+        <div class="panel-head"><h2>New members</h2><span class="panel-sub">Daily joins, last 30 days</span></div>
+        <div class="chart-wrap"><svg class="chart-svg" id="growthChart"></svg><div class="chart-tooltip" id="growthChartTooltip"></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>🎯 Next rankups</h2><span class="panel-sub">Staff progress toward their next rank</span></div>
+        <div class="rankup-list" id="rankupList"></div>
+      </div>
+      <div class="panel">
         <div class="panel-head"><h2>Quick actions</h2></div>
         <div class="quick-actions">
           <button type="button" class="quick-action-btn" data-goto="staffApps">Review staff applications</button>
@@ -115,6 +123,10 @@
     </div>
 
     <div class="view" id="view-leaderboard">
+      <div class="panel">
+        <div class="panel-head"><h2>Most active members</h2><span class="panel-sub">By messages sent this week</span></div>
+        <div class="table-wrap"><table class="data-table" id="mostActiveTable"></table></div>
+      </div>
       <div class="panel">
         <div class="panel-head"><h2>Playtime this month</h2><span class="panel-sub">Per-player, resets monthly</span></div>
         <div class="table-wrap"><table class="data-table" id="playtimeTable"></table></div>
@@ -184,6 +196,7 @@
       <div class="panel">
         <div class="panel-head"><h2>Reviews</h2></div>
         <div class="table-wrap"><table class="data-table" id="reviewsTable"></table></div>
+        <div class="table-footer" id="reviewsFooter"></div>
       </div>
     </div>
 

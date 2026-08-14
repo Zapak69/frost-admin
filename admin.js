@@ -180,12 +180,28 @@
   });
 
   // ================= OVERVIEW =================
+  function animateCount(el, endValue) {
+    const start = 0;
+    const duration = 700;
+    const startTime = performance.now();
+    function tick(now) {
+      const t = Math.min(1, (now - startTime) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      el.textContent = Math.round(start + (endValue - start) * eased).toLocaleString('en-US');
+      if (t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
   function loadOverview() {
-    return callAdmin('overview').then(function (d) {
+    const overviewP = callAdmin('overview').then(function (d) {
       if (!d || !d.ok) return;
       const cards = [
-        [d.onlineNow, 'Online now'],
+        [d.onlineNow, 'Discord online now'],
+        [d.playingNow, 'Playing FrostClient'],
         [d.memberCount, 'Server members'],
+        [d.newUsersToday, 'New members today'],
+        [d.newUsersWeek, 'New members this week'],
         [d.partnerCount, 'Partners'],
         [d.totalPlayersSeen, 'Total players seen'],
         [d.openTickets, 'Open tickets'],
@@ -196,12 +212,142 @@
         [d.scamsTotal, 'Scams logged (all-time)']
       ];
       document.getElementById('overviewStats').innerHTML = cards.map(function (c) {
-        return '<div class="stat-card"><div class="num' + (c[2] ? ' ' + c[2] : '') + '">' + (c[0] != null ? c[0] : '—') + '</div><div class="label">' + escapeHtml(c[1]) + '</div></div>';
+        return '<div class="stat-card"><div class="num' + (c[2] ? ' ' + c[2] : '') + '" data-target="' + (c[0] != null ? c[0] : 0) + '">' + (c[0] != null ? 0 : '—') + '</div><div class="label">' + escapeHtml(c[1]) + '</div></div>';
       }).join('');
+      document.querySelectorAll('#overviewStats .num[data-target]').forEach(function (el) {
+        animateCount(el, parseInt(el.dataset.target, 10) || 0);
+      });
       setBadge('badgeStaffApps', d.pendingStaffApps);
       setBadge('badgePartnerApps', d.pendingPartnerApps);
     });
+    const growthP = callAdmin('members.growth', { days: 30 }).then(function (d) {
+      if (d && d.ok) renderGrowthChart(d.buckets || []);
+    });
+    const rankupP = callAdmin('staff.rankups').then(function (d) {
+      if (d && d.ok) renderRankupPanel(d.rankups || []);
+    });
+    return Promise.all([overviewP, growthP, rankupP]);
   }
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  function svgEl(tag, attrs) {
+    const el = document.createElementNS(SVG_NS, tag);
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    return el;
+  }
+  function renderGrowthChart(buckets) {
+    const svg = document.getElementById('growthChart');
+    const tooltip = document.getElementById('growthChartTooltip');
+    svg.innerHTML = '';
+    const total = buckets.reduce(function (s, b) { return s + b.count; }, 0);
+    const wrap = svg.parentElement;
+    const W = Math.max(1, Math.round(wrap.getBoundingClientRect().width));
+    const H = 220;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    if (!buckets.length || total === 0) {
+      const empty = svgEl('text', { x: W / 2, y: H / 2, 'text-anchor': 'middle', class: 'chart-axis-label' });
+      empty.textContent = 'No new members recorded in this window yet.';
+      svg.appendChild(empty);
+      return;
+    }
+    const PAD_L = 34, PAD_R = 8, PAD_T = 16, PAD_B = 26;
+    const plotW = W - PAD_L - PAD_R;
+    const plotH = H - PAD_T - PAD_B;
+    const maxVal = Math.max(1, Math.max.apply(null, buckets.map(function (b) { return b.count; })));
+    const niceMax = Math.ceil(maxVal * 1.2) || 1;
+    const xStep = buckets.length > 1 ? plotW / (buckets.length - 1) : 0;
+    function xPix(i) { return PAD_L + i * xStep; }
+    function yPix(v) { return PAD_T + plotH - (v / niceMax) * plotH; }
+
+    for (let i = 0; i <= 2; i++) {
+      const v = Math.round((niceMax / 2) * i);
+      const y = yPix(v);
+      svg.appendChild(svgEl('line', { x1: PAD_L, x2: W - PAD_R, y1: y, y2: y, stroke: 'rgba(255,255,255,0.06)', 'stroke-width': 1 }));
+      const label = svgEl('text', { x: PAD_L - 8, y: y + 4, 'text-anchor': 'end', class: 'chart-axis-label' });
+      label.textContent = String(v);
+      svg.appendChild(label);
+    }
+
+    let linePath = '', areaPath = '';
+    buckets.forEach(function (b, i) {
+      const x = xPix(i), y = yPix(b.count);
+      linePath += (i === 0 ? 'M' : 'L') + x + ' ' + y + ' ';
+    });
+    areaPath = 'M' + xPix(0) + ' ' + yPix(0) + ' L' + linePath.slice(1) + 'L' + xPix(buckets.length - 1) + ' ' + yPix(0) + ' Z';
+    svg.appendChild(svgEl('path', { d: areaPath, fill: 'var(--accent)', opacity: '0.12', stroke: 'none' }));
+    svg.appendChild(svgEl('path', { d: linePath.trim(), fill: 'none', stroke: 'var(--accent)', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+
+    const firstLabel = svgEl('text', { x: xPix(0), y: H - 6, 'text-anchor': 'start', class: 'chart-axis-label' });
+    firstLabel.textContent = buckets[0].date;
+    svg.appendChild(firstLabel);
+    const lastLabel = svgEl('text', { x: xPix(buckets.length - 1), y: H - 6, 'text-anchor': 'end', class: 'chart-axis-label' });
+    lastLabel.textContent = buckets[buckets.length - 1].date;
+    svg.appendChild(lastLabel);
+
+    const hoverDot = svgEl('circle', { r: 4.5, fill: 'var(--accent)', stroke: 'var(--bg-panel)', 'stroke-width': 2, opacity: 0 });
+    svg.appendChild(hoverDot);
+    const crosshair = svgEl('line', { x1: 0, x2: 0, y1: PAD_T, y2: H - PAD_B, stroke: 'var(--border-strong)', 'stroke-width': 1, opacity: 0 });
+    svg.appendChild(crosshair);
+    const hitRect = svgEl('rect', { x: PAD_L, y: 0, width: plotW, height: H, fill: 'transparent' });
+    svg.appendChild(hitRect);
+
+    hitRect.addEventListener('mousemove', function (e) {
+      const rect = svg.getBoundingClientRect();
+      const relX = (e.clientX - rect.left) * (W / rect.width);
+      let idx = Math.round((relX - PAD_L) / (xStep || 1));
+      idx = Math.max(0, Math.min(buckets.length - 1, idx));
+      const b = buckets[idx];
+      const x = xPix(idx), y = yPix(b.count);
+      hoverDot.setAttribute('cx', x); hoverDot.setAttribute('cy', y); hoverDot.setAttribute('opacity', 1);
+      crosshair.setAttribute('x1', x); crosshair.setAttribute('x2', x); crosshair.setAttribute('opacity', 1);
+      const wrapRect = wrap.getBoundingClientRect();
+      tooltip.style.left = ((x / W) * wrapRect.width) + 'px';
+      tooltip.style.top = ((y / H) * wrapRect.height) + 'px';
+      tooltip.innerHTML = '<div class="val">+' + b.count + ' member' + (b.count === 1 ? '' : 's') + '</div><div class="date">' + b.date + '</div>';
+      tooltip.classList.add('show');
+    });
+    hitRect.addEventListener('mouseleave', function () {
+      hoverDot.setAttribute('opacity', 0);
+      crosshair.setAttribute('opacity', 0);
+      tooltip.classList.remove('show');
+    });
+  }
+
+  function renderRankupPanel(rankups) {
+    const list = document.getElementById('rankupList');
+    if (!rankups.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;">Everyone is either fully ranked up or awaiting manual review.</p>'; return; }
+    list.innerHTML = rankups.map(function (r) {
+      const ticketsPct = Math.min(100, Math.round((r.tickets.current / r.tickets.needed) * 100));
+      const rows = [
+        '<div class="progress-row"><span class="progress-check ' + (r.tickets.ok ? 'ok' : 'no') + '">' + (r.tickets.ok ? '✅' : '⬜') + '</span>' +
+          '<span class="progress-label">' + r.tickets.current + '/' + r.tickets.needed + ' tickets</span>' +
+          '<div class="progress-bar"><div class="progress-bar-fill ' + (r.tickets.ok ? 'ok' : '') + '" style="width:' + ticketsPct + '%;"></div></div></div>'
+      ];
+      if (r.reps) {
+        const repsPct = Math.min(100, Math.round((r.reps.current / r.reps.needed) * 100));
+        rows.push(
+          '<div class="progress-row"><span class="progress-check ' + (r.reps.ok ? 'ok' : 'no') + '">' + (r.reps.ok ? '✅' : '⬜') + '</span>' +
+            '<span class="progress-label">' + r.reps.current + '/' + r.reps.needed + ' reputation</span>' +
+            '<div class="progress-bar"><div class="progress-bar-fill ' + (r.reps.ok ? 'ok' : '') + '" style="width:' + repsPct + '%;"></div></div></div>'
+        );
+      }
+      rows.push(
+        '<div class="progress-row"><span class="progress-check ' + (r.activity.ok ? 'ok' : 'no') + '">' + (r.activity.ok ? '✅' : '⬜') + '</span>' +
+          '<span class="progress-label" style="min-width:auto;">' + escapeHtml(r.activity.label) + '</span></div>'
+      );
+      return (
+        '<div class="rankup-card">' +
+          '<div class="rankup-head">' +
+            '<img class="rankup-avatar" src="' + avatarUrl(r.id, r.avatar) + '"/>' +
+            '<span class="rankup-name">' + escapeHtml(r.username) + '</span>' +
+            '<span class="rankup-path">' + escapeHtml(r.currentRank) + ' → ' + escapeHtml(r.nextRank) + (r.eligible ? ' · ✅ eligible' : '') + '</span>' +
+          '</div>' +
+          '<div class="rankup-progress">' + rows.join('') + '</div>' +
+        '</div>'
+      );
+    }).join('');
+  }
+
   function setBadge(id, count) {
     const el = document.getElementById(id);
     if (!el) return;
@@ -282,6 +428,12 @@
   function loadLeaderboard() {
     return callAdmin('leaderboard').then(function (d) {
       if (!d || !d.ok) return;
+      const activeRows = d.mostActive.map(function (a, i) {
+        return '<tr><td class="mono">#' + (i + 1) + '</td><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(a.userId, a.avatar) + '"/>' + escapeHtml(a.username || a.userId) + '</td><td class="mono">' + a.messageCount + '</td></tr>';
+      }).join('') || emptyRow(3, 'No chat activity recorded this week yet.');
+      document.getElementById('mostActiveTable').innerHTML =
+        '<thead><tr><th>#</th><th>Member</th><th>Messages</th></tr></thead><tbody>' + activeRows + '</tbody>';
+
       const playtimeRows = d.monthly.map(function (p, i) {
         return '<tr><td class="mono">#' + (i + 1) + '</td><td>' + escapeHtml(p.username) + (p.isLite ? ' <span class="pill accepted" style="margin-left:6px;">LITE</span>' : '') + '</td><td class="mono">' + formatDuration(p.ms) + '</td></tr>';
       }).join('') || emptyRow(3, 'No playtime recorded yet this month.');
@@ -301,7 +453,9 @@
     return callAdmin('staff.list').then(function (d) {
       if (!d || !d.ok) return;
       const rows = d.staff.map(function (s) {
-        return '<tr><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(s.id, s.avatar) + '"/>' + escapeHtml(s.tag) + '</td><td>' + (s.rank ? '<span class="pill accepted">' + escapeHtml(s.rank) + '</span>' : '—') + '</td><td class="mono">' + s.solvedTickets + '</td><td class="mono">' + s.totalClaims + '</td><td class="mono">' + s.unclaimedTickets + '</td></tr>';
+        const color = s.rankColor || '#6b8fa8';
+        const rankPill = s.rank ? '<span class="pill" style="background:' + color + '1a;color:' + color + ';">' + escapeHtml(s.rank) + '</span>' : '—';
+        return '<tr><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(s.id, s.avatar) + '"/>' + escapeHtml(s.tag) + '</td><td>' + rankPill + '</td><td class="mono">' + s.solvedTickets + '</td><td class="mono">' + s.totalClaims + '</td><td class="mono">' + s.unclaimedTickets + '</td></tr>';
       }).join('') || emptyRow(5, 'No staff members found.');
       document.getElementById('staffTable').innerHTML =
         '<thead><tr><th>Member</th><th>Rank</th><th>Solved</th><th>Claims</th><th>Unclaimed</th></tr></thead><tbody>' + rows + '</tbody>';
@@ -458,27 +612,42 @@
   }
 
   // ================= REVIEWS =================
+  const REVIEWS_PAGE_SIZE = 10;
   function loadReviews() {
     return callAdmin('reviews.list').then(function (d) {
       if (!d || !d.ok) return;
-      const rows = d.reviews.map(function (r) {
-        return '<tr><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(r.discordId, r.avatar) + '"/>' + escapeHtml(r.username) + '</td><td class="mono">' + escapeHtml(r.stars || '') + '</td><td style="max-width:340px;">' + escapeHtml((r.comment || '').slice(0, 140)) + '</td><td>' + '<button class="btn-small danger" data-remove="' + r.discordId + '">Remove</button></td></tr>';
-      }).join('') || emptyRow(4, 'No reviews yet.');
-      const table = document.getElementById('reviewsTable');
-      table.innerHTML = '<thead><tr><th>Reviewer</th><th>Rating</th><th>Comment</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
-      table.querySelectorAll('button[data-remove]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          const discordId = btn.dataset.remove;
-          askConfirm('Remove review?', 'This deletes the Discord message and the export entry.', {}).then(function (res) {
-            if (!res.ok) return;
-            callAdmin('reviews.remove', { discordId: discordId }).then(function (d2) {
-              if (d2 && d2.ok) { showToast('Review removed.', 'success'); loadReviews(); }
-              else showToast('Failed: ' + (d2 && d2.error || 'unknown error'), 'error');
-            });
+      renderReviews(d.reviews, REVIEWS_PAGE_SIZE);
+    });
+  }
+  function renderReviews(reviews, limit) {
+    const shown = limit ? reviews.slice(0, limit) : reviews;
+    const rows = shown.map(function (r) {
+      return '<tr><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(r.discordId, r.avatar) + '"/>' + escapeHtml(r.username) + '</td><td class="mono">' + escapeHtml(r.stars || '') + '</td><td style="max-width:340px;">' + escapeHtml((r.comment || '').slice(0, 140)) + '</td><td>' + '<button class="btn-small danger" data-remove="' + r.discordId + '">Remove</button></td></tr>';
+    }).join('') || emptyRow(4, 'No reviews yet.');
+    const table = document.getElementById('reviewsTable');
+    table.innerHTML = '<thead><tr><th>Reviewer</th><th>Rating</th><th>Comment</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
+    table.querySelectorAll('button[data-remove]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const discordId = btn.dataset.remove;
+        askConfirm('Remove review?', 'This deletes the Discord message and the export entry.', {}).then(function (res) {
+          if (!res.ok) return;
+          callAdmin('reviews.remove', { discordId: discordId }).then(function (d2) {
+            if (d2 && d2.ok) { showToast('Review removed.', 'success'); loadReviews(); }
+            else showToast('Failed: ' + (d2 && d2.error || 'unknown error'), 'error');
           });
         });
       });
     });
+    const footer = document.getElementById('reviewsFooter');
+    if (limit && reviews.length > limit) {
+      footer.innerHTML = '<button type="button" class="view-all-btn" id="reviewsViewAllBtn">View all ' + reviews.length + ' reviews</button>';
+      document.getElementById('reviewsViewAllBtn').addEventListener('click', function () { renderReviews(reviews, null); });
+    } else if (!limit && reviews.length > REVIEWS_PAGE_SIZE) {
+      footer.innerHTML = '<button type="button" class="view-all-btn" id="reviewsCollapseBtn">Show fewer</button>';
+      document.getElementById('reviewsCollapseBtn').addEventListener('click', function () { renderReviews(reviews, REVIEWS_PAGE_SIZE); });
+    } else {
+      footer.innerHTML = '';
+    }
   }
 
   // ================= DROPS =================
@@ -526,7 +695,8 @@
         '<div class="stat-card"><div class="num">' + d.openCount + '</div><div class="label">Open tickets</div></div>' +
         '<div class="stat-card"><div class="num">' + d.closedCount + '</div><div class="label">Closed tickets</div></div>';
       const rows = d.open.map(function (t) {
-        return '<tr><td>' + escapeHtml(t.name) + '</td><td class="mono">' + escapeHtml(t.category || '—') + '</td><td>' + (t.claimedBy ? '<span class="pill accepted">claimed</span>' : '<span class="pill pending">unclaimed</span>') + '</td><td class="mono">' + formatRelative(t.createdAt ? Date.parse(t.createdAt) : null) + '</td></tr>';
+        const name = (t.isPriority ? '<span class="priority-flag" title="Priority ticket">⚡</span>' : '') + escapeHtml(t.name);
+        return '<tr class="' + (t.isPriority ? 'priority-row' : '') + '"><td>' + name + '</td><td class="mono">' + escapeHtml(t.category || '—') + '</td><td>' + (t.claimedBy ? '<span class="pill accepted">claimed</span>' : '<span class="pill pending">unclaimed</span>') + '</td><td class="mono">' + formatRelative(t.createdAt ? Date.parse(t.createdAt) : null) + '</td></tr>';
       }).join('') || emptyRow(4, 'No open tickets.');
       document.getElementById('ticketsTable').innerHTML =
         '<thead><tr><th>Channel</th><th>Category</th><th>Claim status</th><th>Created</th></tr></thead><tbody>' + rows + '</tbody>';
@@ -551,8 +721,9 @@
         const created = escapeHtml(t.createdByUsername || t.createdBy || '—');
         const claimed = t.claimedByUsername || t.claimedBy || '—';
         const closed = t.closedByUsername || t.closedBy || '—';
-        return '<tr>' +
-          '<td>' + escapeHtml(t.channelName || t.channelId) + '</td>' +
+        const name = (t.isPriority ? '<span class="priority-flag" title="Priority ticket">⚡</span>' : '') + escapeHtml(t.channelName || t.channelId);
+        return '<tr class="' + (t.isPriority ? 'priority-row' : '') + '">' +
+          '<td>' + name + '</td>' +
           '<td class="mono">' + escapeHtml(t.category || '—') + '</td>' +
           '<td>' + created + '</td>' +
           '<td class="mono">' + formatRelative(t.createdAt) + '</td>' +
@@ -583,8 +754,9 @@
     callAdmin('ticketArchive.get', { channelId: channelId }).then(function (d) {
       if (!d || !d.ok) { transcriptTitle.textContent = 'Failed to load transcript'; return; }
       const t = d.ticket;
-      transcriptTitle.textContent = t.channelName || t.channelId;
+      transcriptTitle.textContent = (t.isPriority ? '⚡ ' : '') + (t.channelName || t.channelId);
       transcriptMeta.innerHTML =
+        (t.isPriority ? '<span class="pill priority">Priority</span>' : '') +
         '<span>Created by <strong>' + escapeHtml(t.createdByUsername || t.createdBy || '—') + '</strong> · ' + formatDateTime(t.createdAt) + '</span>' +
         (t.claimedByUsername ? '<span>Claimed by <strong>' + escapeHtml(t.claimedByUsername) + '</strong></span>' : '') +
         (t.closedByUsername ? '<span>Closed by <strong>' + escapeHtml(t.closedByUsername) + '</strong>' + (t.closeReason ? ' — ' + escapeHtml(t.closeReason) : '') + '</span>' : '');
@@ -707,7 +879,7 @@
 
     callAdmin('overview').then(function (d) {
       if (d && d.ok) {
-        showApp({ id: '', username: 'Owner', name: 'Owner', avatar: null });
+        showApp(d.user || { id: '', username: 'Owner', name: 'Owner', avatar: null });
       } else if (d && d.error === 'forbidden') {
         showGate('gateForbidden');
       } else {
