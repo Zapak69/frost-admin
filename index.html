@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Frost Admin</title>
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<div id="gateLoading" class="gate-screen active">
+  <div class="gate-spinner"></div>
+</div>
+
+<div id="gateLogin" class="gate-screen">
+  <div class="gate-box">
+    <div class="gate-logo">FROST<span>ADMIN</span></div>
+    <p class="gate-text">Server & bot management console.<br/>Owner access only.</p>
+    <button type="button" class="btn-discord" id="loginBtn">
+      <img src="https://frostclient.eu/icons/discord.webp" alt=""/> Sign in with Discord
+    </button>
+  </div>
+</div>
+
+<div id="gateForbidden" class="gate-screen">
+  <div class="gate-box">
+    <div class="gate-logo forbidden">ACCESS<span>DENIED</span></div>
+    <p class="gate-text">This console is restricted to the server owner account.</p>
+    <button type="button" class="btn-secondary" id="forbiddenBackBtn">Try a different account</button>
+  </div>
+</div>
+
+<div id="gateError" class="gate-screen">
+  <div class="gate-box">
+    <div class="gate-logo">SOMETHING<span>BROKE</span></div>
+    <p class="gate-text" id="gateErrorText">Please try again.</p>
+    <button type="button" class="btn-secondary" id="errorRetryBtn">Retry</button>
+  </div>
+</div>
+
+<div id="appShell">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <div class="sidebar-brand">FROST<span>ADMIN</span></div>
+      <button type="button" class="sidebar-collapse-btn" id="sidebarToggle" aria-label="Toggle sidebar">☰</button>
+    </div>
+    <nav class="sidebar-nav" id="sidebarNav">
+      <div class="nav-group-label">General</div>
+      <button type="button" class="nav-item active" data-view="overview"><span class="nav-icon">◆</span>Overview</button>
+      <button type="button" class="nav-item" data-view="members"><span class="nav-icon">◆</span>Members</button>
+      <button type="button" class="nav-item" data-view="leaderboard"><span class="nav-icon">◆</span>Leaderboards</button>
+      <button type="button" class="nav-item" data-view="staff"><span class="nav-icon">◆</span>Staff Team</button>
+      <div class="nav-group-label">Applications</div>
+      <button type="button" class="nav-item" data-view="staffApps"><span class="nav-icon">◆</span>Staff Applications<span class="nav-badge" id="badgeStaffApps" style="display:none;">0</span></button>
+      <button type="button" class="nav-item" data-view="partnerApps"><span class="nav-icon">◆</span>Partner Applications<span class="nav-badge" id="badgePartnerApps" style="display:none;">0</span></button>
+      <div class="nav-group-label">Security</div>
+      <button type="button" class="nav-item" data-view="scams"><span class="nav-icon">◆</span>Scam Database</button>
+      <button type="button" class="nav-item" data-view="logs"><span class="nav-icon">◆</span>Action Logs</button>
+      <div class="nav-group-label">Content</div>
+      <button type="button" class="nav-item" data-view="reviews"><span class="nav-icon">◆</span>Reviews</button>
+      <button type="button" class="nav-item" data-view="drops"><span class="nav-icon">◆</span>Publish Drop</button>
+      <button type="button" class="nav-item" data-view="giveaway"><span class="nav-icon">◆</span>Publish Giveaway</button>
+      <button type="button" class="nav-item" data-view="tickets"><span class="nav-icon">◆</span>Tickets</button>
+      <button type="button" class="nav-item" data-view="ticketArchive"><span class="nav-icon">◆</span>Ticket Archive</button>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="sidebar-user">
+        <img class="sidebar-user-avatar" id="userAvatar" src="" alt=""/>
+        <div class="sidebar-user-meta">
+          <div class="sidebar-user-name" id="userName">—</div>
+          <div class="sidebar-user-tag">Owner</div>
+        </div>
+      </div>
+      <button type="button" class="sidebar-logout-btn" id="logoutBtn" title="Sign out">⏻</button>
+    </div>
+  </aside>
+
+  <main class="content">
+    <header class="content-header">
+      <button type="button" class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Menu">☰</button>
+      <h1 id="viewTitle">Overview</h1>
+      <div class="content-header-actions">
+        <span class="live-dot"></span>
+        <button type="button" class="refresh-btn" id="refreshBtn" title="Refresh"><span class="refresh-icon">↻</span></button>
+      </div>
+    </header>
+
+    <div class="view active" id="view-overview">
+      <div class="stat-grid" id="overviewStats"></div>
+      <div class="panel">
+        <div class="panel-head"><h2>Quick actions</h2></div>
+        <div class="quick-actions">
+          <button type="button" class="quick-action-btn" data-goto="staffApps">Review staff applications</button>
+          <button type="button" class="quick-action-btn" data-goto="partnerApps">Review partner applications</button>
+          <button type="button" class="quick-action-btn" data-goto="scams">View scam database</button>
+          <button type="button" class="quick-action-btn" data-goto="drops">Publish a drop</button>
+          <button type="button" class="quick-action-btn" data-goto="giveaway">Start a giveaway</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" id="view-members">
+      <div class="panel">
+        <div class="panel-head"><h2>Search members</h2></div>
+        <div class="search-row">
+          <input type="text" id="memberSearchInput" class="text-input" placeholder="Username or Discord ID..." autocomplete="off"/>
+          <button type="button" class="btn-primary" id="memberSearchBtn">Search</button>
+        </div>
+        <div id="memberResults" class="member-results"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-leaderboard">
+      <div class="panel">
+        <div class="panel-head"><h2>Playtime this month</h2><span class="panel-sub">Per-player, resets monthly</span></div>
+        <div class="table-wrap"><table class="data-table" id="playtimeTable"></table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Staff performance</h2><span class="panel-sub">All-time</span></div>
+        <div class="table-wrap"><table class="data-table" id="staffLeaderboardTable"></table></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-staff">
+      <div class="panel">
+        <div class="panel-head"><h2>Current staff team</h2></div>
+        <div class="table-wrap"><table class="data-table" id="staffTable"></table></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-staffApps">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Staff applications</h2>
+          <div class="filter-pills" id="staffAppsFilter">
+            <button type="button" class="filter-pill active" data-status="pending">Pending</button>
+            <button type="button" class="filter-pill" data-status="">All</button>
+          </div>
+        </div>
+        <div id="staffAppsList" class="app-list"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-partnerApps">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Partner applications</h2>
+          <div class="filter-pills" id="partnerAppsFilter">
+            <button type="button" class="filter-pill active" data-status="pending">Pending</button>
+            <button type="button" class="filter-pill" data-status="">All</button>
+          </div>
+        </div>
+        <div id="partnerAppsList" class="app-list"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-scams">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Scam database</h2>
+          <div class="filter-pills" id="scamsFilter">
+            <button type="button" class="filter-pill active" data-type="">All</button>
+            <button type="button" class="filter-pill" data-type="auto">Auto-mod</button>
+            <button type="button" class="filter-pill" data-type="manual">Manual (/scam)</button>
+            <button type="button" class="filter-pill" data-type="report">Reported</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table class="data-table" id="scamsTable"></table></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-logs">
+      <div class="panel">
+        <div class="panel-head"><h2>Dashboard action log</h2><span class="panel-sub">Actions taken from this console</span></div>
+        <div class="table-wrap"><table class="data-table" id="logsTable"></table></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-reviews">
+      <div class="panel">
+        <div class="panel-head"><h2>Reviews</h2></div>
+        <div class="table-wrap"><table class="data-table" id="reviewsTable"></table></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-drops">
+      <div class="panel panel-narrow">
+        <div class="panel-head"><h2>Publish a drop</h2></div>
+        <div class="form-field">
+          <label>Name</label>
+          <input type="text" id="dropName" class="text-input" placeholder="e.g. Winter Bundle" autocomplete="off"/>
+        </div>
+        <div class="form-field">
+          <label>Link <span class="optional-tag">(link or code required)</span></label>
+          <input type="text" id="dropLink" class="text-input" placeholder="https://..." autocomplete="off"/>
+        </div>
+        <div class="form-field">
+          <label>Code <span class="optional-tag">(optional)</span></label>
+          <input type="text" id="dropCode" class="text-input" placeholder="e.g. FROST10" autocomplete="off"/>
+        </div>
+        <div class="form-field">
+          <label>Description <span class="optional-tag">(optional)</span></label>
+          <textarea id="dropDescription" class="text-input" placeholder="What is this drop?"></textarea>
+        </div>
+        <button type="button" class="btn-primary" id="dropSubmitBtn">Publish drop</button>
+      </div>
+    </div>
+
+    <div class="view" id="view-giveaway">
+      <div class="panel panel-narrow">
+        <div class="panel-head"><h2>Publish a giveaway</h2></div>
+        <div class="form-field">
+          <label>Title</label>
+          <input type="text" id="gwTitle" class="text-input" placeholder="e.g. Nitro Giveaway" autocomplete="off"/>
+        </div>
+        <div class="form-field">
+          <label>Description <span class="optional-tag">(optional)</span></label>
+          <textarea id="gwDescription" class="text-input" placeholder="What are they winning?"></textarea>
+        </div>
+        <div class="form-field-row">
+          <div class="form-field">
+            <label>Winners</label>
+            <input type="text" id="gwWinners" class="text-input" placeholder="e.g. 1" autocomplete="off"/>
+          </div>
+          <div class="form-field">
+            <label>Duration</label>
+            <input type="text" id="gwDuration" class="text-input" placeholder="e.g. 1d, 12h" autocomplete="off"/>
+          </div>
+        </div>
+        <div class="form-field">
+          <label>Channel ID</label>
+          <input type="text" id="gwChannelId" class="text-input" placeholder="Right-click channel → Copy Channel ID" autocomplete="off"/>
+        </div>
+        <button type="button" class="btn-primary" id="gwSubmitBtn">Publish giveaway</button>
+      </div>
+    </div>
+
+    <div class="view" id="view-tickets">
+      <div class="stat-grid" id="ticketsStats"></div>
+      <div class="panel">
+        <div class="panel-head"><h2>Open tickets</h2></div>
+        <div class="table-wrap"><table class="data-table" id="ticketsTable"></table></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-ticketArchive">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Ticket archive</h2>
+          <div class="filter-pills" id="ticketArchiveFilter">
+            <button type="button" class="filter-pill active" data-status="">All</button>
+            <button type="button" class="filter-pill" data-status="open">Open</button>
+            <button type="button" class="filter-pill" data-status="closed">Closed</button>
+            <button type="button" class="filter-pill" data-status="deleted">Deleted</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table class="data-table" id="ticketArchiveTable"></table></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toastStack" class="toast-stack"></div>
+
+<div id="transcriptModal" class="modal-overlay">
+  <div class="modal-box transcript-box">
+    <div class="modal-title" id="transcriptTitle">Ticket transcript</div>
+    <div class="transcript-meta" id="transcriptMeta"></div>
+    <div class="transcript-scroll" id="transcriptMessages"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="transcriptCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title" id="confirmTitle">Are you sure?</div>
+    <p class="modal-text" id="confirmText"></p>
+    <div class="form-field" id="confirmReasonField" style="display:none;">
+      <label>Reason</label>
+      <input type="text" id="confirmReasonInput" class="text-input" placeholder="Reason..." autocomplete="off"/>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="confirmCancelBtn">Cancel</button>
+      <button type="button" class="btn-danger" id="confirmOkBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>
