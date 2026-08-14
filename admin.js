@@ -130,14 +130,14 @@
   const VIEW_TITLES = {
     overview: 'Overview', members: 'Members', leaderboard: 'Leaderboards', staff: 'Staff Team',
     staffApps: 'Staff Applications', partnerApps: 'Partner Applications', scams: 'Scam Database',
-    logs: 'Action Logs', reviews: 'Reviews', drops: 'Publish Drop', giveaway: 'Publish Giveaway', tickets: 'Tickets',
+    logs: 'Action Logs', excuses: 'Excuses', reviews: 'Reviews', drops: 'Publish Drop', giveaway: 'Publish Giveaway', tickets: 'Tickets',
     ticketArchive: 'Ticket Archive'
   };
   const VIEW_LOADERS = {
     overview: loadOverview, members: function () {}, leaderboard: loadLeaderboard, staff: loadStaff,
     staffApps: function () { loadStaffApps(currentStaffAppsFilter); },
     partnerApps: function () { loadPartnerApps(currentPartnerAppsFilter); },
-    scams: function () { loadScams(currentScamsFilter); }, logs: loadLogs, reviews: loadReviews,
+    scams: function () { loadScams(currentScamsFilter); }, logs: loadLogs, excuses: loadExcuses, reviews: loadReviews,
     drops: function () {}, giveaway: function () {}, tickets: loadTickets,
     ticketArchive: function () { loadTicketArchive(currentTicketArchiveFilter); }
   };
@@ -203,7 +203,10 @@
   }
   function loadOverview() {
     return callAdmin('overview').then(function (d) {
-      if (!d || !d.ok) return;
+      if (!d || !d.ok) {
+        if (d && d.error && d.error !== 'forbidden') showToast('Could not load overview: ' + d.error, 'error');
+        return;
+      }
       canReviewApplications = !!d.canReviewApplications;
       canPublishContent = !!d.canPublishContent;
       canKickStaff = !!d.canKickStaff;
@@ -219,6 +222,38 @@
           [d.myStats.unclaimedTickets, 'Unclaimed'],
         ]);
         renderRankupPanel(d.myRankup ? [d.myRankup] : [], 'myRankupList');
+        renderActivityCalendar('myActivityCalendar', d.myActivityCalendar || []);
+
+        const inactivityBanner = document.getElementById('inactivityBanner');
+        if ((d.daysSinceLastActive || 0) >= 2) {
+          document.getElementById('inactivityBannerDays').textContent = 'Last active ' + d.daysSinceLastActive + ' days ago.';
+          inactivityBanner.style.display = '';
+        } else {
+          inactivityBanner.style.display = 'none';
+        }
+
+        const warningsPanel = document.getElementById('myWarningsPanel');
+        const warnings = d.myWarnings || [];
+        if (warnings.length) {
+          warningsPanel.style.display = '';
+          document.getElementById('myWarningsList').innerHTML = warnings.map(function (w) {
+            return '<div class="app-card"><div class="app-card-details"><span>Warned by <strong>' + escapeHtml(w.warnedByUsername || w.warnedBy) + '</strong> · ' + formatDateTime(w.warnedAt) + '</span></div><div class="app-card-a" style="margin-top:8px;">' + escapeHtml(w.reason) + '</div></div>';
+          }).join('');
+        } else {
+          warningsPanel.style.display = 'none';
+        }
+
+        const unclaimedPanel = document.getElementById('myUnclaimedPanel');
+        const unclaimed = d.myUnclaimedReplyWarnings || [];
+        if (unclaimed.length) {
+          unclaimedPanel.style.display = '';
+          document.getElementById('myUnclaimedTable').innerHTML =
+            '<thead><tr><th>Ticket</th><th>When</th></tr></thead><tbody>' +
+            unclaimed.map(function (f) { return '<tr><td>' + escapeHtml(f.channelName) + '</td><td class="mono">' + formatRelative(f.timestamp) + '</td></tr>'; }).join('') +
+            '</tbody>';
+        } else {
+          unclaimedPanel.style.display = 'none';
+        }
         return;
       }
 
@@ -390,6 +425,48 @@
     if (count > 0) { el.textContent = String(count); el.style.display = ''; }
     else { el.style.display = 'none'; }
   }
+
+  function renderActivityCalendar(containerId, days) {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    document.getElementById(containerId).innerHTML = days.map(function (d) {
+      const isToday = d.date === todayStr;
+      const cls = 'activity-day' + (d.active ? ' active' : '') + (isToday && !d.active ? ' inactive-today' : '');
+      return '<div class="' + cls + '" data-date="' + d.date + '"></div>';
+    }).join('');
+  }
+
+  // ================= EXCUSES =================
+  const excuseModal = document.getElementById('excuseModal');
+  document.getElementById('writeExcuseBtn').addEventListener('click', function () {
+    document.getElementById('excuseReasonInput').value = '';
+    excuseModal.classList.add('active');
+  });
+  document.getElementById('excuseCancelBtn').addEventListener('click', function () { excuseModal.classList.remove('active'); });
+  excuseModal.addEventListener('click', function (e) { if (e.target === excuseModal) excuseModal.classList.remove('active'); });
+  document.getElementById('excuseSubmitBtn').addEventListener('click', function () {
+    const reason = document.getElementById('excuseReasonInput').value.trim();
+    if (!reason) { showToast('Please write a reason.', 'error'); return; }
+    callAdmin('staff.submitExcuse', { reason: reason }).then(function (d) {
+      if (d && d.ok) {
+        showToast('Excuse submitted.', 'success');
+        excuseModal.classList.remove('active');
+        document.getElementById('inactivityBanner').style.display = 'none';
+      } else {
+        showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+      }
+    });
+  });
+
+  function loadExcuses() {
+    return callAdmin('staff.excuses.list').then(function (d) {
+      if (!d || !d.ok) return;
+      const rows = d.excuses.map(function (e) {
+        return '<tr><td>' + userLink(e.userId, e.username) + '</td><td style="max-width:340px;">' + escapeHtml(e.reason) + '</td><td class="mono">' + (e.inactiveDays > 30 ? '30+' : e.inactiveDays) + 'd</td><td class="mono">' + formatRelative(e.submittedAt) + '</td></tr>';
+      }).join('') || emptyRow(4, 'No excuses submitted yet.');
+      document.getElementById('excusesTable').innerHTML =
+        '<thead><tr><th>Staff member</th><th>Reason</th><th>Was inactive</th><th>Submitted</th></tr></thead><tbody>' + rows + '</tbody>';
+    });
+  }
   const memberSearchInput = document.getElementById('memberSearchInput');
   const memberSearchBtn = document.getElementById('memberSearchBtn');
   const memberResults = document.getElementById('memberResults');
@@ -402,7 +479,7 @@
       if (!d || !d.ok) { memberResults.innerHTML = '<p style="color:var(--danger);font-size:13px;">Search failed.</p>'; return; }
       if (!d.members.length) { memberResults.innerHTML = '<p style="color:var(--muted);font-size:13px;">No members found.</p>'; return; }
       memberResults.innerHTML = d.members.map(function (m) { return renderMemberCard(m); }).join('');
-      d.members.forEach(function (m) { wireMemberActions(m, document.getElementById('member-' + m.id)); });
+      d.members.forEach(function (m) { wireMemberActions(m, document.getElementById('member-' + m.id), runMemberSearch); });
     });
   }
   memberSearchBtn.addEventListener('click', runMemberSearch);
@@ -411,20 +488,29 @@
   function renderMemberCard(m, idPrefix) {
     idPrefix = idPrefix || 'member-';
     const roles = (m.roles || []).map(function (r) { return '<span class="pill" style="background:rgba(255,255,255,0.06);color:' + (r.color && r.color !== '#000000' ? r.color : 'var(--muted)') + ';">' + escapeHtml(r.name) + '</span>'; }).join(' ');
+    const protectedTarget = (m.isStaff || m.isBot) && !canPublishContent;
+    const modActions = protectedTarget
+      ? '<span class="app-card-meta">' + (m.isBot ? 'Bots' : 'Staff members') + ' can only be managed by Management</span>'
+      : (
+          (m.isStaff && canKickStaff ? '<button class="btn-small danger" data-action="kickStaff" data-id="' + m.id + '">Kick from staff</button>' : '') +
+          (m.timedOutUntil ? '<button class="btn-small success" data-action="removeTimeout" data-id="' + m.id + '">Remove timeout</button>' : '<button class="btn-small" data-action="timeout" data-id="' + m.id + '">Timeout</button>') +
+          '<button class="btn-small danger" data-action="kick" data-id="' + m.id + '">Kick</button>' +
+          (canReviewApplications ? '<button class="btn-small danger" data-action="ban" data-id="' + m.id + '">Ban</button>' : '')
+        );
+    const liteBtn = (canPublishContent && !m.isBot) ? '<button class="btn-small" data-lite-id="' + m.id + '" data-lite-name="' + escapeHtml(m.globalName || m.username) + '">Grant Lite</button>' : '';
+    const liteStatus = (m.lite && m.lite.gifted)
+      ? '<span>Lite until <strong style="color:var(--success);">' + formatDateTime(Date.parse(m.lite.expiresAt)) + '</strong> (' + (m.lite.source === 'purchase' ? 'purchased' : 'gifted') + ')</span>'
+      : '';
     return (
       '<div class="app-card" id="' + idPrefix + m.id + '">' +
         '<div class="app-card-head">' +
           '<div class="app-card-user"><img class="app-card-avatar" src="' + avatarUrl(m.id, m.avatar) + '"/>' + escapeHtml(m.globalName || m.username) + ' <span class="app-card-meta">@' + escapeHtml(m.username) + ' · ' + m.id + '</span></div>' +
-          '<div class="app-card-actions">' +
-            (m.isStaff && canKickStaff ? '<button class="btn-small danger" data-action="kickStaff" data-id="' + m.id + '">Kick from staff</button>' : '') +
-            (m.timedOutUntil ? '<button class="btn-small success" data-action="removeTimeout" data-id="' + m.id + '">Remove timeout</button>' : '<button class="btn-small" data-action="timeout" data-id="' + m.id + '">Timeout</button>') +
-            '<button class="btn-small danger" data-action="kick" data-id="' + m.id + '">Kick</button>' +
-            (canReviewApplications ? '<button class="btn-small danger" data-action="ban" data-id="' + m.id + '">Ban</button>' : '') +
-          '</div>' +
+          '<div class="app-card-actions">' + modActions + liteBtn + '</div>' +
         '</div>' +
         '<div class="app-card-details">' +
           '<span>Joined: <strong>' + formatDateTime(m.joinedAt ? Date.parse(m.joinedAt) : null) + '</strong></span>' +
           (m.timedOutUntil ? '<span>Timed out until: <strong style="color:var(--warning);">' + formatDateTime(Date.parse(m.timedOutUntil)) + '</strong></span>' : '') +
+          liteStatus +
         '</div>' +
         (roles ? '<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">' + roles + '</div>' : '') +
       '</div>'
@@ -456,6 +542,8 @@
         });
       });
     });
+    const liteBtn = card.querySelector('button[data-lite-id]');
+    if (liteBtn) liteBtn.addEventListener('click', function () { openLiteModal(liteBtn.dataset.liteId, liteBtn.dataset.liteName, onDone); });
   }
 
   function userLink(id, label) {
@@ -484,6 +572,98 @@
   });
   document.getElementById('memberModalCloseBtn').addEventListener('click', function () { memberModal.classList.remove('active'); });
   memberModal.addEventListener('click', function (e) { if (e.target === memberModal) memberModal.classList.remove('active'); });
+
+  // ================= LITE GRANT ================= (calendar day-range: today -> clicked day)
+  const liteModal = document.getElementById('liteModal');
+  const liteCalGrid = document.getElementById('liteCalGrid');
+  const liteCalLabel = document.getElementById('liteCalLabel');
+  const liteSelectionSummary = document.getElementById('liteSelectionSummary');
+  const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  let liteTargetId = null;
+  let liteOnDone = null;
+  let liteCalMonth = null; // Date, 1st of displayed month
+  let liteSelectedEnd = null; // Date, inclusive end of grant range
+  let liteSelectedSource = 'gift';
+
+  function dateKey(d) { return d.toISOString().slice(0, 10); }
+  function startOfToday() { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
+
+  function renderLiteCalendar() {
+    const today = startOfToday();
+    const year = liteCalMonth.getFullYear(), month = liteCalMonth.getMonth();
+    liteCalLabel.textContent = MONTH_NAMES[month] + ' ' + year;
+    const firstDay = new Date(year, month, 1);
+    const startOffset = (firstDay.getDay() + 6) % 7; // Monday-first
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    let html = '';
+    for (let i = 0; i < startOffset; i++) html += '<div class="lite-cal-day empty"></div>';
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(year, month, day);
+      const isPast = d < today;
+      const inRange = liteSelectedEnd && d >= today && d <= liteSelectedEnd;
+      const isEnd = liteSelectedEnd && dateKey(d) === dateKey(liteSelectedEnd);
+      const cls = 'lite-cal-day' + (isPast ? ' past' : '') + (inRange ? ' in-range' : '') + (isEnd ? ' range-end' : '');
+      html += '<div class="' + cls + '" data-date="' + dateKey(d) + '">' + day + '</div>';
+    }
+    liteCalGrid.innerHTML = html;
+    liteCalGrid.querySelectorAll('.lite-cal-day[data-date]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        liteSelectedEnd = new Date(el.dataset.date + 'T00:00:00');
+        renderLiteCalendar();
+        updateLiteSummary();
+      });
+    });
+  }
+  function updateLiteSummary() {
+    if (!liteSelectedEnd) { liteSelectionSummary.textContent = 'No days selected.'; return; }
+    const today = startOfToday();
+    const days = Math.round((liteSelectedEnd - today) / 86400000) + 1;
+    liteSelectionSummary.textContent = days + ' day' + (days === 1 ? '' : 's') + ' selected (through ' + liteSelectedEnd.toLocaleDateString() + ').';
+  }
+  document.getElementById('liteCalPrevBtn').addEventListener('click', function () {
+    liteCalMonth.setMonth(liteCalMonth.getMonth() - 1);
+    renderLiteCalendar();
+  });
+  document.getElementById('liteCalNextBtn').addEventListener('click', function () {
+    liteCalMonth.setMonth(liteCalMonth.getMonth() + 1);
+    renderLiteCalendar();
+  });
+  document.querySelectorAll('#liteSourceFilter .filter-pill').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('#liteSourceFilter .filter-pill').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      liteSelectedSource = btn.dataset.source;
+    });
+  });
+
+  function openLiteModal(userId, name, onDone) {
+    liteTargetId = userId;
+    liteOnDone = onDone;
+    liteSelectedEnd = null;
+    liteSelectedSource = 'gift';
+    liteCalMonth = new Date();
+    liteCalMonth.setDate(1);
+    document.getElementById('liteModalName').textContent = name;
+    document.querySelectorAll('#liteSourceFilter .filter-pill').forEach(function (b) { b.classList.toggle('active', b.dataset.source === 'gift'); });
+    renderLiteCalendar();
+    updateLiteSummary();
+    liteModal.classList.add('active');
+  }
+  document.getElementById('liteModalCancelBtn').addEventListener('click', function () { liteModal.classList.remove('active'); });
+  liteModal.addEventListener('click', function (e) { if (e.target === liteModal) liteModal.classList.remove('active'); });
+  document.getElementById('liteModalGrantBtn').addEventListener('click', function () {
+    if (!liteSelectedEnd || !liteTargetId) { showToast('Pick a day first.', 'error'); return; }
+    const days = Math.round((liteSelectedEnd - startOfToday()) / 86400000) + 1;
+    callAdmin('members.grantLite', { targetId: liteTargetId, days: days, source: liteSelectedSource }).then(function (d) {
+      if (d && d.ok) {
+        showToast('Lite granted for ' + days + ' day(s).', 'success');
+        liteModal.classList.remove('active');
+        if (liteOnDone) liteOnDone();
+      } else {
+        showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+      }
+    });
+  });
   function loadLeaderboard() {
     return callAdmin('leaderboard').then(function (d) {
       if (!d || !d.ok) return;
@@ -512,12 +692,68 @@
       const rows = d.staff.map(function (s) {
         const color = s.rankColor || '#6b8fa8';
         const rankPill = s.rank ? '<span class="pill" style="background:' + color + '1a;color:' + color + ';">' + escapeHtml(s.rank) + '</span>' : '—';
-        return '<tr><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(s.id, s.avatar) + '"/>' + userLink(s.id, s.tag) + '</td><td>' + rankPill + '</td><td class="mono">' + s.solvedTickets + '</td><td class="mono">' + s.totalClaims + '</td><td class="mono">' + s.unclaimedTickets + '</td></tr>';
-      }).join('') || emptyRow(5, 'No staff members found.');
-      document.getElementById('staffTable').innerHTML =
-        '<thead><tr><th>Member</th><th>Rank</th><th>Solved</th><th>Claims</th><th>Unclaimed</th></tr></thead><tbody>' + rows + '</tbody>';
+        const actions = canReviewApplications
+          ? '<button class="btn-small" data-calendar-id="' + s.id + '" data-calendar-name="' + escapeHtml(s.tag) + '">Calendar</button> ' +
+            '<button class="btn-small" data-promote-id="' + s.id + '" data-promote-name="' + escapeHtml(s.tag) + '" data-promote-rank="' + escapeHtml(s.rank || 'Unranked') + '">Promote</button>'
+          : '';
+        return '<tr><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(s.id, s.avatar) + '"/>' + userLink(s.id, s.tag) + '</td><td>' + rankPill + '</td><td class="mono">' + s.solvedTickets + '</td><td class="mono">' + s.totalClaims + '</td><td class="mono">' + s.unclaimedTickets + '</td><td>' + actions + '</td></tr>';
+      }).join('') || emptyRow(6, 'No staff members found.');
+      const table = document.getElementById('staffTable');
+      table.innerHTML =
+        '<thead><tr><th>Member</th><th>Rank</th><th>Solved</th><th>Claims</th><th>Unclaimed</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
+      table.querySelectorAll('button[data-calendar-id]').forEach(function (btn) {
+        btn.addEventListener('click', function () { openStaffCalendar(btn.dataset.calendarId, btn.dataset.calendarName); });
+      });
+      table.querySelectorAll('button[data-promote-id]').forEach(function (btn) {
+        btn.addEventListener('click', function () { openPromoteModal(btn.dataset.promoteId, btn.dataset.promoteName, btn.dataset.promoteRank); });
+      });
     });
   }
+
+  const calendarModal = document.getElementById('calendarModal');
+  function openStaffCalendar(userId, name) {
+    document.getElementById('calendarModalName').textContent = name;
+    document.getElementById('calendarModalGrid').innerHTML = '';
+    document.getElementById('calendarModalWarnings').innerHTML = '';
+    calendarModal.classList.add('active');
+    callAdmin('staff.calendar', { targetId: userId }).then(function (d) {
+      if (!d || !d.ok) return;
+      renderActivityCalendar('calendarModalGrid', d.calendar || []);
+      const warnings = d.warnings || [];
+      document.getElementById('calendarModalWarnings').innerHTML = warnings.length
+        ? '<div class="panel-sub" style="margin-bottom:8px;">' + warnings.length + ' warning(s)</div>' + warnings.map(function (w) {
+            return '<div class="app-card"><div class="app-card-details"><span>' + formatDateTime(w.warnedAt) + ' by <strong>' + escapeHtml(w.warnedByUsername || w.warnedBy) + '</strong></span></div><div class="app-card-a" style="margin-top:8px;">' + escapeHtml(w.reason) + '</div></div>';
+          }).join('')
+        : '';
+    });
+  }
+  document.getElementById('calendarModalCloseBtn').addEventListener('click', function () { calendarModal.classList.remove('active'); });
+  calendarModal.addEventListener('click', function (e) { if (e.target === calendarModal) calendarModal.classList.remove('active'); });
+
+  const promoteModal = document.getElementById('promoteModal');
+  let currentPromoteTargetId = null;
+  function openPromoteModal(userId, name, rank) {
+    currentPromoteTargetId = userId;
+    document.getElementById('promoteTargetName').textContent = name;
+    document.getElementById('promoteTargetPath').textContent = 'Current rank: ' + rank;
+    document.getElementById('promoteReasonInput').value = '';
+    promoteModal.classList.add('active');
+  }
+  document.getElementById('promoteCancelBtn').addEventListener('click', function () { promoteModal.classList.remove('active'); });
+  promoteModal.addEventListener('click', function (e) { if (e.target === promoteModal) promoteModal.classList.remove('active'); });
+  document.getElementById('promoteSubmitBtn').addEventListener('click', function () {
+    const reason = document.getElementById('promoteReasonInput').value.trim();
+    if (!reason || !currentPromoteTargetId) { showToast('Please write a reason.', 'error'); return; }
+    callAdmin('staff.promote', { targetId: currentPromoteTargetId, reason: reason }).then(function (d) {
+      if (d && d.ok) {
+        showToast('Promoted to ' + d.newRank + '.', 'success');
+        promoteModal.classList.remove('active');
+        loadStaff();
+      } else {
+        showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+      }
+    });
+  });
   let currentStaffAppsFilter = 'pending';
   document.querySelectorAll('#staffAppsFilter .filter-pill').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -669,7 +905,8 @@
   function renderReviews(reviews, limit) {
     const shown = limit ? reviews.slice(0, limit) : reviews;
     const rows = shown.map(function (r) {
-      return '<tr><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(r.discordId, r.avatar) + '"/>' + userLink(r.discordId, r.username) + '</td><td class="mono">' + escapeHtml(r.stars || '') + '</td><td style="max-width:340px;">' + escapeHtml((r.comment || '').slice(0, 140)) + '</td><td>' + '<button class="btn-small danger" data-remove="' + r.discordId + '">Remove</button></td></tr>';
+      const removeBtn = r.discordId ? '<button class="btn-small danger" data-remove="' + r.discordId + '">Remove</button>' : '';
+      return '<tr><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(r.discordId, r.avatar) + '"/>' + userLink(r.discordId, r.username) + '</td><td class="mono">' + escapeHtml(r.stars || '') + '</td><td style="max-width:340px;">' + escapeHtml((r.comment || '').slice(0, 140)) + '</td><td>' + removeBtn + '</td></tr>';
     }).join('') || emptyRow(4, 'No reviews yet.');
     const table = document.getElementById('reviewsTable');
     table.innerHTML = '<thead><tr><th>Reviewer</th><th>Rating</th><th>Comment</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
@@ -841,15 +1078,10 @@
   const liveTicketTitle = document.getElementById('liveTicketTitle');
   const liveTicketMeta = document.getElementById('liveTicketMeta');
   const liveTicketMessages = document.getElementById('liveTicketMessages');
-  const liveTicketInput = document.getElementById('liveTicketInput');
-  const liveTicketSendBtn = document.getElementById('liveTicketSendBtn');
-  let currentLiveTicketChannelId = null;
   function openLiveTicket(channelId) {
-    currentLiveTicketChannelId = channelId;
     liveTicketTitle.textContent = 'Loading ticket…';
     liveTicketMeta.innerHTML = '';
     liveTicketMessages.innerHTML = '';
-    liveTicketInput.value = '';
     liveTicketModal.classList.add('active');
     callAdmin('tickets.get', { channelId: channelId }).then(function (d) {
       if (!d || !d.ok) { liveTicketTitle.textContent = 'Failed to load ticket'; return; }
@@ -864,25 +1096,6 @@
       liveTicketMessages.scrollTop = liveTicketMessages.scrollHeight;
     });
   }
-  function sendLiveTicketMessage() {
-    const content = liveTicketInput.value.trim();
-    if (!content || !currentLiveTicketChannelId) return;
-    liveTicketSendBtn.disabled = true;
-    callAdmin('tickets.sendMessage', { channelId: currentLiveTicketChannelId, content: content }).then(function (d) {
-      liveTicketSendBtn.disabled = false;
-      if (d && d.ok) {
-        liveTicketInput.value = '';
-        showToast('Message sent.', 'success');
-        openLiveTicket(currentLiveTicketChannelId);
-      } else {
-        showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
-      }
-    });
-  }
-  liveTicketSendBtn.addEventListener('click', sendLiveTicketMessage);
-  liveTicketInput.addEventListener('keydown', function (e) {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') sendLiveTicketMessage();
-  });
   document.getElementById('liveTicketCloseBtn').addEventListener('click', function () { liveTicketModal.classList.remove('active'); });
   liveTicketModal.addEventListener('click', function (e) { if (e.target === liveTicketModal) liveTicketModal.classList.remove('active'); });
   function showGate(id) {

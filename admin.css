@@ -372,10 +372,44 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
 .modal-text { font-size: 13.5px; color: var(--muted); line-height: 1.6; margin-bottom: 16px; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
-/* ---------- Ticket compose ---------- */
-.ticket-compose { display: flex; gap: 10px; align-items: flex-end; padding-top: 14px; border-top: 1px solid var(--border); margin-top: 4px; }
-.ticket-compose .text-input { flex: 1; resize: none; }
-.ticket-compose .btn-primary { flex-shrink: 0; padding: 10px 20px; }
+/* ---------- Banners ---------- */
+.banner {
+  display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-radius: 16px;
+  margin-bottom: 20px; border: 1px solid var(--border);
+}
+.banner-warning { background: rgba(255,201,77,0.1); border-color: rgba(255,201,77,0.3); }
+.banner-text { flex: 1; display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; }
+.banner-text strong { font-size: 14.5px; }
+.banner-text span { color: var(--muted); font-size: 12.5px; }
+
+/* ---------- Activity calendar ---------- */
+.activity-calendar { display: flex; flex-wrap: wrap; gap: 5px; }
+.activity-day {
+  width: 22px; height: 22px; border-radius: 6px; background: var(--bg-elevated);
+  border: 1px solid var(--border); position: relative;
+}
+.activity-day.active { background: var(--success); border-color: var(--success); }
+.activity-day.inactive-today { border-color: var(--warning); border-style: dashed; }
+.activity-day:hover::after {
+  content: attr(data-date); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  background: var(--bg-elevated); border: 1px solid var(--border-strong); border-radius: 6px;
+  padding: 4px 8px; font-size: 11px; white-space: nowrap; z-index: 5; font-family: 'Space Mono', monospace;
+}
+
+/* ---------- Lite grant calendar ---------- */
+.lite-modal-box { max-width: 420px; }
+.lite-calendar-nav { display: flex; align-items: center; justify-content: center; gap: 16px; margin: 4px 0 12px; font-size: 13.5px; font-weight: 600; }
+.lite-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 18px; }
+.lite-cal-day {
+  aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 8px;
+  background: var(--bg-elevated); border: 1px solid var(--border); font-size: 12.5px; cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.lite-cal-day.past { opacity: 0.25; pointer-events: none; }
+.lite-cal-day.empty { visibility: hidden; }
+.lite-cal-day:hover { background: var(--bg-hover); }
+.lite-cal-day.in-range { background: rgba(79,200,248,0.18); color: var(--accent); border-color: var(--accent); }
+.lite-cal-day.range-end { background: var(--accent-bright); color: #fff; border-color: var(--accent-bright); font-weight: 700; }
 
 /* ---------- Member modal ---------- */
 .member-modal-box { max-width: 460px; }
