@@ -393,6 +393,8 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
 .activity-day.inactive-today { border-color: var(--warning); border-style: dashed; color: var(--warning); }
 .activity-day.has-excuse { cursor: pointer; box-shadow: inset 0 0 0 2px var(--warning); }
 .activity-day.has-excuse:not(.active) { background: rgba(255,201,77,0.16); color: var(--warning); }
+.activity-day.in-streak { font-size: 13px; }
+.activity-calendar.compact .activity-day.in-streak { font-size: 11px; }
 .activity-day:hover::after {
   content: attr(data-date); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
   background: var(--bg-elevated); border: 1px solid var(--border-strong); border-radius: 6px;

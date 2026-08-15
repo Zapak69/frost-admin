@@ -226,6 +226,9 @@
           [d.myStats.solvedTickets, 'Solved tickets'],
           [d.myStats.totalClaims, 'Total claims'],
           [d.myStats.unclaimedTickets, 'Unclaimed'],
+          [d.myStreak || 0, 'Current streak'],
+          [d.myPeakStreak || 0, 'Peak streak'],
+          [d.myReviewCount || 0, 'Reviews'],
         ]);
         renderRankupPanel(d.myRankup ? [d.myRankup] : [], 'myRankupList');
         renderActivityCalendar('myActivityCalendar', d.myActivityCalendar || []);
@@ -471,9 +474,24 @@
     for (let i = 0; i < pad; i++) html += '<div class="activity-day empty"></div>';
     return html;
   }
+  function computeStreakDates(days) {
+    const set = new Set();
+    if (!days.length) return set;
+    let idx = days.length - 1;
+    if (!days[idx].active) {
+      idx -= 1;
+      if (idx < 0 || !days[idx].active) return set;
+    }
+    while (idx >= 0 && days[idx].active) {
+      set.add(days[idx].date);
+      idx--;
+    }
+    return set;
+  }
   function renderActivityCalendar(containerId, days, opts) {
     opts = opts || {};
     const excuseDays = opts.excuseDays || {};
+    const streakDates = computeStreakDates(days);
     const todayStr = new Date().toISOString().slice(0, 10);
     const weekdayHtml = WEEKDAY_LABELS.map(function (w) { return '<div class="activity-cal-weekday">' + w + '</div>'; }).join('');
     let bodyHtml = '';
@@ -491,8 +509,9 @@
       }
       const isToday = d.date === todayStr;
       const excuse = excuseDays[d.date];
-      const cls = 'activity-day' + (d.active ? ' active' : '') + (isToday && !d.active ? ' inactive-today' : '') + (excuse ? ' has-excuse' : '');
-      bodyHtml += '<div class="' + cls + '" data-date="' + d.date + '">' + dayNum + '</div>';
+      const inStreak = streakDates.has(d.date);
+      const cls = 'activity-day' + (d.active ? ' active' : '') + (isToday && !d.active ? ' inactive-today' : '') + (excuse ? ' has-excuse' : '') + (inStreak ? ' in-streak' : '');
+      bodyHtml += '<div class="' + cls + '" data-date="' + d.date + '">' + (inStreak ? '🔥' : dayNum) + '</div>';
     });
     document.getElementById(containerId).innerHTML = weekdayHtml + bodyHtml;
     if (opts.onExcuseClick) {
@@ -575,12 +594,14 @@
   }
   function renderExcuseCard(e) {
     const daysList = (e.days || []).slice().sort().join(', ');
+    const decideBtns = (!e.status || e.status === 'pending') ? '<button class="btn-small success" data-action="approve">Approve</button><button class="btn-small danger" data-action="reject">Reject</button>' : '';
+    const deleteBtn = canPublishContent ? '<button class="btn-small danger" data-action="delete">Delete</button>' : '';
     return (
       '<div class="app-card" id="excuse-' + e.id + '">' +
         '<div class="app-card-head">' +
           '<div class="app-card-user">' + userLink(e.userId, e.username || e.userId) + '</div>' +
           '<span class="pill ' + excusePillClass(e.status) + '">' + (e.status || 'pending') + '</span>' +
-          ((!e.status || e.status === 'pending') ? '<div class="app-card-actions"><button class="btn-small success" data-action="approve">Approve</button><button class="btn-small danger" data-action="reject">Reject</button></div>' : '') +
+          ((decideBtns || deleteBtn) ? '<div class="app-card-actions">' + decideBtns + deleteBtn + '</div>' : '') +
         '</div>' +
         '<div class="app-card-details"><span>Was inactive: <strong>' + (e.inactiveDays > 30 ? '30+' : e.inactiveDays) + 'd</strong></span><span>Submitted: <strong>' + formatRelative(e.submittedAt) + '</strong></span>' + (daysList ? '<span>Days: <strong>' + escapeHtml(daysList) + '</strong></span>' : '') + '</div>' +
         '<div class="app-card-qa"><div><div class="app-card-q">Reason</div><div class="app-card-a">' + escapeHtml(e.reason) + '</div></div></div>' +
@@ -592,11 +613,21 @@
     if (!card) return;
     card.querySelectorAll('button[data-action]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        const decision = btn.dataset.action;
-        askConfirm(decision === 'approve' ? 'Approve excuse?' : 'Reject excuse?', (e.username || e.userId) + "'s excuse.", {}).then(function (res) {
+        const action = btn.dataset.action;
+        if (action === 'delete') {
+          askConfirm('Delete excuse?', "Permanently removes " + (e.username || e.userId) + "'s excuse.", {}).then(function (res) {
+            if (!res.ok) return;
+            callAdmin('staff.excuses.delete', { id: e.id }).then(function (d) {
+              if (d && d.ok) { showToast('Excuse deleted.', 'success'); loadExcuses(); }
+              else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+            });
+          });
+          return;
+        }
+        askConfirm(action === 'approve' ? 'Approve excuse?' : 'Reject excuse?', (e.username || e.userId) + "'s excuse.", {}).then(function (res) {
           if (!res.ok) return;
-          callAdmin('staff.excuses.decide', { id: e.id, decision: decision }).then(function (d) {
-            if (d && d.ok) { showToast('Excuse ' + decision + 'd.', 'success'); loadExcuses(); }
+          callAdmin('staff.excuses.decide', { id: e.id, decision: action }).then(function (d) {
+            if (d && d.ok) { showToast('Excuse ' + action + 'd.', 'success'); loadExcuses(); }
             else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
           });
         });
@@ -871,11 +902,12 @@
             '<button class="btn-small danger" data-warn-id="' + s.id + '" data-warn-name="' + escapeHtml(s.tag) + '">Warn</button> ' +
             '<button class="btn-small" data-promote-id="' + s.id + '" data-promote-name="' + escapeHtml(s.tag) + '" data-promote-rank="' + escapeHtml(s.rank || 'Unranked') + '">Promote</button>'
           : '';
-        return '<tr><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(s.id, s.avatar) + '"/>' + userLink(s.id, s.tag) + '</td><td>' + rankPill + '</td><td class="mono">' + s.solvedTickets + '</td><td class="mono">' + s.totalClaims + '</td><td class="mono">' + s.unclaimedTickets + '</td><td>' + actions + '</td></tr>';
-      }).join('') || emptyRow(6, 'No staff members found.');
+        const streak = (s.currentStreak || 0) > 0 ? '🔥 ' + s.currentStreak : '—';
+        return '<tr><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(s.id, s.avatar) + '"/>' + userLink(s.id, s.tag) + '</td><td>' + rankPill + '</td><td class="mono">' + s.solvedTickets + '</td><td class="mono">' + s.totalClaims + '</td><td class="mono">' + s.unclaimedTickets + '</td><td class="mono">' + streak + '</td><td class="mono">' + (s.reviewCount || 0) + '</td><td>' + actions + '</td></tr>';
+      }).join('') || emptyRow(8, 'No staff members found.');
       const table = document.getElementById('staffTable');
       table.innerHTML =
-        '<thead><tr><th>Member</th><th>Rank</th><th>Solved</th><th>Claims</th><th>Unclaimed</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
+        '<thead><tr><th>Member</th><th>Rank</th><th>Solved</th><th>Claims</th><th>Unclaimed</th><th>Streak</th><th>Reviews</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
       table.querySelectorAll('button[data-calendar-id]').forEach(function (btn) {
         btn.addEventListener('click', function () { openStaffCalendar(btn.dataset.calendarId, btn.dataset.calendarName); });
       });
@@ -913,7 +945,10 @@
           [d.stats.weeklyMessages, 'Messages this week'],
           [d.stats.solvedTickets, 'Solved tickets'],
           [d.stats.totalClaims, 'Total claims'],
-          [d.stats.unclaimedTickets, 'Unclaims']
+          [d.stats.unclaimedTickets, 'Unclaims'],
+          [d.stats.currentStreak, 'Current streak'],
+          [d.stats.peakStreak, 'Peak streak'],
+          [d.stats.reviewCount, 'Reviews']
         ]);
       }
       renderActivityCalendar('calendarModalGrid', d.calendar || [], {
