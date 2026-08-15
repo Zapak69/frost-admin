@@ -85,6 +85,171 @@
   confirmOkBtn.addEventListener('click', function () { closeConfirm(true); });
   confirmCancelBtn.addEventListener('click', function () { closeConfirm(false); });
   confirmModal.addEventListener('click', function (e) { if (e.target === confirmModal) closeConfirm(false); });
+
+  const NOTIF_TOAST_SECONDS = 6;
+  const notifPanel = document.getElementById('notifPanel');
+  const notifBellBtn = document.getElementById('notifBellBtn');
+  const notifList = document.getElementById('notifList');
+  const notifToastStack = document.getElementById('notifToastStack');
+  let notifPanelOpen = false;
+  let notifCache = [];
+  const seenNotifToastIds = new Set();
+
+  function notifTypeMeta(type) {
+    if (type === 'warn') return { icon: '⚠️', title: 'New warning' };
+    if (type === 'excuse_decided') return { icon: '📋', title: 'Excuse update' };
+    if (type === 'excuse_submitted') return { icon: '📝', title: 'New excuse' };
+    return { icon: '🔔', title: 'Notification' };
+  }
+
+  function showNotifToast(n) {
+    const meta = notifTypeMeta(n.type);
+    const el = document.createElement('div');
+    el.className = 'notif-toast';
+    el.innerHTML =
+      '<div class="notif-toast-title">' + meta.icon + ' ' + escapeHtml(meta.title) + '</div>' +
+      '<div class="notif-toast-msg">' + escapeHtml(n.message) + '</div>' +
+      '<div class="notif-toast-progress"></div>';
+    el.querySelector('.notif-toast-progress').style.animationDuration = NOTIF_TOAST_SECONDS + 's';
+    let removed = false;
+    function removeToast() {
+      if (removed) return;
+      removed = true;
+      el.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+      el.style.opacity = '0';
+      el.style.transform = 'translateX(24px)';
+      setTimeout(function () { el.remove(); }, 250);
+    }
+    el.addEventListener('click', function () { openNotifPanel(); removeToast(); });
+    notifToastStack.appendChild(el);
+    setTimeout(removeToast, NOTIF_TOAST_SECONDS * 1000);
+  }
+
+  function wireNotifSwipe(item) {
+    const inner = item.querySelector('.notif-item-inner');
+    const id = item.dataset.id;
+    const THRESHOLD = 90;
+    let startX = 0, currentX = 0, dragging = false;
+    inner.addEventListener('pointerdown', function (e) {
+      dragging = true;
+      startX = e.clientX;
+      inner.style.transition = 'none';
+      inner.setPointerCapture(e.pointerId);
+    });
+    inner.addEventListener('pointermove', function (e) {
+      if (!dragging) return;
+      currentX = Math.min(0, e.clientX - startX);
+      inner.style.transform = 'translateX(' + currentX + 'px)';
+    });
+    function endDrag() {
+      if (!dragging) return;
+      dragging = false;
+      inner.style.transition = 'transform 0.25s cubic-bezier(0.16,1,0.3,1)';
+      if (currentX < -THRESHOLD) {
+        inner.style.transform = 'translateX(-110%)';
+        item.style.overflow = 'hidden';
+        item.style.maxHeight = item.offsetHeight + 'px';
+        requestAnimationFrame(function () {
+          item.style.transition = 'max-height 0.25s ease 0.1s, opacity 0.25s ease 0.1s';
+          item.style.maxHeight = '0px';
+          item.style.opacity = '0';
+        });
+        callAdmin('notifications.delete', { id: id });
+        notifCache = notifCache.filter(function (n) { return n.id !== id; });
+        setTimeout(function () { item.remove(); }, 450);
+      } else {
+        inner.style.transform = 'translateX(0)';
+      }
+      currentX = 0;
+    }
+    inner.addEventListener('pointerup', endDrag);
+    inner.addEventListener('pointercancel', endDrag);
+  }
+
+  function renderNotifList(notifications) {
+    if (!notifications.length) {
+      notifList.innerHTML = '<div class="notif-empty">No notifications yet.</div>';
+      return;
+    }
+    notifList.innerHTML = notifications.map(function (n) {
+      const meta = notifTypeMeta(n.type);
+      return (
+        '<div class="notif-item' + (n.read ? '' : ' unread') + '" data-id="' + escapeHtml(n.id) + '">' +
+          '<div class="notif-item-delete-hint">Delete</div>' +
+          '<div class="notif-item-inner">' +
+            '<div class="notif-item-msg">' + meta.icon + ' ' + escapeHtml(n.message) + '</div>' +
+            '<div class="notif-item-time">' + formatRelative(n.createdAt) + '</div>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+    notifList.querySelectorAll('.notif-item').forEach(wireNotifSwipe);
+  }
+
+  function openNotifPanel() {
+    notifPanelOpen = true;
+    notifPanel.classList.add('active');
+    callAdmin('notifications.list').then(function (d) {
+      if (!d || !d.ok) return;
+      notifCache = d.notifications;
+      renderNotifList(notifCache);
+      if (d.unreadCount > 0) {
+        callAdmin('notifications.markAllRead').then(function (r) { if (r && r.ok) setBadge('notifBadge', 0); });
+      }
+    });
+  }
+  function closeNotifPanel() {
+    notifPanelOpen = false;
+    notifPanel.classList.remove('active');
+  }
+  notifBellBtn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (notifPanelOpen) closeNotifPanel(); else openNotifPanel();
+  });
+  notifPanel.addEventListener('click', function (e) { e.stopPropagation(); });
+  document.addEventListener('click', function (e) {
+    if (notifPanelOpen && !notifPanel.contains(e.target) && e.target !== notifBellBtn) closeNotifPanel();
+  });
+  document.getElementById('notifMarkAllBtn').addEventListener('click', function () {
+    callAdmin('notifications.markAllRead').then(function (d) {
+      if (d && d.ok) {
+        notifCache.forEach(function (n) { n.read = true; });
+        renderNotifList(notifCache);
+        setBadge('notifBadge', 0);
+      }
+    });
+  });
+  document.getElementById('notifClearAllBtn').addEventListener('click', function () {
+    askConfirm('Clear all notifications?', 'This permanently removes your notification history.', {}).then(function (res) {
+      if (!res.ok) return;
+      callAdmin('notifications.clearAll').then(function (d) {
+        if (d && d.ok) {
+          notifCache = [];
+          renderNotifList(notifCache);
+          setBadge('notifBadge', 0);
+        }
+      });
+    });
+  });
+
+  function loadNotifications() {
+    return callAdmin('notifications.list').then(function (d) {
+      if (!d || !d.ok) return;
+      d.notifications.filter(function (n) { return !n.read && !seenNotifToastIds.has(n.id); }).forEach(function (n) {
+        seenNotifToastIds.add(n.id);
+        showNotifToast(n);
+      });
+      notifCache = d.notifications;
+      if (!notifPanelOpen) renderNotifList(notifCache);
+      setBadge('notifBadge', d.unreadCount);
+    });
+  }
+  let notifPollTimer = null;
+  function startNotifPolling() {
+    loadNotifications();
+    if (!notifPollTimer) notifPollTimer = setInterval(loadNotifications, 20000);
+  }
+
   function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -134,14 +299,14 @@
   const VIEW_TITLES = {
     overview: 'Overview', members: 'Members', leaderboard: 'Leaderboards', staff: 'Staff Team',
     staffApps: 'Staff Applications', partnerApps: 'Partner Applications', scams: 'Scam Database',
-    logs: 'Action Logs', excuses: 'Excuses', reviews: 'Reviews', drops: 'Publish Drop', giveaway: 'Publish Giveaway', tickets: 'Tickets',
+    logs: 'Action Logs', excuses: 'Excuses', warns: 'Warns', reviews: 'Reviews', drops: 'Publish Drop', giveaway: 'Publish Giveaway', tickets: 'Tickets',
     ticketArchive: 'Ticket Archive'
   };
   const VIEW_LOADERS = {
     overview: loadOverview, members: function () {}, leaderboard: loadLeaderboard, staff: loadStaff,
     staffApps: function () { loadStaffApps(currentStaffAppsFilter); },
     partnerApps: function () { loadPartnerApps(currentPartnerAppsFilter); },
-    scams: function () { loadScams(currentScamsFilter); }, logs: loadLogs, excuses: loadExcuses, reviews: loadReviews,
+    scams: function () { loadScams(currentScamsFilter); }, logs: loadLogs, excuses: loadExcuses, warns: loadWarns, reviews: loadReviews,
     drops: function () {}, giveaway: function () {}, tickets: loadTickets,
     ticketArchive: function () { loadTicketArchive(currentTicketArchiveFilter); }
   };
@@ -657,6 +822,35 @@
     }
     return Promise.all(tasks);
   }
+  function loadWarns() {
+    document.getElementById('warnsAllPanel').style.display = canReviewApplications ? '' : 'none';
+    const tasks = [
+      callAdmin('staff.warns.mine').then(function (d) {
+        if (!d || !d.ok) return;
+        const rows = d.warns.map(function (w) {
+          const expires = w.expiresAt ? formatDateTime(w.expiresAt) : 'Permanent';
+          return '<tr><td style="max-width:320px;">' + escapeHtml(w.reason) + '</td><td>' + escapeHtml(w.warnedByUsername || w.warnedBy) + '</td><td class="mono">' + expires + '</td><td class="mono">' + formatRelative(w.warnedAt) + '</td></tr>';
+        }).join('') || emptyRow(4, 'No active warnings — nice.');
+        document.getElementById('myWarnsTable').innerHTML =
+          '<thead><tr><th>Reason</th><th>Warned by</th><th>Expires</th><th>Issued</th></tr></thead><tbody>' + rows + '</tbody>' +
+          (d.total ? '<tfoot><tr><td colspan="4" class="mono" style="color:var(--muted);">' + d.total + ' total warning(s) on record (including expired)</td></tr></tfoot>' : '');
+      })
+    ];
+    if (canReviewApplications) {
+      tasks.push(callAdmin('staff.warns.list').then(function (d) {
+        if (!d || !d.ok) return;
+        const rows = d.warns.map(function (w) {
+          const statusPill = w.active ? '<span class="pill accepted">active</span>' : '<span class="pill denied">expired</span>';
+          const expires = w.expiresAt ? formatDateTime(w.expiresAt) : 'Permanent';
+          return '<tr><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(w.userId, w.targetAvatar) + '"/>' + userLink(w.userId, w.targetUsername || w.userId) + '</td><td style="max-width:280px;">' + escapeHtml(w.reason) + '</td><td>' + userLink(w.warnedBy, w.warnedByUsername || w.warnedBy) + '</td><td class="mono">' + (d.totals[w.userId] || 1) + '</td><td>' + statusPill + '</td><td class="mono">' + expires + '</td><td class="mono">' + formatRelative(w.warnedAt) + '</td></tr>';
+        }).join('') || emptyRow(7, 'No warnings issued yet.');
+        document.getElementById('warnsAllTable').innerHTML =
+          '<thead><tr><th>Member</th><th>Reason</th><th>Warned by</th><th>Total</th><th>Status</th><th>Expires</th><th>Issued</th></tr></thead><tbody>' + rows + '</tbody>';
+      }));
+    }
+    return Promise.all(tasks);
+  }
+
   const memberSearchInput = document.getElementById('memberSearchInput');
   const memberSearchBtn = document.getElementById('memberSearchBtn');
   const memberResults = document.getElementById('memberResults');
@@ -916,15 +1110,7 @@
       });
       table.querySelectorAll('button[data-warn-id]').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          const targetId = btn.dataset.warnId, name = btn.dataset.warnName;
-          askConfirm('Warn ' + name + '?', 'This posts to the staff warn log channel and DMs them the reason.', { reason: true }).then(function (res) {
-            if (!res.ok) return;
-            if (!res.reason) { showToast('Please write a reason.', 'error'); return; }
-            callAdmin('staff.warn', { targetId: targetId, reason: res.reason }).then(function (d) {
-              if (d && d.ok) { showToast('Warning issued.', 'success'); loadStaff(); }
-              else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
-            });
-          });
+          openWarnModal(btn.dataset.warnId, btn.dataset.warnName);
         });
       });
     });
@@ -996,6 +1182,35 @@
       }
     });
   });
+
+  const warnModal = document.getElementById('warnModal');
+  let currentWarnTargetId = null;
+  function openWarnModal(userId, name) {
+    currentWarnTargetId = userId;
+    document.getElementById('warnTargetName').textContent = name;
+    document.getElementById('warnReasonInput').value = '';
+    document.getElementById('warnDurationInput').value = '';
+    warnModal.classList.add('active');
+  }
+  document.getElementById('warnCancelBtn').addEventListener('click', function () { warnModal.classList.remove('active'); });
+  warnModal.addEventListener('click', function (e) { if (e.target === warnModal) warnModal.classList.remove('active'); });
+  document.getElementById('warnSubmitBtn').addEventListener('click', function () {
+    const reason = document.getElementById('warnReasonInput').value.trim();
+    const duration = document.getElementById('warnDurationInput').value.trim();
+    if (!reason || !currentWarnTargetId) { showToast('Please write a reason.', 'error'); return; }
+    callAdmin('staff.warn', { targetId: currentWarnTargetId, reason: reason, duration: duration }).then(function (d) {
+      if (d && d.ok) {
+        showToast(duration ? 'Temporary warning issued.' : 'Warning issued.', 'success');
+        warnModal.classList.remove('active');
+        loadStaff();
+      } else if (d && d.error === 'invalid_duration') {
+        showToast('Could not parse that duration — try e.g. 7d, 12h, 30m.', 'error');
+      } else {
+        showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+      }
+    });
+  });
+
   let currentStaffAppsFilter = 'pending';
   document.querySelectorAll('#staffAppsFilter .filter-pill').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -1397,6 +1612,7 @@
     document.getElementById('userAvatar').src = avatarUrl(user.id, user.avatar);
     document.getElementById('userName').textContent = user.name || user.username || 'Owner';
     showView('overview');
+    startNotifPolling();
   }
 
   function startLogin() {

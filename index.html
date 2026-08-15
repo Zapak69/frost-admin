@@ -63,6 +63,7 @@
       <button type="button" class="nav-item" data-view="scams"><span class="nav-icon">◆</span>Scam Database</button>
       <button type="button" class="nav-item" data-view="logs" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Action Logs</button>
       <button type="button" class="nav-item" data-view="excuses"><span class="nav-icon">◆</span>Excuses</button>
+      <button type="button" class="nav-item" data-view="warns"><span class="nav-icon">◆</span>Warns</button>
       <div class="nav-group-label">Content</div>
       <button type="button" class="nav-item" data-view="reviews"><span class="nav-icon">◆</span>Reviews</button>
       <button type="button" class="nav-item" data-view="drops" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Publish Drop</button>
@@ -88,6 +89,9 @@
       <h1 id="viewTitle">Overview</h1>
       <div class="content-header-actions">
         <span class="live-dot"></span>
+        <button type="button" class="notif-bell-btn" id="notifBellBtn" title="Notifications">
+          🔔<span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+        </button>
         <button type="button" class="refresh-btn" id="refreshBtn" title="Refresh"><span class="refresh-icon">↻</span></button>
       </div>
     </header>
@@ -252,6 +256,19 @@
       </div>
     </div>
 
+    <div class="view" id="view-warns">
+      <div class="panel">
+        <div class="panel-head"><h2>Your warnings</h2><span class="panel-sub">Active warnings on your record — expired ones drop off automatically</span></div>
+        <div class="table-wrap"><table class="data-table" id="myWarnsTable"></table></div>
+      </div>
+      <div id="warnsAllPanel" style="display:none;">
+        <div class="panel">
+          <div class="panel-head"><h2>All warns</h2><span class="panel-sub">Full staff warning log</span></div>
+          <div class="table-wrap"><table class="data-table" id="warnsAllTable"></table></div>
+        </div>
+      </div>
+    </div>
+
     <div class="view" id="view-reviews">
       <div class="panel">
         <div class="panel-head"><h2>Reviews</h2></div>
@@ -338,6 +355,18 @@
 </div>
 
 <div id="toastStack" class="toast-stack"></div>
+<div id="notifToastStack" class="notif-toast-stack"></div>
+
+<div class="notif-panel" id="notifPanel">
+  <div class="notif-panel-head">
+    <h3>Notifications</h3>
+    <div class="notif-panel-actions">
+      <button type="button" class="btn-small" id="notifMarkAllBtn">Mark all read</button>
+      <button type="button" class="btn-small danger" id="notifClearAllBtn">Clear all</button>
+    </div>
+  </div>
+  <div class="notif-list" id="notifList"></div>
+</div>
 
 <div id="transcriptModal" class="modal-overlay">
   <div class="modal-box transcript-box">
@@ -422,6 +451,24 @@
     <div class="modal-actions">
       <button type="button" class="btn-secondary" id="promoteCancelBtn">Cancel</button>
       <button type="button" class="btn-primary" id="promoteSubmitBtn">Promote</button>
+    </div>
+  </div>
+</div>
+
+<div id="warnModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title">Warn <span id="warnTargetName"></span></div>
+    <div class="form-field">
+      <label>Reason</label>
+      <textarea id="warnReasonInput" class="text-input" placeholder="Why are they being warned?" rows="3"></textarea>
+    </div>
+    <div class="form-field">
+      <label>Duration <span class="optional-tag">(optional — leave empty for a permanent warning)</span></label>
+      <input type="text" id="warnDurationInput" class="text-input" placeholder="e.g. 7d, 30d, 12h" autocomplete="off"/>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="warnCancelBtn">Cancel</button>
+      <button type="button" class="btn-danger" id="warnSubmitBtn">Issue warning</button>
     </div>
   </div>
 </div>
