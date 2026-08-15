@@ -57,13 +57,13 @@
       <button type="button" class="nav-item" data-view="leaderboard"><span class="nav-icon">◆</span>Leaderboards</button>
       <button type="button" class="nav-item" data-view="staff"><span class="nav-icon">◆</span>Staff Team</button>
       <div class="nav-group-label" data-requires="highStaff" style="display:none;">Applications</div>
-      <button type="button" class="nav-item" data-view="staffApps" data-requires="highStaff" style="display:none;"><span class="nav-icon">◆</span>Staff Applications<span class="nav-badge" id="badgeStaffApps" style="display:none;">0</span></button>
-      <button type="button" class="nav-item" data-view="partnerApps" data-requires="highStaff" style="display:none;"><span class="nav-icon">◆</span>Partner Applications<span class="nav-badge" id="badgePartnerApps" style="display:none;">0</span></button>
+      <button type="button" class="nav-item" data-view="staffApps" data-requires="highStaff" style="display:none;"><span class="nav-icon">◆</span>Staff Applications<span class="nav-badge" id="badgeStaffApps" style="display:none;">0</span><span class="nav-dot" id="navDotStaffApps" style="display:none;"></span></button>
+      <button type="button" class="nav-item" data-view="partnerApps" data-requires="highStaff" style="display:none;"><span class="nav-icon">◆</span>Partner Applications<span class="nav-badge" id="badgePartnerApps" style="display:none;">0</span><span class="nav-dot" id="navDotPartnerApps" style="display:none;"></span></button>
       <div class="nav-group-label">Security</div>
-      <button type="button" class="nav-item" data-view="scams"><span class="nav-icon">◆</span>Scam Database</button>
+      <button type="button" class="nav-item" data-view="scams"><span class="nav-icon">◆</span>Scam Database<span class="nav-dot" id="navDotScams" style="display:none;"></span></button>
       <button type="button" class="nav-item" data-view="logs" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Action Logs</button>
-      <button type="button" class="nav-item" data-view="excuses"><span class="nav-icon">◆</span>Excuses</button>
-      <button type="button" class="nav-item" data-view="warns"><span class="nav-icon">◆</span>Warns</button>
+      <button type="button" class="nav-item" data-view="excuses"><span class="nav-icon">◆</span>Excuses<span class="nav-dot" id="navDotExcuses" style="display:none;"></span></button>
+      <button type="button" class="nav-item" data-view="warns"><span class="nav-icon">◆</span>Warns<span class="nav-dot" id="navDotWarns" style="display:none;"></span></button>
       <div class="nav-group-label">Content</div>
       <button type="button" class="nav-item" data-view="reviews"><span class="nav-icon">◆</span>Reviews</button>
       <button type="button" class="nav-item" data-view="drops" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Publish Drop</button>
@@ -90,7 +90,7 @@
       <div class="content-header-actions">
         <span class="live-dot"></span>
         <button type="button" class="notif-bell-btn" id="notifBellBtn" title="Notifications">
-          🔔<span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+          🔔<span class="notif-dot" id="notifDot" style="display:none;"></span><span class="notif-badge" id="notifBadge" style="display:none;">0</span>
         </button>
         <button type="button" class="refresh-btn" id="refreshBtn" title="Refresh"><span class="refresh-icon">↻</span></button>
       </div>

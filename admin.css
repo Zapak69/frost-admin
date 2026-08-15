@@ -116,6 +116,11 @@ body {
   margin-left: auto; background: var(--danger); color: #fff; font-family: -apple-system, sans-serif;
   font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 20px; line-height: 1.5;
 }
+.nav-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0;
+  margin-left: auto; animation: liveDotPulse 1.4s ease-in-out infinite;
+}
+.nav-badge + .nav-dot { margin-left: 6px; }
 
 .sidebar-bottom { border-top: 1px solid var(--border); padding: 14px 16px; display: flex; align-items: center; gap: 10px; }
 .sidebar-user { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
@@ -162,6 +167,10 @@ body {
   border-radius: 999px; background: var(--danger); color: #fff; font-size: 10px; font-weight: 700;
   display: flex; align-items: center; justify-content: center; font-family: 'Space Mono', monospace;
   border: 2px solid var(--bg);
+}
+.notif-dot {
+  position: absolute; top: -2px; left: -2px; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--bg); animation: liveDotPulse 1.4s ease-in-out infinite;
 }
 .notif-panel {
   position: fixed; top: 78px; right: 36px; width: 360px; max-height: 480px;

@@ -95,10 +95,53 @@
   let notifCache = [];
   const seenNotifToastIds = new Set();
 
+  function setNotifUnread(count) {
+    setBadge('notifBadge', count);
+    document.getElementById('notifDot').style.display = count > 0 ? '' : 'none';
+  }
+
+  const VIEW_NOTIF_TYPES = {
+    warns: ['warn'],
+    excuses: ['excuse_decided', 'excuse_submitted'],
+    scams: ['scam_report'],
+    staffApps: ['staff_app_submitted'],
+    partnerApps: ['partner_app_submitted']
+  };
+  const NAV_DOT_IDS = {
+    warns: 'navDotWarns', excuses: 'navDotExcuses', scams: 'navDotScams',
+    staffApps: 'navDotStaffApps', partnerApps: 'navDotPartnerApps'
+  };
+  function updateNavDots() {
+    const unreadViews = new Set();
+    notifCache.forEach(function (n) {
+      if (n.read) return;
+      for (const view in VIEW_NOTIF_TYPES) {
+        if (VIEW_NOTIF_TYPES[view].indexOf(n.type) !== -1) unreadViews.add(view);
+      }
+    });
+    Object.keys(NAV_DOT_IDS).forEach(function (view) {
+      const el = document.getElementById(NAV_DOT_IDS[view]);
+      if (el) el.style.display = unreadViews.has(view) ? '' : 'none';
+    });
+  }
+  function markViewNotifsRead(view) {
+    const types = VIEW_NOTIF_TYPES[view];
+    if (!types) return;
+    const hasUnread = notifCache.some(function (n) { return !n.read && types.indexOf(n.type) !== -1; });
+    if (!hasUnread) return;
+    notifCache.forEach(function (n) { if (types.indexOf(n.type) !== -1) n.read = true; });
+    updateNavDots();
+    setNotifUnread(notifCache.filter(function (n) { return !n.read; }).length);
+    callAdmin('notifications.markRead', { types: types });
+  }
+
   function notifTypeMeta(type) {
     if (type === 'warn') return { icon: '⚠️', title: 'New warning' };
     if (type === 'excuse_decided') return { icon: '📋', title: 'Excuse update' };
     if (type === 'excuse_submitted') return { icon: '📝', title: 'New excuse' };
+    if (type === 'scam_report') return { icon: '🚨', title: 'New scam report' };
+    if (type === 'staff_app_submitted') return { icon: '🧑‍💼', title: 'New staff application' };
+    if (type === 'partner_app_submitted') return { icon: '🤝', title: 'New partner application' };
     return { icon: '🔔', title: 'Notification' };
   }
 
@@ -156,6 +199,8 @@
         });
         callAdmin('notifications.delete', { id: id });
         notifCache = notifCache.filter(function (n) { return n.id !== id; });
+        updateNavDots();
+        setNotifUnread(notifCache.filter(function (n) { return !n.read; }).length);
         setTimeout(function () { item.remove(); }, 450);
       } else {
         inner.style.transform = 'translateX(0)';
@@ -193,8 +238,15 @@
       if (!d || !d.ok) return;
       notifCache = d.notifications;
       renderNotifList(notifCache);
+      updateNavDots();
       if (d.unreadCount > 0) {
-        callAdmin('notifications.markAllRead').then(function (r) { if (r && r.ok) setBadge('notifBadge', 0); });
+        callAdmin('notifications.markAllRead').then(function (r) {
+          if (r && r.ok) {
+            notifCache.forEach(function (n) { n.read = true; });
+            updateNavDots();
+            setNotifUnread(0);
+          }
+        });
       }
     });
   }
@@ -215,7 +267,8 @@
       if (d && d.ok) {
         notifCache.forEach(function (n) { n.read = true; });
         renderNotifList(notifCache);
-        setBadge('notifBadge', 0);
+        updateNavDots();
+        setNotifUnread(0);
       }
     });
   });
@@ -226,7 +279,8 @@
         if (d && d.ok) {
           notifCache = [];
           renderNotifList(notifCache);
-          setBadge('notifBadge', 0);
+          updateNavDots();
+          setNotifUnread(0);
         }
       });
     });
@@ -241,7 +295,8 @@
       });
       notifCache = d.notifications;
       if (!notifPanelOpen) renderNotifList(notifCache);
-      setBadge('notifBadge', d.unreadCount);
+      updateNavDots();
+      setNotifUnread(d.unreadCount);
     });
   }
   let notifPollTimer = null;
@@ -323,6 +378,7 @@
     viewTitle.textContent = VIEW_TITLES[view] || view;
     sidebar.classList.remove('open');
     if (VIEW_LOADERS[view]) VIEW_LOADERS[view]();
+    markViewNotifsRead(view);
   }
 
   document.querySelectorAll('.nav-item').forEach(function (btn) {
