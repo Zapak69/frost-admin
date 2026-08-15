@@ -117,16 +117,6 @@
             <button type="button" class="btn-small lb-more-btn" id="activityLeaderboardMoreBtn">Show more</button>
           </div>
         </div>
-        <div class="panel">
-          <div class="panel-head"><h2>Quick actions</h2></div>
-          <div class="quick-actions" id="managementQuickActions">
-            <button type="button" class="quick-action-btn" data-goto="staffApps" data-requires="highStaff" style="display:none;">Review staff applications</button>
-            <button type="button" class="quick-action-btn" data-goto="partnerApps" data-requires="highStaff" style="display:none;">Review partner applications</button>
-            <button type="button" class="quick-action-btn" data-goto="scams">View scam database</button>
-            <button type="button" class="quick-action-btn" data-goto="drops" data-requires="management" style="display:none;">Publish a drop</button>
-            <button type="button" class="quick-action-btn" data-goto="giveaway" data-requires="management" style="display:none;">Start a giveaway</button>
-          </div>
-        </div>
       </div>
 
       <div id="overviewStaff" style="display:none;">
@@ -154,13 +144,6 @@
           <div class="panel panel-rankup-small">
             <div class="panel-head"><h2>🎯 Your next rankup</h2></div>
             <div class="rankup-list rankup-list-small" id="myRankupList"></div>
-          </div>
-        </div>
-        <div class="panel">
-          <div class="panel-head"><h2>Quick actions</h2></div>
-          <div class="quick-actions" id="staffQuickActions">
-            <button type="button" class="quick-action-btn" data-goto="scams">View scam database</button>
-            <button type="button" class="quick-action-btn" data-goto="tickets">View open tickets</button>
           </div>
         </div>
       </div>
@@ -444,10 +427,14 @@
 </div>
 
 <div id="calendarModal" class="modal-overlay">
-  <div class="modal-box">
+  <div class="modal-box calendar-modal-box">
     <div class="modal-title"><span id="calendarModalName"></span> — activity</div>
-    <div class="stat-grid" id="calendarModalStats" style="margin-bottom:18px;"></div>
-    <div class="activity-calendar" id="calendarModalGrid"></div>
+    <p class="modal-text" style="margin-bottom:12px;">Yellow-ringed days have a submitted excuse — click one for details.</p>
+    <div class="calendar-modal-layout">
+      <div class="stat-grid stat-grid-compact" id="calendarModalStats"></div>
+      <div class="activity-calendar compact" id="calendarModalGrid"></div>
+    </div>
+    <div class="excuse-detail-box" id="calendarModalExcuseDetail" style="display:none;"></div>
     <div class="app-list" id="calendarModalWarnings" style="margin-top:16px;"></div>
     <div class="modal-actions">
       <button type="button" class="btn-secondary" id="calendarModalCloseBtn">Close</button>

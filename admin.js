@@ -96,9 +96,6 @@
     try { idx = Number((BigInt(id || '0') >> 22n) % 6n); } catch (e) { idx = 0; }
     return 'https://cdn.discordapp.com/embed/avatars/' + idx + '.png';
   }
-  // reviews_export.json stores the reviewer's avatar as an already-complete CDN URL (or omits it
-  // for anonymous reviews) rather than the bare hash avatarUrl() expects everywhere else - using
-  // avatarUrl() directly here would nest the URL inside another URL and always 404.
   function reviewAvatarUrl(r) {
     if (r.avatar && /^https?:\/\//.test(r.avatar)) return r.avatar;
     return avatarUrl(r.discordId, null);
@@ -465,25 +462,46 @@
   }
 
   const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  function renderActivityCalendar(containerId, days) {
+  function monthLabelHtml(dateObj) {
+    return '<div class="activity-cal-month-label">' + MONTH_NAMES[dateObj.getMonth()] + ' ' + dateObj.getFullYear() + '</div>';
+  }
+  function monthPadHtml(dateObj) {
+    const pad = (dateObj.getDay() + 6) % 7;
+    let html = '';
+    for (let i = 0; i < pad; i++) html += '<div class="activity-day empty"></div>';
+    return html;
+  }
+  function renderActivityCalendar(containerId, days, opts) {
+    opts = opts || {};
+    const excuseDays = opts.excuseDays || {};
     const todayStr = new Date().toISOString().slice(0, 10);
     const weekdayHtml = WEEKDAY_LABELS.map(function (w) { return '<div class="activity-cal-weekday">' + w + '</div>'; }).join('');
-    let padHtml = '';
+    let bodyHtml = '';
     if (days.length) {
       const parts = days[0].date.split('-');
       const firstDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-      const pad = (firstDate.getDay() + 6) % 7;
-      for (let i = 0; i < pad; i++) padHtml += '<div class="activity-day empty"></div>';
+      bodyHtml += monthLabelHtml(firstDate) + monthPadHtml(firstDate);
     }
-    const dayHtml = days.map(function (d) {
+    days.forEach(function (d, i) {
+      const dayNum = Number(d.date.slice(8, 10));
+      if (i > 0 && dayNum === 1) {
+        const parts = d.date.split('-');
+        const monthStart = new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
+        bodyHtml += monthLabelHtml(monthStart) + monthPadHtml(monthStart);
+      }
       const isToday = d.date === todayStr;
-      const cls = 'activity-day' + (d.active ? ' active' : '') + (isToday && !d.active ? ' inactive-today' : '');
-      return '<div class="' + cls + '" data-date="' + d.date + '">' + Number(d.date.slice(8, 10)) + '</div>';
-    }).join('');
-    document.getElementById(containerId).innerHTML = weekdayHtml + padHtml + dayHtml;
+      const excuse = excuseDays[d.date];
+      const cls = 'activity-day' + (d.active ? ' active' : '') + (isToday && !d.active ? ' inactive-today' : '') + (excuse ? ' has-excuse' : '');
+      bodyHtml += '<div class="' + cls + '" data-date="' + d.date + '">' + dayNum + '</div>';
+    });
+    document.getElementById(containerId).innerHTML = weekdayHtml + bodyHtml;
+    if (opts.onExcuseClick) {
+      document.querySelectorAll('#' + containerId + ' .activity-day.has-excuse').forEach(function (el) {
+        el.addEventListener('click', function () { opts.onExcuseClick(excuseDays[el.dataset.date]); });
+      });
+    }
   }
 
-  // ================= EXCUSES =================
   const excuseModal = document.getElementById('excuseModal');
   const excuseCalGrid = document.getElementById('excuseCalGrid');
   const excuseCalLabel = document.getElementById('excuseCalLabel');
@@ -640,8 +658,8 @@
         );
     const liteBtn = (canPublishContent && !m.isBot) ? '<button class="btn-small" data-lite-id="' + m.id + '" data-lite-name="' + escapeHtml(m.globalName || m.username) + '">Grant Lite</button>' : '';
     const liteStatus = (m.lite && m.lite.gifted)
-      ? '<span>Lite until <strong style="color:var(--success);">' + formatDateTime(Date.parse(m.lite.expiresAt)) + '</strong> (' + (m.lite.source === 'purchase' ? 'purchased' : 'gifted') + ')</span>'
-      : '';
+      ? '<span>Lite until <strong style="color:var(--success);">' + formatDateTime(Date.parse(m.lite.expiresAt)) + '</strong> (gifted)</span>'
+      : (m.hasLiteRole ? '<span>Lite: <strong style="color:var(--success);">purchased</strong></span>' : '');
     return (
       '<div class="app-card" id="' + idPrefix + m.id + '">' +
         '<div class="app-card-head">' +
@@ -714,7 +732,6 @@
   document.getElementById('memberModalCloseBtn').addEventListener('click', function () { memberModal.classList.remove('active'); });
   memberModal.addEventListener('click', function (e) { if (e.target === memberModal) memberModal.classList.remove('active'); });
 
-  // ================= LITE GRANT ================= (calendar day-range: today -> clicked day)
   const liteModal = document.getElementById('liteModal');
   const liteCalGrid = document.getElementById('liteCalGrid');
   const liteCalLabel = document.getElementById('liteCalLabel');
@@ -722,12 +739,9 @@
   const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   let liteTargetId = null;
   let liteOnDone = null;
-  let liteCalMonth = null; // Date, 1st of displayed month
-  let liteSelectedEnd = null; // Date, inclusive end of grant range
+  let liteCalMonth = null;
+  let liteSelectedEnd = null;
 
-  // Calendar day-key in the VIEWER's local calendar, not UTC - toISOString() converts to UTC
-  // first, which silently rolls the date back a day for anyone east of UTC (e.g. clicking "15"
-  // would key as "14" for a UTC+1/+2 visitor), so a click never matched the day just rendered.
   function localDateKey(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
@@ -738,7 +752,7 @@
     const year = liteCalMonth.getFullYear(), month = liteCalMonth.getMonth();
     liteCalLabel.textContent = MONTH_NAMES[month] + ' ' + year;
     const firstDay = new Date(year, month, 1);
-    const startOffset = (firstDay.getDay() + 6) % 7; // Monday-first
+    const startOffset = (firstDay.getDay() + 6) % 7;
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     let html = '';
     for (let i = 0; i < startOffset; i++) html += '<div class="lite-cal-day empty"></div>';
@@ -821,10 +835,10 @@
   }
   function renderStaffLeaderboardTable() {
     const rows = lbData.staffLeaderboard.slice(0, lbExpanded.staffLeaderboard ? undefined : LB_PAGE_SIZE).map(function (s, i) {
-      return '<tr><td class="mono">#' + (i + 1) + '</td><td class="mono">' + userLink(s.userId, s.userId) + '</td><td class="mono">' + s.solvedTickets + '</td><td class="mono">' + s.totalClaims + '</td><td class="mono">' + formatDuration(s.totalResolutionMs) + '</td></tr>';
+      return '<tr><td class="mono">#' + (i + 1) + '</td><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(s.userId, s.avatar) + '"/>' + userLink(s.userId, s.username || s.userId) + '</td><td class="mono">' + s.solvedTickets + '</td><td class="mono">' + s.totalClaims + '</td><td class="mono">' + formatDuration(s.totalResolutionMs) + '</td></tr>';
     }).join('') || emptyRow(5, 'No staff activity recorded yet.');
     document.getElementById('staffLeaderboardTable').innerHTML =
-      '<thead><tr><th>#</th><th>User ID</th><th>Solved</th><th>Claims</th><th>Avg. handling</th></tr></thead><tbody>' + rows + '</tbody>';
+      '<thead><tr><th>#</th><th>Member</th><th>Solved</th><th>Claims</th><th>Avg. handling</th></tr></thead><tbody>' + rows + '</tbody>';
   }
   const LB_RENDERERS = { mostActive: renderMostActiveTable, playtime: renderPlaytimeTable, staffLeaderboard: renderStaffLeaderboardTable };
   document.querySelectorAll('.lb-more-btn[data-lb]').forEach(function (btn) {
@@ -853,7 +867,8 @@
         const color = s.rankColor || '#6b8fa8';
         const rankPill = s.rank ? '<span class="pill" style="background:' + color + '1a;color:' + color + ';">' + escapeHtml(s.rank) + '</span>' : '—';
         const actions = canReviewApplications
-          ? '<button class="btn-small" data-calendar-id="' + s.id + '" data-calendar-name="' + escapeHtml(s.tag) + '">Calendar</button> ' +
+          ? '<button class="btn-small" data-calendar-id="' + s.id + '" data-calendar-name="' + escapeHtml(s.tag) + '">Active days</button> ' +
+            '<button class="btn-small danger" data-warn-id="' + s.id + '" data-warn-name="' + escapeHtml(s.tag) + '">Warn</button> ' +
             '<button class="btn-small" data-promote-id="' + s.id + '" data-promote-name="' + escapeHtml(s.tag) + '" data-promote-rank="' + escapeHtml(s.rank || 'Unranked') + '">Promote</button>'
           : '';
         return '<tr><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(s.id, s.avatar) + '"/>' + userLink(s.id, s.tag) + '</td><td>' + rankPill + '</td><td class="mono">' + s.solvedTickets + '</td><td class="mono">' + s.totalClaims + '</td><td class="mono">' + s.unclaimedTickets + '</td><td>' + actions + '</td></tr>';
@@ -867,6 +882,19 @@
       table.querySelectorAll('button[data-promote-id]').forEach(function (btn) {
         btn.addEventListener('click', function () { openPromoteModal(btn.dataset.promoteId, btn.dataset.promoteName, btn.dataset.promoteRank); });
       });
+      table.querySelectorAll('button[data-warn-id]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          const targetId = btn.dataset.warnId, name = btn.dataset.warnName;
+          askConfirm('Warn ' + name + '?', 'This posts to the staff warn log channel and DMs them the reason.', { reason: true }).then(function (res) {
+            if (!res.ok) return;
+            if (!res.reason) { showToast('Please write a reason.', 'error'); return; }
+            callAdmin('staff.warn', { targetId: targetId, reason: res.reason }).then(function (d) {
+              if (d && d.ok) { showToast('Warning issued.', 'success'); loadStaff(); }
+              else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+            });
+          });
+        });
+      });
     });
   }
 
@@ -876,6 +904,7 @@
     document.getElementById('calendarModalGrid').innerHTML = '';
     document.getElementById('calendarModalWarnings').innerHTML = '';
     document.getElementById('calendarModalStats').innerHTML = '';
+    document.getElementById('calendarModalExcuseDetail').style.display = 'none';
     calendarModal.classList.add('active');
     callAdmin('staff.calendar', { targetId: userId }).then(function (d) {
       if (!d || !d.ok) return;
@@ -887,7 +916,16 @@
           [d.stats.unclaimedTickets, 'Unclaims']
         ]);
       }
-      renderActivityCalendar('calendarModalGrid', d.calendar || []);
+      renderActivityCalendar('calendarModalGrid', d.calendar || [], {
+        excuseDays: d.excuseDays || {},
+        onExcuseClick: function (excuse) {
+          const box = document.getElementById('calendarModalExcuseDetail');
+          box.style.display = '';
+          box.innerHTML =
+            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><strong>Excuse</strong><span class="pill ' + excusePillClass(excuse.status) + '">' + escapeHtml(excuse.status) + '</span><span class="app-card-meta" style="margin-left:auto;">' + formatRelative(excuse.submittedAt) + '</span></div>' +
+            '<div style="font-size:13px;color:var(--text);">' + escapeHtml(excuse.reason) + '</div>';
+        }
+      });
       const warnings = d.warnings || [];
       document.getElementById('calendarModalWarnings').innerHTML = warnings.length
         ? '<div class="panel-sub" style="margin-bottom:8px;">' + warnings.length + ' warning(s)</div>' + warnings.map(function (w) {
@@ -1045,10 +1083,14 @@
       if (!d || !d.ok) return;
       loadedScamEntries = d.entries;
       const rows = d.entries.map(function (e, i) {
-        const target = e.targetUsername ? escapeHtml(e.targetUsername) : (e.targetUserId || '—');
+        const target = e.targetUserId
+          ? '<span class="cell-user"><img class="cell-avatar" src="' + avatarUrl(e.targetUserId, e.targetAvatar) + '"/>' + userLink(e.targetUserId, e.targetUsername || e.targetUserId) + '</span>'
+          : '—';
         const content = e.messageContent ? escapeHtml(e.messageContent).slice(0, 80) : '<span style="color:var(--muted-dim);">(no text)</span>';
         const actionerId = e.actorId || e.reporterId;
-        const actionedBy = actionerId ? userLink(actionerId, e.actorUsername || e.reporterUsername || actionerId) : '<span style="color:var(--muted-dim);">—</span>';
+        const actionedBy = actionerId
+          ? '<span class="cell-user"><img class="cell-avatar" src="' + avatarUrl(actionerId, e.actorAvatar) + '"/>' + userLink(actionerId, e.actorUsername || e.reporterUsername || actionerId) + '</span>'
+          : '<span style="color:var(--muted-dim);">—</span>';
         const attachCount = (e.attachments || e.attachmentNames || []).length;
         return '<tr class="clickable-row" data-scam-index="' + i + '"><td class="mono" style="white-space:nowrap;">' + formatRelative(e.timestamp) + '</td><td><span class="pill ' + e.type + '">' + e.type + '</span></td><td>' + target + '</td><td>' + content + '</td><td>' + actionedBy + '</td><td class="mono">' + (attachCount || '—') + '</td></tr>';
       }).join('') || emptyRow(6, 'No scam entries logged yet.');
@@ -1071,8 +1113,8 @@
     const actionerId = entry.actorId || entry.reporterId;
     document.getElementById('scamDetailMeta').innerHTML =
       '<span class="pill ' + entry.type + '">' + escapeHtml(entry.type) + '</span>' +
-      '<span>Target: <strong>' + userLink(entry.targetUserId, entry.targetUsername || entry.targetUserId || '—') + '</strong></span>' +
-      (actionerId ? '<span>' + (entry.reporterId ? 'Reported' : 'Actioned') + ' by: <strong>' + userLink(actionerId, entry.actorUsername || entry.reporterUsername || actionerId) + '</strong></span>' : '') +
+      '<span class="cell-user">Target: <img class="cell-avatar" src="' + avatarUrl(entry.targetUserId, entry.targetAvatar) + '"/><strong>' + userLink(entry.targetUserId, entry.targetUsername || entry.targetUserId || '—') + '</strong></span>' +
+      (actionerId ? '<span class="cell-user">' + (entry.reporterId ? 'Reported' : 'Actioned') + ' by: <img class="cell-avatar" src="' + avatarUrl(actionerId, entry.actorAvatar) + '"/><strong>' + userLink(actionerId, entry.actorUsername || entry.reporterUsername || actionerId) + '</strong></span>' : '') +
       '<span>' + formatDateTime(entry.timestamp) + '</span>' +
       (entry.messageLink ? '<span><a href="' + escapeHtml(entry.messageLink) + '" target="_blank" style="color:var(--accent);">Original link</a></span>' : '');
 
@@ -1117,7 +1159,7 @@
   function renderReviews(reviews, limit) {
     const shown = limit ? reviews.slice(0, limit) : reviews;
     const rows = shown.map(function (r) {
-      const removeBtn = r.discordId ? '<button class="btn-small danger" data-remove="' + r.discordId + '">Remove</button>' : '';
+      const removeBtn = (r.discordId && canPublishContent) ? '<button class="btn-small danger" data-remove="' + r.discordId + '">Remove</button>' : '';
       return '<tr><td class="cell-user"><img class="cell-avatar" src="' + reviewAvatarUrl(r) + '"/>' + userLink(r.discordId, r.username) + '</td><td class="mono">' + escapeHtml(r.stars || '') + '</td><td style="max-width:340px;">' + escapeHtml((r.comment || '').slice(0, 140)) + '</td><td>' + removeBtn + '</td></tr>';
     }).join('') || emptyRow(4, 'No reviews yet.');
     const table = document.getElementById('reviewsTable');
