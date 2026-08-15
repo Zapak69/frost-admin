@@ -62,7 +62,7 @@
       <div class="nav-group-label">Security</div>
       <button type="button" class="nav-item" data-view="scams"><span class="nav-icon">◆</span>Scam Database</button>
       <button type="button" class="nav-item" data-view="logs" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Action Logs</button>
-      <button type="button" class="nav-item" data-view="excuses" data-requires="highStaff" style="display:none;"><span class="nav-icon">◆</span>Excuses</button>
+      <button type="button" class="nav-item" data-view="excuses"><span class="nav-icon">◆</span>Excuses</button>
       <div class="nav-group-label">Content</div>
       <button type="button" class="nav-item" data-view="reviews"><span class="nav-icon">◆</span>Reviews</button>
       <button type="button" class="nav-item" data-view="drops" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Publish Drop</button>
@@ -106,9 +106,16 @@
           </div>
           <div class="chart-wrap"><svg class="chart-svg" id="growthChart"></svg><div class="chart-tooltip" id="growthChartTooltip"></div></div>
         </div>
-        <div class="panel">
-          <div class="panel-head"><h2>🎯 Next rankups</h2><span class="panel-sub">Staff progress toward their next rank</span></div>
-          <div class="rankup-list" id="rankupList"></div>
+        <div class="panel-row panel-row-cal">
+          <div class="panel">
+            <div class="panel-head"><h2>🎯 Next rankups</h2><span class="panel-sub">Staff progress toward their next rank</span></div>
+            <div class="rankup-list" id="rankupList"></div>
+          </div>
+          <div class="panel panel-rankup-small">
+            <div class="panel-head"><h2>🔥 Most active staff</h2><span class="panel-sub">By messages this week</span></div>
+            <div class="app-list" id="activityLeaderboardList"></div>
+            <button type="button" class="btn-small lb-more-btn" id="activityLeaderboardMoreBtn">Show more</button>
+          </div>
         </div>
         <div class="panel">
           <div class="panel-head"><h2>Quick actions</h2></div>
@@ -139,13 +146,15 @@
           <div class="table-wrap"><table class="data-table" id="myUnclaimedTable"></table></div>
         </div>
         <div class="stat-grid" id="myOverviewStats"></div>
-        <div class="panel">
-          <div class="panel-head"><h2>Your activity</h2><span class="panel-sub">Last 30 days</span></div>
-          <div class="activity-calendar" id="myActivityCalendar"></div>
-        </div>
-        <div class="panel">
-          <div class="panel-head"><h2>🎯 Your next rankup</h2></div>
-          <div class="rankup-list" id="myRankupList"></div>
+        <div class="panel-row panel-row-cal">
+          <div class="panel">
+            <div class="panel-head"><h2>Your activity</h2><span class="panel-sub">Last 30 days</span></div>
+            <div class="activity-calendar" id="myActivityCalendar"></div>
+          </div>
+          <div class="panel panel-rankup-small">
+            <div class="panel-head"><h2>🎯 Your next rankup</h2></div>
+            <div class="rankup-list rankup-list-small" id="myRankupList"></div>
+          </div>
         </div>
         <div class="panel">
           <div class="panel-head"><h2>Quick actions</h2></div>
@@ -169,17 +178,22 @@
     </div>
 
     <div class="view" id="view-leaderboard">
-      <div class="panel">
-        <div class="panel-head"><h2>Most active members</h2><span class="panel-sub">By messages sent this week</span></div>
-        <div class="table-wrap"><table class="data-table" id="mostActiveTable"></table></div>
-      </div>
-      <div class="panel">
-        <div class="panel-head"><h2>Playtime this month</h2><span class="panel-sub">Per-player, resets monthly</span></div>
-        <div class="table-wrap"><table class="data-table" id="playtimeTable"></table></div>
-      </div>
-      <div class="panel">
-        <div class="panel-head"><h2>Staff performance</h2><span class="panel-sub">All-time</span></div>
-        <div class="table-wrap"><table class="data-table" id="staffLeaderboardTable"></table></div>
+      <div class="panel-row panel-row-3">
+        <div class="panel">
+          <div class="panel-head"><h2>Most active</h2><span class="panel-sub">By messages, this week</span></div>
+          <div class="table-wrap"><table class="data-table" id="mostActiveTable"></table></div>
+          <button type="button" class="btn-small lb-more-btn" data-lb="mostActive">Show more</button>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>Playtime</h2><span class="panel-sub">This month, per-player</span></div>
+          <div class="table-wrap"><table class="data-table" id="playtimeTable"></table></div>
+          <button type="button" class="btn-small lb-more-btn" data-lb="playtime">Show more</button>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>Staff performance</h2><span class="panel-sub">All-time</span></div>
+          <div class="table-wrap"><table class="data-table" id="staffLeaderboardTable"></table></div>
+          <button type="button" class="btn-small lb-more-btn" data-lb="staffLeaderboard">Show more</button>
+        </div>
       </div>
     </div>
 
@@ -240,8 +254,18 @@
 
     <div class="view" id="view-excuses">
       <div class="panel">
-        <div class="panel-head"><h2>Excuses</h2><span class="panel-sub">Submitted by staff after being flagged inactive</span></div>
-        <div class="table-wrap"><table class="data-table" id="excusesTable"></table></div>
+        <div class="panel-head">
+          <h2>Your excuses</h2>
+          <span class="panel-sub">History of excuses you've submitted</span>
+          <button type="button" class="btn-small" id="writeExcuseBtn2" style="margin-left:auto;">Write an excuse</button>
+        </div>
+        <div class="table-wrap"><table class="data-table" id="myExcusesTable"></table></div>
+      </div>
+      <div id="excusesAllPanel" style="display:none;">
+        <div class="panel">
+          <div class="panel-head"><h2>All excuses</h2><span class="panel-sub">Submitted by staff after being flagged inactive</span></div>
+          <div id="excusesList" class="app-list"></div>
+        </div>
       </div>
     </div>
 
@@ -387,6 +411,16 @@
       <label>Reason</label>
       <textarea id="excuseReasonInput" class="text-input" placeholder="e.g. exams this week, back from Monday" rows="3"></textarea>
     </div>
+    <div class="form-field">
+      <label>Inactive day(s) <span class="optional-tag">(select at least one)</span></label>
+      <div class="lite-calendar-nav">
+        <button type="button" class="btn-small" id="excuseCalPrevBtn">‹</button>
+        <span id="excuseCalLabel"></span>
+        <button type="button" class="btn-small" id="excuseCalNextBtn">›</button>
+      </div>
+      <div class="lite-calendar-grid" id="excuseCalGrid"></div>
+      <p class="modal-text" id="excuseDaysSummary">No days selected.</p>
+    </div>
     <div class="modal-actions">
       <button type="button" class="btn-secondary" id="excuseCancelBtn">Cancel</button>
       <button type="button" class="btn-primary" id="excuseSubmitBtn">Submit</button>
@@ -412,6 +446,7 @@
 <div id="calendarModal" class="modal-overlay">
   <div class="modal-box">
     <div class="modal-title"><span id="calendarModalName"></span> — activity</div>
+    <div class="stat-grid" id="calendarModalStats" style="margin-bottom:18px;"></div>
     <div class="activity-calendar" id="calendarModalGrid"></div>
     <div class="app-list" id="calendarModalWarnings" style="margin-top:16px;"></div>
     <div class="modal-actions">
@@ -430,17 +465,21 @@
       <button type="button" class="btn-small" id="liteCalNextBtn">›</button>
     </div>
     <div class="lite-calendar-grid" id="liteCalGrid"></div>
-    <div class="form-field">
-      <label>Source</label>
-      <div class="filter-pills" id="liteSourceFilter">
-        <button type="button" class="filter-pill active" data-source="gift">Gifted</button>
-        <button type="button" class="filter-pill" data-source="purchase">Purchased</button>
-      </div>
-    </div>
     <p class="modal-text" id="liteSelectionSummary">No days selected.</p>
     <div class="modal-actions">
       <button type="button" class="btn-secondary" id="liteModalCancelBtn">Cancel</button>
       <button type="button" class="btn-primary" id="liteModalGrantBtn">Grant Lite</button>
+    </div>
+  </div>
+</div>
+
+<div id="scamDetailModal" class="modal-overlay">
+  <div class="modal-box transcript-box">
+    <div class="modal-title" id="scamDetailTitle">Scam report</div>
+    <div class="transcript-meta" id="scamDetailMeta"></div>
+    <div class="transcript-scroll" id="scamDetailBody"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="scamDetailCloseBtn">Close</button>
     </div>
   </div>
 </div>

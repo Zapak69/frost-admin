@@ -310,13 +310,36 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
 .rankup-path { font-size: 11.5px; color: var(--muted-dim); font-family: 'Space Mono', monospace; margin-left: auto; }
 .rankup-progress { display: flex; flex-direction: column; gap: 9px; }
 .progress-row { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
-.progress-check { flex-shrink: 0; font-size: 12px; }
+.progress-check { flex-shrink: 0; font-size: 13px; font-weight: 700; }
 .progress-check.ok { color: var(--success); }
-.progress-check.no { color: var(--muted-dim); }
+.progress-check.no { color: var(--danger); }
 .progress-label { flex-shrink: 0; color: var(--muted); min-width: 150px; }
 .progress-bar { flex: 1; height: 6px; border-radius: 4px; background: rgba(255,255,255,0.08); overflow: hidden; }
 .progress-bar-fill { height: 100%; border-radius: 4px; background: var(--accent-bright); transition: width 0.5s cubic-bezier(0.16,1,0.3,1); }
 .progress-bar-fill.ok { background: var(--success); }
+
+/* ---------- Side-by-side panel rows ---------- */
+.panel-row { display: grid; gap: 20px; margin-bottom: 20px; align-items: start; }
+.panel-row > .panel { margin-bottom: 0; }
+.panel-row-cal { grid-template-columns: 1.4fr 1fr; }
+.panel-row-3 { grid-template-columns: repeat(3, 1fr); }
+.panel-rankup-small { padding: 18px 20px; }
+.panel-rankup-small .panel-head { margin-bottom: 12px; }
+.panel-rankup-small .panel-head h2 { font-size: 14px; }
+.rankup-list-small .rankup-card { padding: 12px 14px; }
+.rankup-list-small .rankup-avatar { width: 22px; height: 22px; }
+.rankup-list-small .rankup-name { font-size: 12.5px; }
+.rankup-list-small .progress-label { min-width: 110px; font-size: 11.5px; }
+.lb-more-btn { margin-top: 14px; width: 100%; }
+
+/* ---------- Activity leaderboard rows ---------- */
+.lb-row { display: flex; align-items: center; gap: 12px; padding: 9px 4px; border-bottom: 1px solid var(--border); cursor: pointer; border-radius: 8px; }
+.lb-row:last-child { border-bottom: none; }
+.lb-row:hover { background: rgba(255,255,255,0.03); }
+.lb-rank { font-family: 'Space Mono', monospace; color: var(--muted-dim); width: 20px; flex-shrink: 0; font-size: 12.5px; }
+.lb-avatar { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; }
+.lb-name { flex: 1; font-size: 13px; min-width: 0; }
+.lb-count { font-family: 'Space Mono', monospace; color: var(--accent); font-size: 12.5px; flex-shrink: 0; }
 
 /* ---------- Priority tickets ---------- */
 .priority-row td { background: linear-gradient(90deg, rgba(168,85,247,0.1), rgba(168,85,247,0.02) 60%); position: relative; }
@@ -383,13 +406,20 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
 .banner-text span { color: var(--muted); font-size: 12.5px; }
 
 /* ---------- Activity calendar ---------- */
-.activity-calendar { display: flex; flex-wrap: wrap; gap: 5px; }
-.activity-day {
-  width: 22px; height: 22px; border-radius: 6px; background: var(--bg-elevated);
-  border: 1px solid var(--border); position: relative;
+.activity-calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.activity-cal-weekday {
+  text-align: center; font-size: 10px; color: var(--muted-dim); text-transform: uppercase;
+  letter-spacing: 0.4px; font-family: 'Space Mono', monospace; padding-bottom: 3px;
 }
-.activity-day.active { background: var(--success); border-color: var(--success); }
-.activity-day.inactive-today { border-color: var(--warning); border-style: dashed; }
+.activity-day {
+  aspect-ratio: 1; border-radius: 7px; background: var(--bg-elevated);
+  border: 1px solid var(--border); position: relative;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10.5px; color: var(--muted-dim); font-family: 'Space Mono', monospace;
+}
+.activity-day.empty { visibility: hidden; }
+.activity-day.active { background: var(--success); border-color: var(--success); color: #04220a; font-weight: 700; }
+.activity-day.inactive-today { border-color: var(--warning); border-style: dashed; color: var(--warning); }
 .activity-day:hover::after {
   content: attr(data-date); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
   background: var(--bg-elevated); border: 1px solid var(--border-strong); border-radius: 6px;
@@ -410,6 +440,7 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
 .lite-cal-day:hover { background: var(--bg-hover); }
 .lite-cal-day.in-range { background: rgba(79,200,248,0.18); color: var(--accent); border-color: var(--accent); }
 .lite-cal-day.range-end { background: var(--accent-bright); color: #fff; border-color: var(--accent-bright); font-weight: 700; }
+.lite-cal-day.selected { background: var(--accent-bright); color: #fff; border-color: var(--accent-bright); font-weight: 700; }
 
 /* ---------- Member modal ---------- */
 .member-modal-box { max-width: 460px; }
@@ -418,6 +449,14 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
   cursor: pointer; border-bottom: 1px dashed var(--muted-dim); transition: color 0.15s ease, border-color 0.15s ease;
 }
 .user-link:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ---------- Scam detail ---------- */
+.scam-attachment-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.scam-attachment-img {
+  width: 160px; height: 160px; object-fit: cover; border-radius: 12px; border: 1px solid var(--border);
+  transition: border-color 0.2s ease;
+}
+.scam-attachment-img:hover { border-color: var(--accent); }
 
 /* ---------- Transcript modal ---------- */
 .transcript-box { max-width: 640px; display: flex; flex-direction: column; max-height: 85vh; }
@@ -460,4 +499,5 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
   .content { padding: 0 18px 50px; }
   .content-header { margin: 0 -18px; padding: 22px 18px 16px; }
   .form-field-row { grid-template-columns: 1fr; }
+  .panel-row-cal, .panel-row-3 { grid-template-columns: 1fr; }
 }

@@ -96,6 +96,13 @@
     try { idx = Number((BigInt(id || '0') >> 22n) % 6n); } catch (e) { idx = 0; }
     return 'https://cdn.discordapp.com/embed/avatars/' + idx + '.png';
   }
+  // reviews_export.json stores the reviewer's avatar as an already-complete CDN URL (or omits it
+  // for anonymous reviews) rather than the bare hash avatarUrl() expects everywhere else - using
+  // avatarUrl() directly here would nest the URL inside another URL and always 404.
+  function reviewAvatarUrl(r) {
+    if (r.avatar && /^https?:\/\//.test(r.avatar)) return r.avatar;
+    return avatarUrl(r.discordId, null);
+  }
   function formatDuration(ms) {
     if (!ms) return '0m';
     const totalMin = Math.floor(ms / 60000);
@@ -211,7 +218,9 @@
       canPublishContent = !!d.canPublishContent;
       canKickStaff = !!d.canKickStaff;
       applyRolePermissions();
-      document.getElementById('userTag').textContent = d.role === 'management' ? 'Management' : (d.myRank || 'Staff');
+      const userTagEl = document.getElementById('userTag');
+      userTagEl.textContent = d.myRank || 'Staff';
+      userTagEl.style.color = d.myRankColor || '';
 
       if (d.role !== 'management') {
         document.getElementById('overviewManagement').style.display = 'none';
@@ -278,8 +287,37 @@
       setBadge('badgePartnerApps', d.pendingPartnerApps);
       return Promise.all([
         loadGrowthChart(currentGrowthGranularity),
-        callAdmin('staff.rankups').then(function (rd) { if (rd && rd.ok) renderRankupPanel(rd.rankups || []); })
+        callAdmin('staff.rankups').then(function (rd) { if (rd && rd.ok) renderRankupPanel(rd.rankups || []); }),
+        loadActivityLeaderboard(5)
       ]);
+    });
+  }
+
+  function renderActivityLeaderboard(entries) {
+    const list = document.getElementById('activityLeaderboardList');
+    if (!list) return;
+    list.innerHTML = entries.map(function (m, i) {
+      return '<div class="lb-row" data-lb-id="' + escapeHtml(m.id) + '" data-lb-name="' + escapeHtml(m.username || m.id) + '">' +
+        '<span class="lb-rank">#' + (i + 1) + '</span>' +
+        '<img class="lb-avatar" src="' + avatarUrl(m.id, m.avatar) + '"/>' +
+        '<span class="lb-name">' + escapeHtml(m.username || m.id) + '</span>' +
+        '<span class="lb-count">' + m.weeklyMessages + ' msg</span>' +
+      '</div>';
+    }).join('') || '<p style="color:var(--muted);font-size:13px;">No chat activity recorded this week yet.</p>';
+    list.querySelectorAll('.lb-row[data-lb-id]').forEach(function (row) {
+      row.addEventListener('click', function () { openStaffCalendar(row.dataset.lbId, row.dataset.lbName); });
+    });
+  }
+  function loadActivityLeaderboard(limit) {
+    return callAdmin('staff.activityLeaderboard', { limit: limit }).then(function (d) {
+      if (d && d.ok) renderActivityLeaderboard(d.leaderboard || []);
+    });
+  }
+  const activityLeaderboardMoreBtn = document.getElementById('activityLeaderboardMoreBtn');
+  if (activityLeaderboardMoreBtn) {
+    activityLeaderboardMoreBtn.addEventListener('click', function () {
+      loadActivityLeaderboard(20);
+      activityLeaderboardMoreBtn.style.display = 'none';
     });
   }
 
@@ -390,20 +428,20 @@
     list.innerHTML = rankups.map(function (r) {
       const ticketsPct = Math.min(100, Math.round((r.tickets.current / r.tickets.needed) * 100));
       const rows = [
-        '<div class="progress-row"><span class="progress-check ' + (r.tickets.ok ? 'ok' : 'no') + '">' + (r.tickets.ok ? '✅' : '⬜') + '</span>' +
+        '<div class="progress-row"><span class="progress-check ' + (r.tickets.ok ? 'ok' : 'no') + '">' + (r.tickets.ok ? '✓' : '✕') + '</span>' +
           '<span class="progress-label">' + r.tickets.current + '/' + r.tickets.needed + ' tickets</span>' +
           '<div class="progress-bar"><div class="progress-bar-fill ' + (r.tickets.ok ? 'ok' : '') + '" style="width:' + ticketsPct + '%;"></div></div></div>'
       ];
       if (r.reps) {
         const repsPct = Math.min(100, Math.round((r.reps.current / r.reps.needed) * 100));
         rows.push(
-          '<div class="progress-row"><span class="progress-check ' + (r.reps.ok ? 'ok' : 'no') + '">' + (r.reps.ok ? '✅' : '⬜') + '</span>' +
+          '<div class="progress-row"><span class="progress-check ' + (r.reps.ok ? 'ok' : 'no') + '">' + (r.reps.ok ? '✓' : '✕') + '</span>' +
             '<span class="progress-label">' + r.reps.current + '/' + r.reps.needed + ' reputation</span>' +
             '<div class="progress-bar"><div class="progress-bar-fill ' + (r.reps.ok ? 'ok' : '') + '" style="width:' + repsPct + '%;"></div></div></div>'
         );
       }
       rows.push(
-        '<div class="progress-row"><span class="progress-check ' + (r.activity.ok ? 'ok' : 'no') + '">' + (r.activity.ok ? '✅' : '⬜') + '</span>' +
+        '<div class="progress-row"><span class="progress-check ' + (r.activity.ok ? 'ok' : 'no') + '">' + (r.activity.ok ? '✓' : '✕') + '</span>' +
           '<span class="progress-label" style="min-width:auto;">' + escapeHtml(r.activity.label) + '</span></div>'
       );
       return (
@@ -426,46 +464,149 @@
     else { el.style.display = 'none'; }
   }
 
+  const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   function renderActivityCalendar(containerId, days) {
     const todayStr = new Date().toISOString().slice(0, 10);
-    document.getElementById(containerId).innerHTML = days.map(function (d) {
+    const weekdayHtml = WEEKDAY_LABELS.map(function (w) { return '<div class="activity-cal-weekday">' + w + '</div>'; }).join('');
+    let padHtml = '';
+    if (days.length) {
+      const parts = days[0].date.split('-');
+      const firstDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      const pad = (firstDate.getDay() + 6) % 7;
+      for (let i = 0; i < pad; i++) padHtml += '<div class="activity-day empty"></div>';
+    }
+    const dayHtml = days.map(function (d) {
       const isToday = d.date === todayStr;
       const cls = 'activity-day' + (d.active ? ' active' : '') + (isToday && !d.active ? ' inactive-today' : '');
-      return '<div class="' + cls + '" data-date="' + d.date + '"></div>';
+      return '<div class="' + cls + '" data-date="' + d.date + '">' + Number(d.date.slice(8, 10)) + '</div>';
     }).join('');
+    document.getElementById(containerId).innerHTML = weekdayHtml + padHtml + dayHtml;
   }
 
   // ================= EXCUSES =================
   const excuseModal = document.getElementById('excuseModal');
-  document.getElementById('writeExcuseBtn').addEventListener('click', function () {
+  const excuseCalGrid = document.getElementById('excuseCalGrid');
+  const excuseCalLabel = document.getElementById('excuseCalLabel');
+  let excuseCalMonth = null;
+  let excuseSelectedDays = new Set();
+
+  function renderExcuseCalendar() {
+    const year = excuseCalMonth.getFullYear(), month = excuseCalMonth.getMonth();
+    excuseCalLabel.textContent = MONTH_NAMES[month] + ' ' + year;
+    const firstDay = new Date(year, month, 1);
+    const startOffset = (firstDay.getDay() + 6) % 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    let html = '';
+    for (let i = 0; i < startOffset; i++) html += '<div class="lite-cal-day empty"></div>';
+    for (let day = 1; day <= daysInMonth; day++) {
+      const key = localDateKey(new Date(year, month, day));
+      const isSelected = excuseSelectedDays.has(key);
+      html += '<div class="lite-cal-day' + (isSelected ? ' selected' : '') + '" data-date="' + key + '">' + day + '</div>';
+    }
+    excuseCalGrid.innerHTML = html;
+    excuseCalGrid.querySelectorAll('.lite-cal-day[data-date]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        const key = el.dataset.date;
+        if (excuseSelectedDays.has(key)) excuseSelectedDays.delete(key); else excuseSelectedDays.add(key);
+        renderExcuseCalendar();
+        updateExcuseDaysSummary();
+      });
+    });
+  }
+  function updateExcuseDaysSummary() {
+    const n = excuseSelectedDays.size;
+    document.getElementById('excuseDaysSummary').textContent = n ? (n + ' day' + (n === 1 ? '' : 's') + ' selected.') : 'No days selected.';
+  }
+  document.getElementById('excuseCalPrevBtn').addEventListener('click', function () { excuseCalMonth.setMonth(excuseCalMonth.getMonth() - 1); renderExcuseCalendar(); });
+  document.getElementById('excuseCalNextBtn').addEventListener('click', function () { excuseCalMonth.setMonth(excuseCalMonth.getMonth() + 1); renderExcuseCalendar(); });
+
+  function openExcuseModal() {
     document.getElementById('excuseReasonInput').value = '';
+    excuseSelectedDays = new Set();
+    excuseCalMonth = new Date();
+    excuseCalMonth.setDate(1);
+    renderExcuseCalendar();
+    updateExcuseDaysSummary();
     excuseModal.classList.add('active');
-  });
+  }
+  document.getElementById('writeExcuseBtn').addEventListener('click', openExcuseModal);
+  const writeExcuseBtn2 = document.getElementById('writeExcuseBtn2');
+  if (writeExcuseBtn2) writeExcuseBtn2.addEventListener('click', openExcuseModal);
   document.getElementById('excuseCancelBtn').addEventListener('click', function () { excuseModal.classList.remove('active'); });
   excuseModal.addEventListener('click', function (e) { if (e.target === excuseModal) excuseModal.classList.remove('active'); });
   document.getElementById('excuseSubmitBtn').addEventListener('click', function () {
     const reason = document.getElementById('excuseReasonInput').value.trim();
     if (!reason) { showToast('Please write a reason.', 'error'); return; }
-    callAdmin('staff.submitExcuse', { reason: reason }).then(function (d) {
+    if (!excuseSelectedDays.size) { showToast('Select at least one inactive day.', 'error'); return; }
+    callAdmin('staff.submitExcuse', { reason: reason, days: Array.from(excuseSelectedDays) }).then(function (d) {
       if (d && d.ok) {
         showToast('Excuse submitted.', 'success');
         excuseModal.classList.remove('active');
         document.getElementById('inactivityBanner').style.display = 'none';
+        if (currentView === 'excuses') loadExcuses();
       } else {
         showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
       }
     });
   });
 
-  function loadExcuses() {
-    return callAdmin('staff.excuses.list').then(function (d) {
-      if (!d || !d.ok) return;
-      const rows = d.excuses.map(function (e) {
-        return '<tr><td>' + userLink(e.userId, e.username) + '</td><td style="max-width:340px;">' + escapeHtml(e.reason) + '</td><td class="mono">' + (e.inactiveDays > 30 ? '30+' : e.inactiveDays) + 'd</td><td class="mono">' + formatRelative(e.submittedAt) + '</td></tr>';
-      }).join('') || emptyRow(4, 'No excuses submitted yet.');
-      document.getElementById('excusesTable').innerHTML =
-        '<thead><tr><th>Staff member</th><th>Reason</th><th>Was inactive</th><th>Submitted</th></tr></thead><tbody>' + rows + '</tbody>';
+  function excusePillClass(status) {
+    if (status === 'approved') return 'accepted';
+    if (status === 'rejected') return 'denied';
+    return 'pending';
+  }
+  function renderExcuseCard(e) {
+    const daysList = (e.days || []).slice().sort().join(', ');
+    return (
+      '<div class="app-card" id="excuse-' + e.id + '">' +
+        '<div class="app-card-head">' +
+          '<div class="app-card-user">' + userLink(e.userId, e.username || e.userId) + '</div>' +
+          '<span class="pill ' + excusePillClass(e.status) + '">' + (e.status || 'pending') + '</span>' +
+          ((!e.status || e.status === 'pending') ? '<div class="app-card-actions"><button class="btn-small success" data-action="approve">Approve</button><button class="btn-small danger" data-action="reject">Reject</button></div>' : '') +
+        '</div>' +
+        '<div class="app-card-details"><span>Was inactive: <strong>' + (e.inactiveDays > 30 ? '30+' : e.inactiveDays) + 'd</strong></span><span>Submitted: <strong>' + formatRelative(e.submittedAt) + '</strong></span>' + (daysList ? '<span>Days: <strong>' + escapeHtml(daysList) + '</strong></span>' : '') + '</div>' +
+        '<div class="app-card-qa"><div><div class="app-card-q">Reason</div><div class="app-card-a">' + escapeHtml(e.reason) + '</div></div></div>' +
+      '</div>'
+    );
+  }
+  function wireExcuseActions(e) {
+    const card = document.getElementById('excuse-' + e.id);
+    if (!card) return;
+    card.querySelectorAll('button[data-action]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const decision = btn.dataset.action;
+        askConfirm(decision === 'approve' ? 'Approve excuse?' : 'Reject excuse?', (e.username || e.userId) + "'s excuse.", {}).then(function (res) {
+          if (!res.ok) return;
+          callAdmin('staff.excuses.decide', { id: e.id, decision: decision }).then(function (d) {
+            if (d && d.ok) { showToast('Excuse ' + decision + 'd.', 'success'); loadExcuses(); }
+            else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+          });
+        });
+      });
     });
+  }
+
+  function loadExcuses() {
+    document.getElementById('excusesAllPanel').style.display = canReviewApplications ? '' : 'none';
+    const tasks = [
+      callAdmin('staff.excuses.mine').then(function (d) {
+        if (!d || !d.ok) return;
+        const rows = d.excuses.map(function (e) {
+          return '<tr><td style="max-width:320px;">' + escapeHtml(e.reason) + '</td><td class="mono">' + (e.days || []).length + 'd</td><td><span class="pill ' + excusePillClass(e.status) + '">' + (e.status || 'pending') + '</span></td><td class="mono">' + formatRelative(e.submittedAt) + '</td></tr>';
+        }).join('') || emptyRow(4, "You haven't submitted any excuses yet.");
+        document.getElementById('myExcusesTable').innerHTML =
+          '<thead><tr><th>Reason</th><th>Days</th><th>Status</th><th>Submitted</th></tr></thead><tbody>' + rows + '</tbody>';
+      })
+    ];
+    if (canReviewApplications) {
+      tasks.push(callAdmin('staff.excuses.list').then(function (d) {
+        if (!d || !d.ok) return;
+        const list = document.getElementById('excusesList');
+        list.innerHTML = d.excuses.map(renderExcuseCard).join('') || '<p style="color:var(--muted);font-size:13px;">No excuses submitted yet.</p>';
+        d.excuses.forEach(wireExcuseActions);
+      }));
+    }
+    return Promise.all(tasks);
   }
   const memberSearchInput = document.getElementById('memberSearchInput');
   const memberSearchBtn = document.getElementById('memberSearchBtn');
@@ -583,9 +724,13 @@
   let liteOnDone = null;
   let liteCalMonth = null; // Date, 1st of displayed month
   let liteSelectedEnd = null; // Date, inclusive end of grant range
-  let liteSelectedSource = 'gift';
 
-  function dateKey(d) { return d.toISOString().slice(0, 10); }
+  // Calendar day-key in the VIEWER's local calendar, not UTC - toISOString() converts to UTC
+  // first, which silently rolls the date back a day for anyone east of UTC (e.g. clicking "15"
+  // would key as "14" for a UTC+1/+2 visitor), so a click never matched the day just rendered.
+  function localDateKey(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
   function startOfToday() { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
 
   function renderLiteCalendar() {
@@ -601,14 +746,15 @@
       const d = new Date(year, month, day);
       const isPast = d < today;
       const inRange = liteSelectedEnd && d >= today && d <= liteSelectedEnd;
-      const isEnd = liteSelectedEnd && dateKey(d) === dateKey(liteSelectedEnd);
+      const isEnd = liteSelectedEnd && localDateKey(d) === localDateKey(liteSelectedEnd);
       const cls = 'lite-cal-day' + (isPast ? ' past' : '') + (inRange ? ' in-range' : '') + (isEnd ? ' range-end' : '');
-      html += '<div class="' + cls + '" data-date="' + dateKey(d) + '">' + day + '</div>';
+      html += '<div class="' + cls + '" data-date="' + localDateKey(d) + '">' + day + '</div>';
     }
     liteCalGrid.innerHTML = html;
     liteCalGrid.querySelectorAll('.lite-cal-day[data-date]').forEach(function (el) {
       el.addEventListener('click', function () {
-        liteSelectedEnd = new Date(el.dataset.date + 'T00:00:00');
+        const parts = el.dataset.date.split('-');
+        liteSelectedEnd = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
         renderLiteCalendar();
         updateLiteSummary();
       });
@@ -628,23 +774,14 @@
     liteCalMonth.setMonth(liteCalMonth.getMonth() + 1);
     renderLiteCalendar();
   });
-  document.querySelectorAll('#liteSourceFilter .filter-pill').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      document.querySelectorAll('#liteSourceFilter .filter-pill').forEach(function (b) { b.classList.remove('active'); });
-      btn.classList.add('active');
-      liteSelectedSource = btn.dataset.source;
-    });
-  });
 
   function openLiteModal(userId, name, onDone) {
     liteTargetId = userId;
     liteOnDone = onDone;
     liteSelectedEnd = null;
-    liteSelectedSource = 'gift';
     liteCalMonth = new Date();
     liteCalMonth.setDate(1);
     document.getElementById('liteModalName').textContent = name;
-    document.querySelectorAll('#liteSourceFilter .filter-pill').forEach(function (b) { b.classList.toggle('active', b.dataset.source === 'gift'); });
     renderLiteCalendar();
     updateLiteSummary();
     liteModal.classList.add('active');
@@ -654,7 +791,7 @@
   document.getElementById('liteModalGrantBtn').addEventListener('click', function () {
     if (!liteSelectedEnd || !liteTargetId) { showToast('Pick a day first.', 'error'); return; }
     const days = Math.round((liteSelectedEnd - startOfToday()) / 86400000) + 1;
-    callAdmin('members.grantLite', { targetId: liteTargetId, days: days, source: liteSelectedSource }).then(function (d) {
+    callAdmin('members.grantLite', { targetId: liteTargetId, days: days, source: 'gift' }).then(function (d) {
       if (d && d.ok) {
         showToast('Lite granted for ' + days + ' day(s).', 'success');
         liteModal.classList.remove('active');
@@ -664,26 +801,49 @@
       }
     });
   });
+  const LB_PAGE_SIZE = 10;
+  const lbData = { mostActive: [], playtime: [], staffLeaderboard: [] };
+  const lbExpanded = { mostActive: false, playtime: false, staffLeaderboard: false };
+
+  function renderMostActiveTable() {
+    const rows = lbData.mostActive.slice(0, lbExpanded.mostActive ? undefined : LB_PAGE_SIZE).map(function (a, i) {
+      return '<tr><td class="mono">#' + (i + 1) + '</td><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(a.userId, a.avatar) + '"/>' + userLink(a.userId, a.username || a.userId) + '</td><td class="mono">' + a.messageCount + '</td></tr>';
+    }).join('') || emptyRow(3, 'No chat activity recorded this week yet.');
+    document.getElementById('mostActiveTable').innerHTML =
+      '<thead><tr><th>#</th><th>Member</th><th>Messages</th></tr></thead><tbody>' + rows + '</tbody>';
+  }
+  function renderPlaytimeTable() {
+    const rows = lbData.playtime.slice(0, lbExpanded.playtime ? undefined : LB_PAGE_SIZE).map(function (p, i) {
+      return '<tr><td class="mono">#' + (i + 1) + '</td><td>' + escapeHtml(p.username) + (p.isLite ? ' <span class="pill accepted" style="margin-left:6px;">LITE</span>' : '') + '</td><td class="mono">' + formatDuration(p.ms) + '</td></tr>';
+    }).join('') || emptyRow(3, 'No playtime recorded yet this month.');
+    document.getElementById('playtimeTable').innerHTML =
+      '<thead><tr><th>#</th><th>Player</th><th>Playtime</th></tr></thead><tbody>' + rows + '</tbody>';
+  }
+  function renderStaffLeaderboardTable() {
+    const rows = lbData.staffLeaderboard.slice(0, lbExpanded.staffLeaderboard ? undefined : LB_PAGE_SIZE).map(function (s, i) {
+      return '<tr><td class="mono">#' + (i + 1) + '</td><td class="mono">' + userLink(s.userId, s.userId) + '</td><td class="mono">' + s.solvedTickets + '</td><td class="mono">' + s.totalClaims + '</td><td class="mono">' + formatDuration(s.totalResolutionMs) + '</td></tr>';
+    }).join('') || emptyRow(5, 'No staff activity recorded yet.');
+    document.getElementById('staffLeaderboardTable').innerHTML =
+      '<thead><tr><th>#</th><th>User ID</th><th>Solved</th><th>Claims</th><th>Avg. handling</th></tr></thead><tbody>' + rows + '</tbody>';
+  }
+  const LB_RENDERERS = { mostActive: renderMostActiveTable, playtime: renderPlaytimeTable, staffLeaderboard: renderStaffLeaderboardTable };
+  document.querySelectorAll('.lb-more-btn[data-lb]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const key = btn.dataset.lb;
+      lbExpanded[key] = !lbExpanded[key];
+      btn.textContent = lbExpanded[key] ? 'Show less' : 'Show more';
+      LB_RENDERERS[key]();
+    });
+  });
   function loadLeaderboard() {
     return callAdmin('leaderboard').then(function (d) {
       if (!d || !d.ok) return;
-      const activeRows = d.mostActive.map(function (a, i) {
-        return '<tr><td class="mono">#' + (i + 1) + '</td><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(a.userId, a.avatar) + '"/>' + userLink(a.userId, a.username || a.userId) + '</td><td class="mono">' + a.messageCount + '</td></tr>';
-      }).join('') || emptyRow(3, 'No chat activity recorded this week yet.');
-      document.getElementById('mostActiveTable').innerHTML =
-        '<thead><tr><th>#</th><th>Member</th><th>Messages</th></tr></thead><tbody>' + activeRows + '</tbody>';
-
-      const playtimeRows = d.monthly.map(function (p, i) {
-        return '<tr><td class="mono">#' + (i + 1) + '</td><td>' + escapeHtml(p.username) + (p.isLite ? ' <span class="pill accepted" style="margin-left:6px;">LITE</span>' : '') + '</td><td class="mono">' + formatDuration(p.ms) + '</td></tr>';
-      }).join('') || emptyRow(3, 'No playtime recorded yet this month.');
-      document.getElementById('playtimeTable').innerHTML =
-        '<thead><tr><th>#</th><th>Player</th><th>Playtime</th></tr></thead><tbody>' + playtimeRows + '</tbody>';
-
-      const staffRows = d.staffLeaderboard.map(function (s, i) {
-        return '<tr><td class="mono">#' + (i + 1) + '</td><td class="mono">' + userLink(s.userId, s.userId) + '</td><td class="mono">' + s.solvedTickets + '</td><td class="mono">' + s.totalClaims + '</td><td class="mono">' + formatDuration(s.totalResolutionMs) + '</td></tr>';
-      }).join('') || emptyRow(5, 'No staff activity recorded yet.');
-      document.getElementById('staffLeaderboardTable').innerHTML =
-        '<thead><tr><th>#</th><th>User ID</th><th>Solved</th><th>Claims</th><th>Avg. handling</th></tr></thead><tbody>' + staffRows + '</tbody>';
+      lbData.mostActive = d.mostActive || [];
+      lbData.playtime = d.monthly || [];
+      lbData.staffLeaderboard = d.staffLeaderboard || [];
+      renderMostActiveTable();
+      renderPlaytimeTable();
+      renderStaffLeaderboardTable();
     });
   }
   function loadStaff() {
@@ -715,9 +875,18 @@
     document.getElementById('calendarModalName').textContent = name;
     document.getElementById('calendarModalGrid').innerHTML = '';
     document.getElementById('calendarModalWarnings').innerHTML = '';
+    document.getElementById('calendarModalStats').innerHTML = '';
     calendarModal.classList.add('active');
     callAdmin('staff.calendar', { targetId: userId }).then(function (d) {
       if (!d || !d.ok) return;
+      if (d.stats) {
+        renderStatGrid('calendarModalStats', [
+          [d.stats.weeklyMessages, 'Messages this week'],
+          [d.stats.solvedTickets, 'Solved tickets'],
+          [d.stats.totalClaims, 'Total claims'],
+          [d.stats.unclaimedTickets, 'Unclaims']
+        ]);
+      }
       renderActivityCalendar('calendarModalGrid', d.calendar || []);
       const warnings = d.warnings || [];
       document.getElementById('calendarModalWarnings').innerHTML = warnings.length
@@ -870,29 +1039,72 @@
       loadScams(currentScamsFilter);
     });
   });
+  let loadedScamEntries = [];
   function loadScams(type) {
     return callAdmin('scams.list', { type: type, limit: 200 }).then(function (d) {
       if (!d || !d.ok) return;
-      const rows = d.entries.map(function (e) {
+      loadedScamEntries = d.entries;
+      const rows = d.entries.map(function (e, i) {
         const target = e.targetUsername ? escapeHtml(e.targetUsername) : (e.targetUserId || '—');
         const content = e.messageContent ? escapeHtml(e.messageContent).slice(0, 80) : '<span style="color:var(--muted-dim);">(no text)</span>';
-        const attachments = (e.attachmentNames || []).join(', ');
-        return '<tr><td class="mono" style="white-space:nowrap;">' + formatRelative(e.timestamp) + '</td><td><span class="pill ' + e.type + '">' + e.type + '</span></td><td>' + target + '</td><td>' + content + '</td><td class="mono">' + escapeHtml(attachments) + '</td><td>' + (e.messageLink ? '<a href="' + escapeHtml(e.messageLink) + '" target="_blank" style="color:var(--accent);">view</a>' : '—') + '</td></tr>';
+        const actionerId = e.actorId || e.reporterId;
+        const actionedBy = actionerId ? userLink(actionerId, e.actorUsername || e.reporterUsername || actionerId) : '<span style="color:var(--muted-dim);">—</span>';
+        const attachCount = (e.attachments || e.attachmentNames || []).length;
+        return '<tr class="clickable-row" data-scam-index="' + i + '"><td class="mono" style="white-space:nowrap;">' + formatRelative(e.timestamp) + '</td><td><span class="pill ' + e.type + '">' + e.type + '</span></td><td>' + target + '</td><td>' + content + '</td><td>' + actionedBy + '</td><td class="mono">' + (attachCount || '—') + '</td></tr>';
       }).join('') || emptyRow(6, 'No scam entries logged yet.');
-      document.getElementById('scamsTable').innerHTML =
-        '<thead><tr><th>When</th><th>Type</th><th>Target</th><th>Content</th><th>Attachments</th><th>Link</th></tr></thead><tbody>' + rows + '</tbody>';
+      const table = document.getElementById('scamsTable');
+      table.innerHTML =
+        '<thead><tr><th>When</th><th>Type</th><th>Target</th><th>Content</th><th>Actioned by</th><th>Files</th></tr></thead><tbody>' + rows + '</tbody>';
+      table.querySelectorAll('tr[data-scam-index]').forEach(function (row) {
+        row.addEventListener('click', function (e) {
+          if (e.target.closest('.user-link')) return;
+          openScamDetail(loadedScamEntries[Number(row.dataset.scamIndex)]);
+        });
+      });
     });
   }
+
+  const scamDetailModal = document.getElementById('scamDetailModal');
+  const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp)(\?|$)/i;
+  function openScamDetail(entry) {
+    document.getElementById('scamDetailTitle').textContent = (entry.type || 'scam') + ' — ' + (entry.targetUsername || entry.targetUserId || 'unknown user');
+    const actionerId = entry.actorId || entry.reporterId;
+    document.getElementById('scamDetailMeta').innerHTML =
+      '<span class="pill ' + entry.type + '">' + escapeHtml(entry.type) + '</span>' +
+      '<span>Target: <strong>' + userLink(entry.targetUserId, entry.targetUsername || entry.targetUserId || '—') + '</strong></span>' +
+      (actionerId ? '<span>' + (entry.reporterId ? 'Reported' : 'Actioned') + ' by: <strong>' + userLink(actionerId, entry.actorUsername || entry.reporterUsername || actionerId) + '</strong></span>' : '') +
+      '<span>' + formatDateTime(entry.timestamp) + '</span>' +
+      (entry.messageLink ? '<span><a href="' + escapeHtml(entry.messageLink) + '" target="_blank" style="color:var(--accent);">Original link</a></span>' : '');
+
+    const attachments = entry.attachments || (entry.attachmentNames || []).map(function (n) { return { name: n, url: null }; });
+    const attachmentsHtml = attachments.map(function (a) {
+      if (a.url && (IMAGE_EXT_RE.test(a.url) || (a.contentType || '').indexOf('image/') === 0)) {
+        return '<a href="' + escapeHtml(a.url) + '" target="_blank"><img src="' + escapeHtml(a.url) + '" class="scam-attachment-img" alt="' + escapeHtml(a.name) + '"/></a>';
+      }
+      return a.url
+        ? '<a href="' + escapeHtml(a.url) + '" target="_blank" class="transcript-attachment">📎 ' + escapeHtml(a.name) + '</a>'
+        : '<span class="transcript-attachment" style="color:var(--muted-dim);cursor:default;">📎 ' + escapeHtml(a.name) + ' (expired)</span>';
+    }).join('');
+
+    document.getElementById('scamDetailBody').innerHTML =
+      '<div class="transcript-content" style="white-space:pre-wrap;">' + (entry.messageContent ? escapeHtml(entry.messageContent) : '<span style="color:var(--muted-dim);">(no text content)</span>') + '</div>' +
+      (attachmentsHtml ? '<div class="scam-attachment-grid">' + attachmentsHtml + '</div>' : '') +
+      (entry.actionTaken ? '<div class="app-card-details" style="margin-top:14px;"><span>Action taken: <strong>' + escapeHtml(entry.actionTaken) + '</strong></span></div>' : '');
+    scamDetailModal.classList.add('active');
+  }
+  document.getElementById('scamDetailCloseBtn').addEventListener('click', function () { scamDetailModal.classList.remove('active'); });
+  scamDetailModal.addEventListener('click', function (e) { if (e.target === scamDetailModal) scamDetailModal.classList.remove('active'); });
   function loadLogs() {
     return callAdmin('logs.list', { limit: 200 }).then(function (d) {
       if (!d || !d.ok) return;
       const rows = d.entries.map(function (e) {
         const detail = e.targetUsername || e.targetUserId || e.detail || '—';
+        const executedBy = userLink(e.actorId, e.actorUsername || e.actorId || '—');
         const result = e.result === 'success' ? '<span class="pill accepted">ok</span>' : '<span class="pill denied">' + escapeHtml(e.result || 'failed') + '</span>';
-        return '<tr><td class="mono" style="white-space:nowrap;">' + formatRelative(e.timestamp) + '</td><td class="mono">' + escapeHtml(e.type) + '</td><td>' + escapeHtml(detail) + '</td><td>' + escapeHtml(e.reason || '') + '</td><td>' + result + '</td></tr>';
-      }).join('') || emptyRow(5, 'No dashboard actions logged yet.');
+        return '<tr><td class="mono" style="white-space:nowrap;">' + formatRelative(e.timestamp) + '</td><td class="mono">' + escapeHtml(e.type) + '</td><td>' + escapeHtml(detail) + '</td><td>' + executedBy + '</td><td>' + escapeHtml(e.reason || '') + '</td><td>' + result + '</td></tr>';
+      }).join('') || emptyRow(6, 'No dashboard actions logged yet.');
       document.getElementById('logsTable').innerHTML =
-        '<thead><tr><th>When</th><th>Action</th><th>Target</th><th>Reason</th><th>Result</th></tr></thead><tbody>' + rows + '</tbody>';
+        '<thead><tr><th>When</th><th>Action</th><th>Target</th><th>Executed by</th><th>Reason</th><th>Result</th></tr></thead><tbody>' + rows + '</tbody>';
     });
   }
   const REVIEWS_PAGE_SIZE = 10;
@@ -906,7 +1118,7 @@
     const shown = limit ? reviews.slice(0, limit) : reviews;
     const rows = shown.map(function (r) {
       const removeBtn = r.discordId ? '<button class="btn-small danger" data-remove="' + r.discordId + '">Remove</button>' : '';
-      return '<tr><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(r.discordId, r.avatar) + '"/>' + userLink(r.discordId, r.username) + '</td><td class="mono">' + escapeHtml(r.stars || '') + '</td><td style="max-width:340px;">' + escapeHtml((r.comment || '').slice(0, 140)) + '</td><td>' + removeBtn + '</td></tr>';
+      return '<tr><td class="cell-user"><img class="cell-avatar" src="' + reviewAvatarUrl(r) + '"/>' + userLink(r.discordId, r.username) + '</td><td class="mono">' + escapeHtml(r.stars || '') + '</td><td style="max-width:340px;">' + escapeHtml((r.comment || '').slice(0, 140)) + '</td><td>' + removeBtn + '</td></tr>';
     }).join('') || emptyRow(4, 'No reviews yet.');
     const table = document.getElementById('reviewsTable');
     table.innerHTML = '<thead><tr><th>Reviewer</th><th>Rating</th><th>Comment</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
