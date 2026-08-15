@@ -1412,15 +1412,29 @@
           ? '<span class="cell-user"><img class="cell-avatar" src="' + avatarUrl(actionerId, e.actorAvatar) + '"/>' + userLink(actionerId, e.actorUsername || e.reporterUsername || actionerId) + '</span>'
           : '<span style="color:var(--muted-dim);">—</span>';
         const attachCount = (e.attachments || e.attachmentNames || []).length;
-        return '<tr class="clickable-row" data-scam-index="' + i + '"><td class="mono" style="white-space:nowrap;">' + formatRelative(e.timestamp) + '</td><td><span class="pill ' + e.type + '">' + e.type + '</span></td><td>' + target + '</td><td>' + content + '</td><td>' + actionedBy + '</td><td class="mono">' + (attachCount || '—') + '</td></tr>';
-      }).join('') || emptyRow(6, 'No scam entries logged yet.');
+        const deleteBtn = canPublishContent ? '<button class="btn-small danger" data-scam-delete-id="' + escapeHtml(e.id) + '">Delete</button>' : '';
+        return '<tr class="clickable-row" data-scam-index="' + i + '"><td class="mono" style="white-space:nowrap;">' + formatRelative(e.timestamp) + '</td><td><span class="pill ' + e.type + '">' + e.type + '</span></td><td>' + target + '</td><td>' + content + '</td><td>' + actionedBy + '</td><td class="mono">' + (attachCount || '—') + '</td><td>' + deleteBtn + '</td></tr>';
+      }).join('') || emptyRow(7, 'No scam entries logged yet.');
       const table = document.getElementById('scamsTable');
       table.innerHTML =
-        '<thead><tr><th>When</th><th>Type</th><th>Target</th><th>Content</th><th>Actioned by</th><th>Files</th></tr></thead><tbody>' + rows + '</tbody>';
+        '<thead><tr><th>When</th><th>Type</th><th>Target</th><th>Content</th><th>Actioned by</th><th>Files</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
       table.querySelectorAll('tr[data-scam-index]').forEach(function (row) {
         row.addEventListener('click', function (e) {
-          if (e.target.closest('.user-link')) return;
+          if (e.target.closest('.user-link') || e.target.closest('button')) return;
           openScamDetail(loadedScamEntries[Number(row.dataset.scamIndex)]);
+        });
+      });
+      table.querySelectorAll('button[data-scam-delete-id]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          const entryId = btn.dataset.scamDeleteId;
+          askConfirm('Delete this scam report?', 'Permanently removes it from the database.', {}).then(function (res) {
+            if (!res.ok) return;
+            callAdmin('scams.delete', { id: entryId }).then(function (r) {
+              if (r && r.ok) { showToast('Scam report deleted.', 'success'); loadScams(currentScamsFilter); }
+              else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
+            });
+          });
         });
       });
     });
@@ -1579,6 +1593,7 @@
         const claimed = t.claimedBy ? userLink(t.claimedBy, t.claimedByUsername || t.claimedBy) : '—';
         const closed = t.closedBy ? userLink(t.closedBy, t.closedByUsername || t.closedBy) : '—';
         const name = (t.isPriority ? '<span class="priority-flag" title="Priority ticket">⚡</span>' : '') + escapeHtml(t.channelName || t.channelId);
+        const deleteBtn = canPublishContent ? ' <button class="btn-small danger" data-archive-delete="' + t.channelId + '">Delete</button>' : '';
         return '<tr class="clickable-row ' + (t.isPriority ? 'priority-row' : '') + '" data-channel="' + t.channelId + '">' +
           '<td>' + name + '</td>' +
           '<td class="mono">' + escapeHtml(t.category || '—') + '</td>' +
@@ -1587,7 +1602,7 @@
           '<td>' + claimed + '</td>' +
           '<td>' + closed + '</td>' +
           '<td><span class="pill ' + (TICKET_ARCHIVE_STATUS_PILL[t.status] || '') + '">' + escapeHtml(t.status) + '</span></td>' +
-          '<td><button class="btn-small" data-transcript="' + t.channelId + '">View chat</button></td>' +
+          '<td><button class="btn-small" data-transcript="' + t.channelId + '">View chat</button>' + deleteBtn + '</td>' +
         '</tr>';
       }).join('') || emptyRow(8, 'No archived tickets yet.');
       const table = document.getElementById('ticketArchiveTable');
@@ -1595,6 +1610,19 @@
         '<thead><tr><th>Ticket</th><th>Category</th><th>Created by</th><th>Created</th><th>Claimed by</th><th>Closed by</th><th>Status</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
       table.querySelectorAll('button[data-transcript]').forEach(function (btn) {
         btn.addEventListener('click', function () { openTranscript(btn.dataset.transcript); });
+      });
+      table.querySelectorAll('button[data-archive-delete]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          const channelId = btn.dataset.archiveDelete;
+          askConfirm('Delete this archived ticket?', 'Permanently removes the transcript and record.', {}).then(function (res) {
+            if (!res.ok) return;
+            callAdmin('ticketArchive.delete', { channelId: channelId }).then(function (r) {
+              if (r && r.ok) { showToast('Ticket deleted.', 'success'); loadTicketArchive(currentTicketArchiveFilter); }
+              else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
+            });
+          });
+        });
       });
       table.querySelectorAll('tr[data-channel]').forEach(function (row) {
         row.addEventListener('click', function (e) {
