@@ -828,12 +828,13 @@
       callAdmin('staff.warns.mine').then(function (d) {
         if (!d || !d.ok) return;
         const rows = d.warns.map(function (w) {
+          const statusPill = w.active ? '<span class="pill accepted">active</span>' : '<span class="pill denied">expired</span>';
           const expires = w.expiresAt ? formatDateTime(w.expiresAt) : 'Permanent';
-          return '<tr><td style="max-width:320px;">' + escapeHtml(w.reason) + '</td><td>' + escapeHtml(w.warnedByUsername || w.warnedBy) + '</td><td class="mono">' + expires + '</td><td class="mono">' + formatRelative(w.warnedAt) + '</td></tr>';
-        }).join('') || emptyRow(4, 'No active warnings — nice.');
+          return '<tr><td style="max-width:280px;">' + escapeHtml(w.reason) + '</td><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(w.warnedBy, w.warnedByAvatar) + '"/>' + userLink(w.warnedBy, w.warnedByUsername || w.warnedBy) + '</td><td>' + statusPill + '</td><td class="mono">' + expires + '</td><td class="mono">' + formatRelative(w.warnedAt) + '</td></tr>';
+        }).join('') || emptyRow(5, "You don't have any warnings — nice.");
         document.getElementById('myWarnsTable').innerHTML =
-          '<thead><tr><th>Reason</th><th>Warned by</th><th>Expires</th><th>Issued</th></tr></thead><tbody>' + rows + '</tbody>' +
-          (d.total ? '<tfoot><tr><td colspan="4" class="mono" style="color:var(--muted);">' + d.total + ' total warning(s) on record (including expired)</td></tr></tfoot>' : '');
+          '<thead><tr><th>Reason</th><th>Warned by</th><th>Status</th><th>Expires</th><th>Issued</th></tr></thead><tbody>' + rows + '</tbody>' +
+          (d.total ? '<tfoot><tr><td colspan="5" class="mono" style="color:var(--muted);">' + d.total + ' total warning(s) on record</td></tr></tfoot>' : '');
       })
     ];
     if (canReviewApplications) {
@@ -842,10 +843,23 @@
         const rows = d.warns.map(function (w) {
           const statusPill = w.active ? '<span class="pill accepted">active</span>' : '<span class="pill denied">expired</span>';
           const expires = w.expiresAt ? formatDateTime(w.expiresAt) : 'Permanent';
-          return '<tr><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(w.userId, w.targetAvatar) + '"/>' + userLink(w.userId, w.targetUsername || w.userId) + '</td><td style="max-width:280px;">' + escapeHtml(w.reason) + '</td><td>' + userLink(w.warnedBy, w.warnedByUsername || w.warnedBy) + '</td><td class="mono">' + (d.totals[w.userId] || 1) + '</td><td>' + statusPill + '</td><td class="mono">' + expires + '</td><td class="mono">' + formatRelative(w.warnedAt) + '</td></tr>';
-        }).join('') || emptyRow(7, 'No warnings issued yet.');
-        document.getElementById('warnsAllTable').innerHTML =
-          '<thead><tr><th>Member</th><th>Reason</th><th>Warned by</th><th>Total</th><th>Status</th><th>Expires</th><th>Issued</th></tr></thead><tbody>' + rows + '</tbody>';
+          return '<tr><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(w.userId, w.targetAvatar) + '"/>' + userLink(w.userId, w.targetUsername || w.userId) + '</td><td style="max-width:280px;">' + escapeHtml(w.reason) + '</td><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(w.warnedBy, w.warnedByAvatar) + '"/>' + userLink(w.warnedBy, w.warnedByUsername || w.warnedBy) + '</td><td class="mono">' + (d.totals[w.userId] || 1) + '</td><td>' + statusPill + '</td><td class="mono">' + expires + '</td><td class="mono">' + formatRelative(w.warnedAt) + '</td><td><button class="btn-small danger" data-warn-delete-id="' + escapeHtml(w.id) + '" data-warn-delete-target="' + escapeHtml(w.userId) + '">Delete</button></td></tr>';
+        }).join('') || emptyRow(8, 'No warnings issued yet.');
+        const table = document.getElementById('warnsAllTable');
+        table.innerHTML =
+          '<thead><tr><th>Member</th><th>Reason</th><th>Warned by</th><th>Total</th><th>Status</th><th>Expires</th><th>Issued</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
+        table.querySelectorAll('button[data-warn-delete-id]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            const warnId = btn.dataset.warnDeleteId, targetId = btn.dataset.warnDeleteTarget;
+            askConfirm('Delete this warning?', 'Permanently removes it from the record.', {}).then(function (res) {
+              if (!res.ok) return;
+              callAdmin('staff.warns.delete', { id: warnId, targetId: targetId }).then(function (r) {
+                if (r && r.ok) { showToast('Warning deleted.', 'success'); loadWarns(); }
+                else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
+              });
+            });
+          });
+        });
       }));
     }
     return Promise.all(tasks);
