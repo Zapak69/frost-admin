@@ -105,11 +105,12 @@
     excuses: ['excuse_decided', 'excuse_submitted'],
     scams: ['scam_report'],
     staffApps: ['staff_app_submitted'],
-    partnerApps: ['partner_app_submitted']
+    partnerApps: ['partner_app_submitted'],
+    partnerRankup: ['partner_rankup_submitted']
   };
   const NAV_DOT_IDS = {
     warns: 'navDotWarns', excuses: 'navDotExcuses', scams: 'navDotScams',
-    staffApps: 'navDotStaffApps', partnerApps: 'navDotPartnerApps'
+    staffApps: 'navDotStaffApps', partnerApps: 'navDotPartnerApps', partnerRankup: 'navDotPartnerRankup'
   };
   function updateNavDots() {
     const unreadViews = new Set();
@@ -353,7 +354,7 @@
   const viewTitle = document.getElementById('viewTitle');
   const VIEW_TITLES = {
     overview: 'Overview', members: 'Members', leaderboard: 'Leaderboards', staff: 'Staff Team',
-    staffApps: 'Staff Applications', partnerApps: 'Partner Applications', scams: 'Scam Database',
+    staffApps: 'Staff Applications', partnerApps: 'Partner Applications', partnerRankup: 'Partner Rankup Requests', scams: 'Scam Database',
     logs: 'Action Logs', excuses: 'Excuses', warns: 'Warns', reviews: 'Reviews', drops: 'Publish Drop', giveaway: 'Publish Giveaway', tickets: 'Tickets',
     ticketArchive: 'Ticket Archive'
   };
@@ -361,6 +362,7 @@
     overview: loadOverview, members: function () {}, leaderboard: loadLeaderboard, staff: loadStaff,
     staffApps: function () { loadStaffApps(currentStaffAppsFilter); },
     partnerApps: function () { loadPartnerApps(currentPartnerAppsFilter); },
+    partnerRankup: function () { loadPartnerRankupRequests(currentPartnerRankupFilter); },
     scams: function () { loadScams(currentScamsFilter); }, logs: loadLogs, excuses: loadExcuses, warns: loadWarns, reviews: loadReviews,
     drops: function () {}, giveaway: function () {}, tickets: loadTickets,
     ticketArchive: function () { loadTicketArchive(currentTicketArchiveFilter); }
@@ -1382,6 +1384,62 @@
           if (!res.ok) return;
           callAdmin('partnerApplications.decide', { discordId: a.discordId, decision: decision }).then(function (d) {
             if (d && d.ok) { showToast('Application ' + decision + 'ed.', 'success'); loadPartnerApps(currentPartnerAppsFilter); loadOverview(); }
+            else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+          });
+        });
+      });
+    });
+  }
+  let currentPartnerRankupFilter = 'pending';
+  document.querySelectorAll('#partnerRankupFilter .filter-pill').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('#partnerRankupFilter .filter-pill').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      currentPartnerRankupFilter = btn.dataset.status;
+      loadPartnerRankupRequests(currentPartnerRankupFilter);
+    });
+  });
+  const TIER_LABELS = { media: 'Media', partner: 'Partner', partner_plus: 'Partner+' };
+  function loadPartnerRankupRequests(status) {
+    return callAdmin('partnerRankupRequests.list', { status: status }).then(function (d) {
+      if (!d || !d.ok) return;
+      const list = document.getElementById('partnerRankupList');
+      if (!d.requests.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;">No rankup requests here.</p>'; return; }
+      list.innerHTML = d.requests.map(renderRankupRequestCard).join('');
+      d.requests.forEach(wireRankupRequestActions);
+    });
+  }
+  function renderRankupRequestCard(r) {
+    const details = [
+      ['Current tier', TIER_LABELS[r.currentTier] || r.currentTier],
+      ['Requesting', TIER_LABELS[r.requestedTier] || r.requestedTier],
+      ['Total orders', r.totalOrders], ['Followers', r.followers], ['Profile link', r.profileLink]
+    ].filter(function (p) { return p[1] || p[1] === 0; }).map(function (p) {
+      return '<div><div class="app-card-q">' + escapeHtml(String(p[0])) + '</div><div class="app-card-a">' + escapeHtml(String(p[1])) + '</div></div>';
+    }).join('');
+    return (
+      '<div class="app-card" id="partnerrankup-' + r.discordId + '">' +
+        '<div class="app-card-head">' +
+          '<div class="app-card-user">' + userLink(r.discordId, r.username || r.discordId) + ' <span class="app-card-meta">' + r.discordId + '</span></div>' +
+          '<span class="pill ' + r.status + '">' + r.status + '</span>' +
+          (r.status === 'pending' ? '<div class="app-card-actions"><button class="btn-small success" data-action="accept">Accept</button><button class="btn-small danger" data-action="deny">Deny</button></div>' : '') +
+        '</div>' +
+        '<div class="app-card-details"><span>Requested: <strong>' + formatRelative(r.requestedAt) + '</strong></span>' + (r.decidedAt ? '<span>Decided: <strong>' + formatRelative(r.decidedAt) + '</strong></span>' : '') + '</div>' +
+        '<div class="app-card-qa">' + details + '</div>' +
+      '</div>'
+    );
+  }
+  function wireRankupRequestActions(r) {
+    const card = document.getElementById('partnerrankup-' + r.discordId);
+    if (!card) return;
+    card.querySelectorAll('button[data-action]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const decision = btn.dataset.action;
+        const note = decision === 'accept' ? ' Their Discord role will be swapped immediately.' : '';
+        askConfirm(decision === 'accept' ? 'Accept rankup request?' : 'Deny rankup request?', (r.username || r.discordId) + "'s request to rank up to " + (TIER_LABELS[r.requestedTier] || r.requestedTier) + '.' + note, {}).then(function (res) {
+          if (!res.ok) return;
+          callAdmin('partnerRankupRequests.decide', { discordId: r.discordId, decision: decision }).then(function (d) {
+            if (d && d.ok) { showToast('Rankup request ' + decision + 'ed.', 'success'); loadPartnerRankupRequests(currentPartnerRankupFilter); loadOverview(); }
             else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
           });
         });

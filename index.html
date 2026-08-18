@@ -59,6 +59,7 @@
       <div class="nav-group-label" data-requires="highStaff" style="display:none;">Applications</div>
       <button type="button" class="nav-item" data-view="staffApps" data-requires="highStaff" style="display:none;"><span class="nav-icon">◆</span>Staff Applications<span class="nav-badge" id="badgeStaffApps" style="display:none;">0</span><span class="nav-dot" id="navDotStaffApps" style="display:none;"></span></button>
       <button type="button" class="nav-item" data-view="partnerApps" data-requires="highStaff" style="display:none;"><span class="nav-icon">◆</span>Partner Applications<span class="nav-badge" id="badgePartnerApps" style="display:none;">0</span><span class="nav-dot" id="navDotPartnerApps" style="display:none;"></span></button>
+      <button type="button" class="nav-item" data-view="partnerRankup" data-requires="highStaff" style="display:none;"><span class="nav-icon">◆</span>Partner Rankup Requests<span class="nav-badge" id="badgePartnerRankup" style="display:none;">0</span><span class="nav-dot" id="navDotPartnerRankup" style="display:none;"></span></button>
       <div class="nav-group-label">Security</div>
       <button type="button" class="nav-item" data-view="scams"><span class="nav-icon">◆</span>Scam Database<span class="nav-dot" id="navDotScams" style="display:none;"></span></button>
       <button type="button" class="nav-item" data-view="logs" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Action Logs</button>
@@ -214,6 +215,19 @@
           </div>
         </div>
         <div id="partnerAppsList" class="app-list"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-partnerRankup">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Partner rankup requests</h2>
+          <div class="filter-pills" id="partnerRankupFilter">
+            <button type="button" class="filter-pill active" data-status="pending">Pending</button>
+            <button type="button" class="filter-pill" data-status="">All</button>
+          </div>
+        </div>
+        <div id="partnerRankupList" class="app-list"></div>
       </div>
     </div>
 
