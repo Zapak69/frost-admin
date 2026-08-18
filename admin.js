@@ -354,14 +354,14 @@
   const viewTitle = document.getElementById('viewTitle');
   const VIEW_TITLES = {
     overview: 'Overview', members: 'Members', leaderboard: 'Leaderboards', staff: 'Staff Team',
-    staffApps: 'Staff Applications', partnerLogs: 'Partner Logs', partnerRankup: 'Partner Rankup Requests', scams: 'Scam Database',
+    staffApps: 'Staff Applications', partnerLogs: 'Creators', partnerRankup: 'Partner Rankup Requests', scams: 'Scam Database',
     logs: 'Action Logs', excuses: 'Excuses', warns: 'Warns', reviews: 'Reviews', drops: 'Publish Drop', giveaway: 'Publish Giveaway', tickets: 'Tickets',
     ticketArchive: 'Ticket Archive'
   };
   const VIEW_LOADERS = {
     overview: loadOverview, members: function () {}, leaderboard: loadLeaderboard, staff: loadStaff,
     staffApps: function () { loadStaffApps(currentStaffAppsFilter); },
-    partnerLogs: loadPartnerLogs,
+    partnerLogs: function () { loadPartnerLogs(); loadBannedWords(); },
     partnerRankup: function () { loadPartnerRankupRequests(currentPartnerRankupFilter); },
     scams: function () { loadScams(currentScamsFilter); }, logs: loadLogs, excuses: loadExcuses, warns: loadWarns, reviews: loadReviews,
     drops: function () {}, giveaway: function () {}, tickets: loadTickets,
@@ -1513,15 +1513,28 @@
       });
     });
   }
+  let lastPartnerLogs = [];
   function loadPartnerLogs() {
     return callAdmin('partnerSignupLogs.list', {}).then(function (d) {
       if (!d || !d.ok) return;
-      const list = document.getElementById('partnerLogsList');
-      if (!d.logs.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;">No signups logged yet.</p>'; return; }
-      list.innerHTML = d.logs.map(renderPartnerLogCard).join('');
+      lastPartnerLogs = d.logs;
+      renderPartnerLogsList();
     });
   }
+  function renderPartnerLogsList() {
+    const query = (document.getElementById('creatorsSearchInput').value || '').trim().toLowerCase();
+    const filtered = !query ? lastPartnerLogs : lastPartnerLogs.filter(function (l) {
+      return (l.username || '').toLowerCase().indexOf(query) !== -1 || String(l.discordId || '').indexOf(query) !== -1 || (l.code || '').toLowerCase().indexOf(query) !== -1;
+    });
+    const list = document.getElementById('partnerLogsList');
+    if (!filtered.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;">' + (lastPartnerLogs.length ? 'No matches.' : 'No signups logged yet.') + '</p>'; return; }
+    list.innerHTML = filtered.map(renderPartnerLogCard).join('');
+    filtered.forEach(wirePartnerLogActions);
+  }
+  const creatorsSearchInput = document.getElementById('creatorsSearchInput');
+  if (creatorsSearchInput) creatorsSearchInput.addEventListener('input', renderPartnerLogsList);
   function renderPartnerLogCard(l) {
+    const logId = l.id || (l.discordId + '_' + l.loggedAt);
     const details = [
       ['Code', l.code], ['Promoting at', l.socialLink],
       ['Granted by', l.grantedBy ? ('Staff (' + l.grantedBy + ')') : null]
@@ -1529,15 +1542,123 @@
       return '<div><div class="app-card-q">' + escapeHtml(p[0]) + '</div><div class="app-card-a">' + escapeHtml(p[1]) + '</div></div>';
     }).join('');
     return (
-      '<div class="app-card">' +
+      '<div class="app-card" id="creator-' + escapeHtml(logId) + '">' +
         '<div class="app-card-head">' +
           '<div class="app-card-user">' + userLink(l.discordId, l.username || l.discordId) + ' <span class="app-card-meta">' + l.discordId + '</span></div>' +
           (l.grantedBy ? '<span class="pill manual">staff grant</span>' : '') +
+          '<div class="app-card-actions">' +
+            '<button class="btn-small" data-change-code-id="' + escapeHtml(l.discordId) + '" data-change-code-name="' + escapeHtml(l.username || l.discordId) + '">Change code</button>' +
+            '<button class="btn-small danger" data-delete-log-id="' + escapeHtml(logId) + '">Delete</button>' +
+          '</div>' +
         '</div>' +
         '<div class="app-card-details"><span>Signed up: <strong>' + formatRelative(l.loggedAt) + '</strong></span></div>' +
         '<div class="app-card-qa">' + details + '</div>' +
       '</div>'
     );
+  }
+  function wirePartnerLogActions(l) {
+    const logId = l.id || (l.discordId + '_' + l.loggedAt);
+    const card = document.getElementById('creator-' + logId);
+    if (!card) return;
+    const changeBtn = card.querySelector('button[data-change-code-id]');
+    if (changeBtn) changeBtn.addEventListener('click', function () { openChangeCodeModal(changeBtn.dataset.changeCodeId, changeBtn.dataset.changeCodeName); });
+    const deleteBtn = card.querySelector('button[data-delete-log-id]');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', function () {
+        askConfirm('Delete this log entry?', 'Removes it from the audit trail only - does not touch their code or role.', {}).then(function (res) {
+          if (!res.ok) return;
+          callAdmin('partnerSignupLogs.delete', { id: logId }).then(function (d) {
+            if (d && d.ok) { showToast('Deleted.', 'success'); loadPartnerLogs(); }
+            else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+          });
+        });
+      });
+    }
+  }
+  const changeCodeModal = document.getElementById('changeCodeModal');
+  let changeCodeTargetId = null;
+  function openChangeCodeModal(userId, name) {
+    changeCodeTargetId = userId;
+    document.getElementById('changeCodeModalName').textContent = name;
+    document.getElementById('changeCodeInput').value = '';
+    document.getElementById('changeCodeError').style.display = 'none';
+    changeCodeModal.classList.add('active');
+  }
+  document.getElementById('changeCodeCancelBtn').addEventListener('click', function () { changeCodeModal.classList.remove('active'); });
+  changeCodeModal.addEventListener('click', function (e) { if (e.target === changeCodeModal) changeCodeModal.classList.remove('active'); });
+  document.getElementById('changeCodeSubmitBtn').addEventListener('click', function () {
+    const code = document.getElementById('changeCodeInput').value.trim();
+    const errEl = document.getElementById('changeCodeError');
+    if (!code || code.length < 3) {
+      errEl.textContent = 'Enter a code (at least 3 characters).';
+      errEl.style.display = '';
+      return;
+    }
+    if (!changeCodeTargetId) return;
+    const btn = document.getElementById('changeCodeSubmitBtn');
+    btn.disabled = true;
+    callAdmin('staff.changeMediaCode', { targetId: changeCodeTargetId, newCode: code }).then(function (d) {
+      btn.disabled = false;
+      if (d && d.ok) {
+        showToast('Code changed to ' + d.code + '.', 'success');
+        changeCodeModal.classList.remove('active');
+        loadPartnerLogs();
+      } else {
+        errEl.textContent = 'Failed: ' + (d && d.error || 'unknown error');
+        errEl.style.display = '';
+      }
+    });
+  });
+
+  let lastBannedWords = [];
+  function loadBannedWords() {
+    return callAdmin('bannedWords.list', {}).then(function (d) {
+      if (!d || !d.ok) return;
+      lastBannedWords = d.words || [];
+      renderBannedWordsList();
+    });
+  }
+  function renderBannedWordsList() {
+    const list = document.getElementById('bannedWordsList');
+    if (!lastBannedWords.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;">No blocked words yet.</p>'; return; }
+    list.innerHTML = lastBannedWords.map(function (w) {
+      return '<span class="banned-word-chip">' + escapeHtml(w) +
+        '<button type="button" data-edit-word="' + escapeHtml(w) + '" aria-label="Edit" title="Edit">✎</button>' +
+        '<button type="button" class="danger" data-delete-word="' + escapeHtml(w) + '" aria-label="Delete" title="Delete">✕</button>' +
+      '</span>';
+    }).join('');
+    list.querySelectorAll('button[data-delete-word]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        callAdmin('bannedWords.delete', { word: btn.dataset.deleteWord }).then(function (d) {
+          if (d && d.ok) { lastBannedWords = d.words; renderBannedWordsList(); }
+          else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+        });
+      });
+    });
+    list.querySelectorAll('button[data-edit-word]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const oldWord = btn.dataset.editWord;
+        const newWord = window.prompt('Rename "' + oldWord + '" to:', oldWord);
+        if (!newWord || !newWord.trim() || newWord.trim().toLowerCase() === oldWord.toLowerCase()) return;
+        callAdmin('bannedWords.update', { oldWord: oldWord, newWord: newWord.trim() }).then(function (d) {
+          if (d && d.ok) { lastBannedWords = d.words; renderBannedWordsList(); }
+          else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+        });
+      });
+    });
+  }
+  const bannedWordAddBtn = document.getElementById('bannedWordAddBtn');
+  if (bannedWordAddBtn) {
+    bannedWordAddBtn.addEventListener('click', function () {
+      const input = document.getElementById('bannedWordInput');
+      const word = input.value.trim();
+      if (!word) return;
+      callAdmin('bannedWords.add', { word: word }).then(function (d) {
+        if (d && d.ok) { input.value = ''; lastBannedWords = d.words; renderBannedWordsList(); }
+        else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+      });
+    });
+    document.getElementById('bannedWordInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') bannedWordAddBtn.click(); });
   }
   let currentPartnerRankupFilter = 'pending';
   document.querySelectorAll('#partnerRankupFilter .filter-pill').forEach(function (btn) {

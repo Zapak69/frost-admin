@@ -300,6 +300,20 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
 .pill.report { background: rgba(134,134,139,0.16); color: var(--muted); }
 .pill.priority { background: rgba(168,85,247,0.16); color: #c78bff; }
 
+.banned-words-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.banned-word-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 980px;
+  padding: 6px 6px 6px 14px; font-size: 12.5px; font-family: 'Space Mono', monospace; color: var(--text);
+}
+.banned-word-chip button {
+  background: none; border: none; color: var(--muted); cursor: pointer; padding: 5px;
+  display: flex; align-items: center; justify-content: center; border-radius: 50%;
+  width: 22px; height: 22px; font-size: 11px; transition: color 0.2s, background 0.2s;
+}
+.banned-word-chip button:hover { color: var(--text); background: var(--bg-hover); }
+.banned-word-chip button.danger:hover { color: var(--danger); }
+
 .filter-pills { display: flex; gap: 8px; margin-left: auto; }
 .filter-pill {
   background: var(--bg-elevated); border: 1px solid var(--border); color: var(--muted); font-family: inherit;
