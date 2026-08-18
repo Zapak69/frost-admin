@@ -559,6 +559,22 @@
   </div>
 </div>
 
+<div id="grantMediaModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title">Grant Media — <span id="grantMediaModalName"></span></div>
+    <p class="modal-text">Creates a Whop discount code (5% off, new customers only) and grants the Media role and dashboard access.</p>
+    <div class="form-field">
+      <label>Discount code</label>
+      <input type="text" id="grantMediaCodeInput" class="text-input" placeholder="e.g. FROSTJOHN" autocomplete="off" maxlength="20"/>
+    </div>
+    <p class="modal-text" id="grantMediaError" style="display:none;color:var(--danger);"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="grantMediaCancelBtn">Cancel</button>
+      <button type="button" class="btn-primary" id="grantMediaSubmitBtn">Grant Media</button>
+    </div>
+  </div>
+</div>
+
 <div id="scamDetailModal" class="modal-overlay">
   <div class="modal-box transcript-box">
     <div class="modal-title" id="scamDetailTitle">Scam report</div>

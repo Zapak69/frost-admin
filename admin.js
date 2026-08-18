@@ -958,6 +958,7 @@
           (canReviewApplications ? '<button class="btn-small danger" data-action="ban" data-id="' + m.id + '">Ban</button>' : '')
         );
     const liteBtn = (canPublishContent && !m.isBot) ? '<button class="btn-small" data-lite-id="' + m.id + '" data-lite-name="' + escapeHtml(m.globalName || m.username) + '">Grant Lite</button>' : '';
+    const grantMediaBtn = (canPublishContent && !m.isBot) ? '<button class="btn-small" data-grant-media-id="' + m.id + '" data-grant-media-name="' + escapeHtml(m.globalName || m.username) + '">Grant Media</button>' : '';
     const liteStatus = (m.lite && m.lite.gifted)
       ? '<span>Lite until <strong style="color:var(--success);">' + formatDateTime(Date.parse(m.lite.expiresAt)) + '</strong> (gifted)</span>'
       : (m.hasLiteRole ? '<span>Lite: <strong style="color:var(--success);">purchased</strong></span>' : '');
@@ -965,7 +966,7 @@
       '<div class="app-card" id="' + idPrefix + m.id + '">' +
         '<div class="app-card-head">' +
           '<div class="app-card-user"><img class="app-card-avatar" src="' + avatarUrl(m.id, m.avatar) + '"/>' + escapeHtml(m.globalName || m.username) + ' <span class="app-card-meta">@' + escapeHtml(m.username) + ' · ' + m.id + '</span></div>' +
-          '<div class="app-card-actions">' + modActions + liteBtn + '</div>' +
+          '<div class="app-card-actions">' + modActions + liteBtn + grantMediaBtn + '</div>' +
         '</div>' +
         '<div class="app-card-details">' +
           '<span>Joined: <strong>' + formatDateTime(m.joinedAt ? Date.parse(m.joinedAt) : null) + '</strong></span>' +
@@ -1004,6 +1005,8 @@
     });
     const liteBtn = card.querySelector('button[data-lite-id]');
     if (liteBtn) liteBtn.addEventListener('click', function () { openLiteModal(liteBtn.dataset.liteId, liteBtn.dataset.liteName, onDone); });
+    const grantMediaBtn = card.querySelector('button[data-grant-media-id]');
+    if (grantMediaBtn) grantMediaBtn.addEventListener('click', function () { openGrantMediaModal(grantMediaBtn.dataset.grantMediaId, grantMediaBtn.dataset.grantMediaName, onDone); });
   }
 
   function userLink(id, label) {
@@ -1116,6 +1119,42 @@
       }
     });
   });
+  const grantMediaModal = document.getElementById('grantMediaModal');
+  let grantMediaTargetId = null, grantMediaOnDone = null;
+  function openGrantMediaModal(userId, name, onDone) {
+    grantMediaTargetId = userId;
+    grantMediaOnDone = onDone;
+    document.getElementById('grantMediaModalName').textContent = name;
+    document.getElementById('grantMediaCodeInput').value = '';
+    document.getElementById('grantMediaError').style.display = 'none';
+    grantMediaModal.classList.add('active');
+  }
+  document.getElementById('grantMediaCancelBtn').addEventListener('click', function () { grantMediaModal.classList.remove('active'); });
+  grantMediaModal.addEventListener('click', function (e) { if (e.target === grantMediaModal) grantMediaModal.classList.remove('active'); });
+  document.getElementById('grantMediaSubmitBtn').addEventListener('click', function () {
+    const code = document.getElementById('grantMediaCodeInput').value.trim();
+    const errEl = document.getElementById('grantMediaError');
+    if (!code || code.length < 3) {
+      errEl.textContent = 'Enter a code (at least 3 characters).';
+      errEl.style.display = '';
+      return;
+    }
+    if (!grantMediaTargetId) return;
+    const btn = document.getElementById('grantMediaSubmitBtn');
+    btn.disabled = true;
+    callAdmin('staff.grantMedia', { targetId: grantMediaTargetId, code: code }).then(function (d) {
+      btn.disabled = false;
+      if (d && d.ok) {
+        showToast('Granted Media with code ' + d.code + '.', 'success');
+        grantMediaModal.classList.remove('active');
+        if (grantMediaOnDone) grantMediaOnDone();
+      } else {
+        errEl.textContent = 'Failed: ' + (d && d.error || 'unknown error');
+        errEl.style.display = '';
+      }
+    });
+  });
+
   const LB_PAGE_SIZE = 10;
   const lbData = { mostActive: [], playtime: [], staffLeaderboard: [] };
   const lbExpanded = { mostActive: false, playtime: false, staffLeaderboard: false };
@@ -1484,7 +1523,8 @@
   }
   function renderPartnerLogCard(l) {
     const details = [
-      ['Code', l.code], ['Promoting at', l.socialLink]
+      ['Code', l.code], ['Promoting at', l.socialLink],
+      ['Granted by', l.grantedBy ? ('Staff (' + l.grantedBy + ')') : null]
     ].filter(function (p) { return p[1]; }).map(function (p) {
       return '<div><div class="app-card-q">' + escapeHtml(p[0]) + '</div><div class="app-card-a">' + escapeHtml(p[1]) + '</div></div>';
     }).join('');
@@ -1492,6 +1532,7 @@
       '<div class="app-card">' +
         '<div class="app-card-head">' +
           '<div class="app-card-user">' + userLink(l.discordId, l.username || l.discordId) + ' <span class="app-card-meta">' + l.discordId + '</span></div>' +
+          (l.grantedBy ? '<span class="pill manual">staff grant</span>' : '') +
         '</div>' +
         '<div class="app-card-details"><span>Signed up: <strong>' + formatRelative(l.loggedAt) + '</strong></span></div>' +
         '<div class="app-card-qa">' + details + '</div>' +
