@@ -91,7 +91,7 @@
       <div class="content-header-actions">
         <span class="live-dot"></span>
         <button type="button" class="notif-bell-btn" id="notifBellBtn" title="Notifications">
-          🔔<span class="notif-dot" id="notifDot" style="display:none;"></span><span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="notif-dot" id="notifDot" style="display:none;"></span><span class="notif-badge" id="notifBadge" style="display:none;">0</span>
         </button>
         <button type="button" class="refresh-btn" id="refreshBtn" title="Refresh"><span class="refresh-icon">↻</span></button>
       </div>
@@ -113,11 +113,11 @@
         </div>
         <div class="panel-row panel-row-cal">
           <div class="panel">
-            <div class="panel-head"><h2>🎯 Next rankups</h2><span class="panel-sub">Staff progress toward their next rank</span></div>
+            <div class="panel-head"><h2><svg class="heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Next rankups</h2><span class="panel-sub">Staff progress toward their next rank</span></div>
             <div class="rankup-list" id="rankupList"></div>
           </div>
           <div class="panel panel-rankup-small">
-            <div class="panel-head"><h2>🔥 Most active staff</h2><span class="panel-sub">By messages this week</span></div>
+            <div class="panel-head"><h2><svg class="heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>Most active staff</h2><span class="panel-sub">By messages this week</span></div>
             <div class="app-list" id="activityLeaderboardList"></div>
             <button type="button" class="btn-small lb-more-btn" id="activityLeaderboardMoreBtn">Show more</button>
           </div>
@@ -133,11 +133,11 @@
           <button type="button" class="btn-small" id="writeExcuseBtn">Write an excuse</button>
         </div>
         <div class="panel" id="myWarningsPanel" style="display:none;">
-          <div class="panel-head"><h2>⚠️ Your warnings</h2></div>
+          <div class="panel-head"><h2><svg class="heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Your warnings</h2></div>
           <div class="app-list" id="myWarningsList"></div>
         </div>
         <div class="panel" id="myUnclaimedPanel" style="display:none;">
-          <div class="panel-head"><h2>🎫 Unclaimed replies</h2><span class="panel-sub">You replied in these tickets without claiming them — they won't count toward your rankup</span></div>
+          <div class="panel-head"><h2><svg class="heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>Unclaimed replies</h2><span class="panel-sub">You replied in these tickets without claiming them — they won't count toward your rankup</span></div>
           <div class="table-wrap"><table class="data-table" id="myUnclaimedTable"></table></div>
         </div>
         <div class="stat-grid" id="myOverviewStats"></div>
@@ -147,7 +147,7 @@
             <div class="activity-calendar compact" id="myActivityCalendar"></div>
           </div>
           <div class="panel panel-rankup-small">
-            <div class="panel-head"><h2>🎯 Your next rankup</h2></div>
+            <div class="panel-head"><h2><svg class="heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Your next rankup</h2></div>
             <div class="rankup-list rankup-list-small" id="myRankupList"></div>
           </div>
         </div>
@@ -579,7 +579,7 @@
     <p class="modal-text">Creates a Whop discount code (5% off, new customers only) and grants the Media role and dashboard access.</p>
     <div class="form-field">
       <label>Discount code</label>
-      <input type="text" id="grantMediaCodeInput" class="text-input" placeholder="e.g. FROSTJOHN" autocomplete="off" maxlength="20"/>
+      <input type="text" id="grantMediaCodeInput" class="text-input" placeholder="e.g. FROSTJOHN" autocomplete="off" maxlength="8"/>
     </div>
     <p class="modal-text" id="grantMediaError" style="display:none;color:var(--danger);"></p>
     <div class="modal-actions">
@@ -595,12 +595,13 @@
     <p class="modal-text">Deletes their old Whop code and creates a new one under the same discount terms. Takes effect immediately.</p>
     <div class="form-field">
       <label>New code</label>
-      <input type="text" id="changeCodeInput" class="text-input" placeholder="e.g. FROSTJOHN" autocomplete="off" maxlength="20"/>
+      <input type="text" id="changeCodeInput" class="text-input" placeholder="e.g. FROSTJOHN" autocomplete="off" maxlength="8"/>
+      <p class="code-check-status" id="changeCodeStatus"></p>
     </div>
     <p class="modal-text" id="changeCodeError" style="display:none;color:var(--danger);"></p>
     <div class="modal-actions">
       <button type="button" class="btn-secondary" id="changeCodeCancelBtn">Cancel</button>
-      <button type="button" class="btn-primary" id="changeCodeSubmitBtn">Change code</button>
+      <button type="button" class="btn-primary" id="changeCodeSubmitBtn"><span class="btn-spinner"></span><span class="btn-label">Change code</span></button>
     </div>
   </div>
 </div>

@@ -202,6 +202,7 @@ body {
   content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent);
 }
 .notif-item-msg { font-size: 13px; color: var(--text); line-height: 1.5; }
+.notif-icon-svg { width: 13px; height: 13px; vertical-align: -2px; color: var(--accent); margin-right: 1px; }
 .notif-item-time { font-size: 11px; color: var(--muted-dim); margin-top: 4px; font-family: 'Space Mono', monospace; }
 .notif-item-delete-hint {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end;
@@ -226,7 +227,12 @@ body {
 .panel { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 20px; padding: 24px 26px; margin-bottom: 20px; }
 .panel-narrow { max-width: 520px; margin-left: auto; margin-right: auto; }
 .panel-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
-.panel-head h2 { font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
+.panel-head h2 { font-size: 16px; font-weight: 700; letter-spacing: -0.2px; display: flex; align-items: center; gap: 8px; }
+.heading-icon { width: 16px; height: 16px; flex-shrink: 0; color: var(--accent); }
+.streak-icon { display: inline-flex; align-items: center; width: 13px; height: 13px; color: var(--warning); vertical-align: -2px; }
+.streak-icon svg { width: 100%; height: 100%; }
+.eligible-check { display: inline-flex; align-items: center; gap: 3px; color: var(--success); }
+.eligible-check svg { width: 13px; height: 13px; }
 .panel-sub { font-size: 12.5px; color: var(--muted); }
 
 .form-field { margin-bottom: 16px; }
@@ -253,6 +259,20 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
 .btn-primary:hover { filter: brightness(1.12); }
 .btn-primary:active { transform: scale(0.98); }
 .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; filter: none; transform: none; }
+.btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-spinner {
+  display: none; width: 14px; height: 14px; flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%;
+  animation: btnSpin 0.8s linear infinite;
+}
+.is-loading .btn-spinner { display: inline-block; }
+.is-loading .btn-label { opacity: 0.85; }
+@keyframes btnSpin { to { transform: rotate(360deg); } }
+
+.code-check-status { font-size: 12px; margin: 6px 0 0; min-height: 15px; }
+.code-check-status.checking { color: var(--muted); }
+.code-check-status.available { color: var(--success); }
+.code-check-status.taken { color: var(--danger); }
 .btn-danger {
   background: var(--danger); color: #fff; font-weight: 600;
   font-size: 13px; padding: 10px 18px; border: none; border-radius: 980px; cursor: pointer; font-family: inherit;
@@ -391,7 +411,8 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
 
 .priority-row td { background: linear-gradient(90deg, rgba(168,85,247,0.1), rgba(168,85,247,0.02) 60%); position: relative; }
 .priority-row td:first-child { box-shadow: inset 3px 0 0 var(--priority); }
-.priority-flag { color: var(--priority); margin-right: 6px; }
+.priority-flag { color: var(--priority); margin-right: 6px; display: inline-flex; }
+.priority-flag svg { width: 13px; height: 13px; }
 .app-card.priority-card { border-color: rgba(168,85,247,0.35); background: linear-gradient(135deg, rgba(168,85,247,0.08), var(--bg-elevated) 55%); }
 
 .table-footer { display: flex; justify-content: center; padding-top: 16px; }
@@ -594,10 +615,11 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
   background: var(--bg-elevated); border-radius: 8px; font-size: 13px; color: var(--muted);
 }
 .transcript-attachment {
-  display: inline-block; margin-top: 6px; margin-right: 8px; font-size: 12.5px;
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; margin-right: 8px; font-size: 12.5px;
   color: var(--accent); text-decoration: none;
 }
 .transcript-attachment:hover { text-decoration: underline; }
+.transcript-attachment svg { width: 13px; height: 13px; flex-shrink: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
