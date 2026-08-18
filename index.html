@@ -189,7 +189,11 @@
       <div class="panel">
         <div class="panel-head">
           <h2>Current staff team</h2>
-          <button type="button" class="btn-small sort-toggle-btn" id="staffSortToggle" data-dir="desc">Sort: Most active <span class="sort-arrow">↓</span></button>
+          <div class="filter-pills" id="staffSortMode">
+            <button type="button" class="filter-pill active" data-sort="activity">Activity</button>
+            <button type="button" class="filter-pill" data-sort="rank">Rank</button>
+          </div>
+          <button type="button" class="btn-small sort-toggle-btn" id="staffSortToggle" data-dir="desc">Highest first <span class="sort-arrow">↓</span></button>
         </div>
         <div class="table-wrap"><table class="data-table" id="staffTable"></table></div>
       </div>
@@ -491,7 +495,8 @@
   <div class="modal-box calendar-modal-box">
     <div class="modal-title"><span id="calendarModalName"></span> — activity</div>
     <div class="calendar-legend">
-      <span class="calendar-legend-item"><span class="calendar-legend-dot excuse"></span>Has excuse</span>
+      <span class="calendar-legend-item"><span class="calendar-legend-dot excuse-pending"></span>Pending excuse</span>
+      <span class="calendar-legend-item"><span class="calendar-legend-dot excuse"></span>Excuse decided</span>
       <span class="calendar-legend-item"><span class="calendar-legend-dot today"></span>Today</span>
       <span class="calendar-legend-item"><span class="calendar-legend-dot joined"></span>Joined team</span>
       <span class="calendar-legend-item"><span class="calendar-legend-dot kicked"></span>Kicked</span>
@@ -518,7 +523,8 @@
   <div class="modal-box calendar-modal-box full-activity-modal-box">
     <div class="modal-title"><span id="fullActivityModalName"></span> — full activity</div>
     <div class="calendar-legend">
-      <span class="calendar-legend-item"><span class="calendar-legend-dot excuse"></span>Has excuse</span>
+      <span class="calendar-legend-item"><span class="calendar-legend-dot excuse-pending"></span>Pending excuse</span>
+      <span class="calendar-legend-item"><span class="calendar-legend-dot excuse"></span>Excuse decided</span>
       <span class="calendar-legend-item"><span class="calendar-legend-dot today"></span>Today</span>
       <span class="calendar-legend-item"><span class="calendar-legend-dot joined"></span>Joined team</span>
       <span class="calendar-legend-item"><span class="calendar-legend-dot kicked"></span>Kicked</span>

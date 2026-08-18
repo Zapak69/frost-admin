@@ -463,10 +463,14 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
 .activity-day.inactive-today { background: rgba(79,200,248,0.18); border-color: var(--accent); color: var(--accent); font-weight: 700; }
 .activity-day.has-excuse { cursor: pointer; box-shadow: inset 0 0 0 2px var(--warning); }
 .activity-day.has-excuse:not(.active) { background: rgba(255,201,77,0.16); color: var(--warning); }
+.activity-day.has-excuse.is-pending-excuse { box-shadow: inset 0 0 0 2px #fff; }
+.activity-day.has-excuse.is-pending-excuse:not(.active) { background: rgba(255,255,255,0.16); color: #fff; }
 .activity-day.is-joined { box-shadow: inset 0 0 0 2px var(--priority); }
 .activity-day.is-kicked { box-shadow: inset 0 0 0 2px var(--danger); }
 .activity-day.has-excuse.is-joined,
 .activity-day.has-excuse.is-kicked { box-shadow: inset 0 0 0 2px var(--warning), inset 0 0 0 4px rgba(0,0,0,0.4); }
+.activity-day.has-excuse.is-pending-excuse.is-joined,
+.activity-day.has-excuse.is-pending-excuse.is-kicked { box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 4px rgba(0,0,0,0.4); }
 .activity-day.in-streak { font-size: 13px; }
 .activity-calendar.compact .activity-day.in-streak { font-size: 11px; }
 .activity-day:hover::after {
@@ -487,6 +491,7 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
 .calendar-legend-item { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); }
 .calendar-legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .calendar-legend-dot.excuse { background: var(--warning); }
+.calendar-legend-dot.excuse-pending { background: #fff; }
 .calendar-legend-dot.today { background: var(--accent); }
 .calendar-legend-dot.joined { background: var(--priority); }
 .calendar-legend-dot.kicked { background: var(--danger); }
@@ -516,7 +521,7 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
 .activity-calendar-scroll { max-height: 480px; overflow-y: auto; padding-right: 6px; margin-bottom: 6px; }
 .activity-calendar-scroll .activity-calendar { max-width: none; }
 
-.sort-toggle-btn { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.sort-toggle-btn { display: flex; align-items: center; gap: 6px; }
 .sort-toggle-btn .sort-arrow { transition: transform 0.2s ease; display: inline-block; }
 .sort-toggle-btn[data-dir="asc"] .sort-arrow { transform: rotate(180deg); }
 .excuse-detail-box {

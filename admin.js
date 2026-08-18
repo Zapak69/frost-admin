@@ -736,7 +736,8 @@
       const inStreak = streakDates.has(d.date);
       const isJoined = joinedStr === d.date;
       const isKicked = kickedStr === d.date;
-      const cls = 'activity-day' + (d.active ? ' active' : '') + (isToday && !d.active ? ' inactive-today' : '') + (excuse ? ' has-excuse' : '') + (inStreak ? ' in-streak' : '') + (isJoined ? ' is-joined' : '') + (isKicked ? ' is-kicked' : '');
+      const isPendingExcuse = excuse && (excuse.status || 'pending') === 'pending';
+      const cls = 'activity-day' + (d.active ? ' active' : '') + (isToday && !d.active ? ' inactive-today' : '') + (excuse ? ' has-excuse' : '') + (isPendingExcuse ? ' is-pending-excuse' : '') + (inStreak ? ' in-streak' : '') + (isJoined ? ' is-joined' : '') + (isKicked ? ' is-kicked' : '');
       bodyHtml += '<div class="' + cls + '" data-date="' + d.date + '">' + (inStreak ? '🔥' : dayNum) + '</div>';
     });
     document.getElementById(containerId).innerHTML = weekdayHtml + bodyHtml;
@@ -891,7 +892,7 @@
         const rows = d.warns.map(function (w) {
           const statusPill = w.active ? '<span class="pill accepted">active</span>' : '<span class="pill denied">expired</span>';
           const expires = w.expiresAt ? formatDateTime(w.expiresAt) : 'Permanent';
-          return '<tr><td style="max-width:280px;">' + escapeHtml(w.reason) + '</td><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(w.warnedBy, w.warnedByAvatar) + '"/>' + userLink(w.warnedBy, w.warnedByUsername || w.warnedBy) + '</td><td>' + statusPill + '</td><td class="mono">' + expires + '</td><td class="mono">' + formatRelative(w.warnedAt) + '</td></tr>';
+          return '<tr><td style="max-width:280px;">' + escapeHtml(w.reason) + '</td><td><span class="cell-user"><img class="cell-avatar" src="' + avatarUrl(w.warnedBy, w.warnedByAvatar) + '"/>' + userLink(w.warnedBy, w.warnedByUsername || w.warnedBy) + '</span></td><td>' + statusPill + '</td><td class="mono">' + expires + '</td><td class="mono">' + formatRelative(w.warnedAt) + '</td></tr>';
         }).join('') || emptyRow(5, "You don't have any warnings — nice.");
         document.getElementById('myWarnsTable').innerHTML =
           '<thead><tr><th>Reason</th><th>Warned by</th><th>Status</th><th>Expires</th><th>Issued</th></tr></thead><tbody>' + rows + '</tbody>' +
@@ -904,7 +905,7 @@
         const rows = d.warns.map(function (w) {
           const statusPill = w.active ? '<span class="pill accepted">active</span>' : '<span class="pill denied">expired</span>';
           const expires = w.expiresAt ? formatDateTime(w.expiresAt) : 'Permanent';
-          return '<tr><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(w.userId, w.targetAvatar) + '"/>' + userLink(w.userId, w.targetUsername || w.userId) + '</td><td style="max-width:280px;">' + escapeHtml(w.reason) + '</td><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(w.warnedBy, w.warnedByAvatar) + '"/>' + userLink(w.warnedBy, w.warnedByUsername || w.warnedBy) + '</td><td class="mono">' + (d.totals[w.userId] || 1) + '</td><td>' + statusPill + '</td><td class="mono">' + expires + '</td><td class="mono">' + formatRelative(w.warnedAt) + '</td><td><button class="btn-small danger" data-warn-delete-id="' + escapeHtml(w.id) + '" data-warn-delete-target="' + escapeHtml(w.userId) + '">Delete</button></td></tr>';
+          return '<tr><td><span class="cell-user"><img class="cell-avatar" src="' + avatarUrl(w.userId, w.targetAvatar) + '"/>' + userLink(w.userId, w.targetUsername || w.userId) + '</span></td><td style="max-width:280px;">' + escapeHtml(w.reason) + '</td><td><span class="cell-user"><img class="cell-avatar" src="' + avatarUrl(w.warnedBy, w.warnedByAvatar) + '"/>' + userLink(w.warnedBy, w.warnedByUsername || w.warnedBy) + '</span></td><td class="mono">' + (d.totals[w.userId] || 1) + '</td><td>' + statusPill + '</td><td class="mono">' + expires + '</td><td class="mono">' + formatRelative(w.warnedAt) + '</td><td><button class="btn-small danger" data-warn-delete-id="' + escapeHtml(w.id) + '" data-warn-delete-target="' + escapeHtml(w.userId) + '">Delete</button></td></tr>';
         }).join('') || emptyRow(8, 'No warnings issued yet.');
         const table = document.getElementById('warnsAllTable');
         table.innerHTML =
@@ -1121,7 +1122,7 @@
 
   function renderMostActiveTable() {
     const rows = lbData.mostActive.slice(0, lbExpanded.mostActive ? undefined : LB_PAGE_SIZE).map(function (a, i) {
-      return '<tr><td class="mono">#' + (i + 1) + '</td><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(a.userId, a.avatar) + '"/>' + userLink(a.userId, a.username || a.userId) + '</td><td class="mono">' + a.messageCount + '</td></tr>';
+      return '<tr><td class="mono">#' + (i + 1) + '</td><td><span class="cell-user"><img class="cell-avatar" src="' + avatarUrl(a.userId, a.avatar) + '"/>' + userLink(a.userId, a.username || a.userId) + '</span></td><td class="mono">' + a.messageCount + '</td></tr>';
     }).join('') || emptyRow(3, 'No chat activity recorded this week yet.');
     document.getElementById('mostActiveTable').innerHTML =
       '<thead><tr><th>#</th><th>Member</th><th>Messages</th></tr></thead><tbody>' + rows + '</tbody>';
@@ -1135,7 +1136,7 @@
   }
   function renderStaffLeaderboardTable() {
     const rows = lbData.staffLeaderboard.slice(0, lbExpanded.staffLeaderboard ? undefined : LB_PAGE_SIZE).map(function (s, i) {
-      return '<tr><td class="mono">#' + (i + 1) + '</td><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(s.userId, s.avatar) + '"/>' + userLink(s.userId, s.username || s.userId) + '</td><td class="mono">' + s.solvedTickets + '</td><td class="mono">' + s.totalClaims + '</td><td class="mono">' + formatDuration(s.totalResolutionMs) + '</td></tr>';
+      return '<tr><td class="mono">#' + (i + 1) + '</td><td><span class="cell-user"><img class="cell-avatar" src="' + avatarUrl(s.userId, s.avatar) + '"/>' + userLink(s.userId, s.username || s.userId) + '</span></td><td class="mono">' + s.solvedTickets + '</td><td class="mono">' + s.totalClaims + '</td><td class="mono">' + formatDuration(s.totalResolutionMs) + '</td></tr>';
     }).join('') || emptyRow(5, 'No staff activity recorded yet.');
     document.getElementById('staffLeaderboardTable').innerHTML =
       '<thead><tr><th>#</th><th>Member</th><th>Solved</th><th>Claims</th><th>Avg. handling</th></tr></thead><tbody>' + rows + '</tbody>';
@@ -1171,9 +1172,15 @@
 
   let lastStaffList = [];
   let staffSortDir = 'desc';
+  let staffSortMode = 'activity';
+  const STAFF_SORT_KEYS = {
+    activity: function (s) { return s.weeklyMessages || 0; },
+    rank: function (s) { return s.rankIndex != null ? s.rankIndex : -1; }
+  };
   function renderStaffTable(list) {
+    const keyFn = STAFF_SORT_KEYS[staffSortMode] || STAFF_SORT_KEYS.activity;
     const sorted = list.slice().sort(function (a, b) {
-      const diff = (b.weeklyMessages || 0) - (a.weeklyMessages || 0);
+      const diff = keyFn(b) - keyFn(a);
       return staffSortDir === 'asc' ? -diff : diff;
     });
     const rows = sorted.map(function (s) {
@@ -1186,7 +1193,7 @@
           (canKickStaff ? ' <button class="btn-small danger" data-kick-id="' + s.id + '" data-kick-name="' + escapeHtml(s.tag) + '">Kick</button>' : '')
         : '';
       const streak = (s.currentStreak || 0) > 0 ? '🔥 ' + s.currentStreak : '—';
-      return '<tr><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(s.id, s.avatar) + '"/>' + userLink(s.id, s.tag) + '</td><td>' + rankPill + '</td><td class="mono">' + s.solvedTickets + '</td><td class="mono">' + s.totalClaims + '</td><td class="mono">' + s.unclaimedTickets + '</td><td class="mono">' + streak + '</td><td class="mono">' + (s.reviewCount || 0) + '</td><td class="mono">' + (s.weeklyMessages || 0) + '</td><td>' + actions + '</td></tr>';
+      return '<tr><td><span class="cell-user"><img class="cell-avatar" src="' + avatarUrl(s.id, s.avatar) + '"/>' + userLink(s.id, s.tag) + '</span></td><td>' + rankPill + '</td><td class="mono">' + s.solvedTickets + '</td><td class="mono">' + s.totalClaims + '</td><td class="mono">' + s.unclaimedTickets + '</td><td class="mono">' + streak + '</td><td class="mono">' + (s.reviewCount || 0) + '</td><td class="mono">' + (s.weeklyMessages || 0) + '</td><td>' + actions + '</td></tr>';
     }).join('') || emptyRow(9, 'No staff members found.');
     const table = document.getElementById('staffTable');
     table.innerHTML =
@@ -1220,12 +1227,18 @@
     staffSortToggle.addEventListener('click', function () {
       staffSortDir = staffSortDir === 'desc' ? 'asc' : 'desc';
       staffSortToggle.dataset.dir = staffSortDir;
-      staffSortToggle.innerHTML = staffSortDir === 'desc'
-        ? 'Sort: Most active <span class="sort-arrow">↓</span>'
-        : 'Sort: Least active <span class="sort-arrow">↓</span>';
+      staffSortToggle.innerHTML = (staffSortDir === 'desc' ? 'Highest first' : 'Lowest first') + ' <span class="sort-arrow">↓</span>';
       renderStaffTable(lastStaffList);
     });
   }
+  document.querySelectorAll('#staffSortMode .filter-pill').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('#staffSortMode .filter-pill').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      staffSortMode = btn.dataset.sort;
+      renderStaffTable(lastStaffList);
+    });
+  });
   function loadStaff() {
     return callAdmin('staff.list').then(function (d) {
       if (!d || !d.ok) return;
@@ -1647,7 +1660,7 @@
     const shown = limit ? reviews.slice(0, limit) : reviews;
     const rows = shown.map(function (r) {
       const removeBtn = (r.discordId && canPublishContent) ? '<button class="btn-small danger" data-remove="' + r.discordId + '">Remove</button>' : '';
-      return '<tr><td class="cell-user"><img class="cell-avatar" src="' + reviewAvatarUrl(r) + '"/>' + userLink(r.discordId, r.username) + '</td><td class="mono">' + escapeHtml(r.stars || '') + '</td><td style="max-width:340px;">' + escapeHtml((r.comment || '').slice(0, 140)) + '</td><td>' + removeBtn + '</td></tr>';
+      return '<tr><td><span class="cell-user"><img class="cell-avatar" src="' + reviewAvatarUrl(r) + '"/>' + userLink(r.discordId, r.username) + '</span></td><td class="mono">' + escapeHtml(r.stars || '') + '</td><td style="max-width:340px;">' + escapeHtml((r.comment || '').slice(0, 140)) + '</td><td>' + removeBtn + '</td></tr>';
     }).join('') || emptyRow(4, 'No reviews yet.');
     const table = document.getElementById('reviewsTable');
     table.innerHTML = '<thead><tr><th>Reviewer</th><th>Rating</th><th>Comment</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
