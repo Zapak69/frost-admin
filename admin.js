@@ -1681,11 +1681,23 @@
         '<button type="button" class="danger" data-delete-word="' + escapeHtml(w) + '" aria-label="Delete" title="Delete">✕</button>' +
       '</span>';
     }).join('');
+    // All three actions below update lastBannedWords + re-render immediately (optimistic), then
+    // fire the actual request in the background - the round trip to Code.gs (itself relayed
+    // through the bot) is slow enough that waiting for it before showing the change made the list
+    // feel laggy. On failure the local change is rolled back and the list re-synced from the
+    // server, so it never stays out of sync with what's actually blocked.
     list.querySelectorAll('button[data-delete-word]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        callAdmin('bannedWords.delete', { word: btn.dataset.deleteWord }).then(function (d) {
-          if (d && d.ok) { lastBannedWords = d.words; renderBannedWordsList(); }
-          else { showToast('Failed: ' + (d && d.error || 'unknown error'), 'error'); loadBannedWords(); }
+        const word = btn.dataset.deleteWord;
+        const previous = lastBannedWords;
+        lastBannedWords = lastBannedWords.filter(function (w) { return w !== word; });
+        renderBannedWordsList();
+        callAdmin('bannedWords.delete', { word: word }).then(function (d) {
+          if (!d || !d.ok) {
+            showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+            lastBannedWords = previous;
+            renderBannedWordsList();
+          }
         });
       });
     });
@@ -1694,9 +1706,16 @@
         const oldWord = el.dataset.editWord;
         const newWord = window.prompt('Rename "' + oldWord + '" to:', oldWord);
         if (!newWord || !newWord.trim() || newWord.trim().toLowerCase() === oldWord.toLowerCase()) return;
-        callAdmin('bannedWords.update', { oldWord: oldWord, newWord: newWord.trim() }).then(function (d) {
-          if (d && d.ok) { lastBannedWords = d.words; renderBannedWordsList(); }
-          else { showToast('Failed: ' + (d && d.error || 'unknown error'), 'error'); loadBannedWords(); }
+        const trimmed = newWord.trim();
+        const previous = lastBannedWords;
+        lastBannedWords = lastBannedWords.map(function (w) { return w === oldWord ? trimmed : w; });
+        renderBannedWordsList();
+        callAdmin('bannedWords.update', { oldWord: oldWord, newWord: trimmed }).then(function (d) {
+          if (!d || !d.ok) {
+            showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+            lastBannedWords = previous;
+            renderBannedWordsList();
+          }
         });
       });
     });
@@ -1707,13 +1726,22 @@
       const input = document.getElementById('bannedWordInput');
       const word = input.value.trim();
       if (!word) return;
+      if (lastBannedWords.some(function (w) { return w.toLowerCase() === word.toLowerCase(); })) {
+        showToast('That word is already blocked.', 'error');
+        return;
+      }
+      const previous = lastBannedWords;
+      lastBannedWords = lastBannedWords.concat([word]);
+      input.value = '';
+      renderBannedWordsList();
       callAdmin('bannedWords.add', { word: word }).then(function (d) {
-        if (d && d.ok) { input.value = ''; lastBannedWords = d.words; renderBannedWordsList(); }
-        else {
-          // "already_exists" with the word not visible in the list usually means this admin's
-          // view of the list is stale (e.g. it was seeded/changed by another action since page
-          // load) - resync from the server so what's actually blocked is always what's shown.
+        if (!d || !d.ok) {
+          // "already_exists" here means this admin's view was stale even after the client-side
+          // check above (e.g. someone else added it between page load and now) - resync from the
+          // server rather than just rolling back, so the list reflects what's actually blocked.
           showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+          lastBannedWords = previous;
+          renderBannedWordsList();
           loadBannedWords();
         }
       });
