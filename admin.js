@@ -687,8 +687,8 @@
   }
 
   const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  function monthLabelHtml(dateObj) {
-    return '<div class="activity-cal-month-label">' + MONTH_NAMES[dateObj.getMonth()] + ' ' + dateObj.getFullYear() + '</div>';
+  function monthLabelHtml(dateObj, isFirst) {
+    return '<div class="activity-cal-month-label' + (isFirst ? ' first' : '') + '">' + MONTH_NAMES[dateObj.getMonth()] + ' ' + dateObj.getFullYear() + '</div>';
   }
   function monthPadHtml(dateObj) {
     const pad = (dateObj.getDay() + 6) % 7;
@@ -715,24 +715,28 @@
     const excuseDays = opts.excuseDays || {};
     const streakDates = computeStreakDates(days);
     const todayStr = new Date().toISOString().slice(0, 10);
+    const joinedStr = opts.joinedDate ? new Date(opts.joinedDate).toISOString().slice(0, 10) : null;
+    const kickedStr = opts.kickedDate ? new Date(opts.kickedDate).toISOString().slice(0, 10) : null;
     const weekdayHtml = WEEKDAY_LABELS.map(function (w) { return '<div class="activity-cal-weekday">' + w + '</div>'; }).join('');
     let bodyHtml = '';
     if (days.length) {
       const parts = days[0].date.split('-');
       const firstDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-      bodyHtml += monthLabelHtml(firstDate) + monthPadHtml(firstDate);
+      bodyHtml += monthLabelHtml(firstDate, true) + monthPadHtml(firstDate);
     }
     days.forEach(function (d, i) {
       const dayNum = Number(d.date.slice(8, 10));
       if (i > 0 && dayNum === 1) {
         const parts = d.date.split('-');
         const monthStart = new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
-        bodyHtml += monthLabelHtml(monthStart) + monthPadHtml(monthStart);
+        bodyHtml += monthLabelHtml(monthStart, false) + monthPadHtml(monthStart);
       }
       const isToday = d.date === todayStr;
       const excuse = excuseDays[d.date];
       const inStreak = streakDates.has(d.date);
-      const cls = 'activity-day' + (d.active ? ' active' : '') + (isToday && !d.active ? ' inactive-today' : '') + (excuse ? ' has-excuse' : '') + (inStreak ? ' in-streak' : '');
+      const isJoined = joinedStr === d.date;
+      const isKicked = kickedStr === d.date;
+      const cls = 'activity-day' + (d.active ? ' active' : '') + (isToday && !d.active ? ' inactive-today' : '') + (excuse ? ' has-excuse' : '') + (inStreak ? ' in-streak' : '') + (isJoined ? ' is-joined' : '') + (isKicked ? ' is-kicked' : '');
       bodyHtml += '<div class="' + cls + '" data-date="' + d.date + '">' + (inStreak ? '🔥' : dayNum) + '</div>';
     });
     document.getElementById(containerId).innerHTML = weekdayHtml + bodyHtml;
@@ -1156,49 +1160,128 @@
       renderStaffLeaderboardTable();
     });
   }
-  function loadStaff() {
-    return callAdmin('staff.list').then(function (d) {
-      if (!d || !d.ok) return;
-      const rows = d.staff.map(function (s) {
-        const color = s.rankColor || '#6b8fa8';
-        const rankPill = s.rank ? '<span class="pill" style="background:' + color + '1a;color:' + color + ';">' + escapeHtml(s.rank) + '</span>' : '—';
-        const actions = canReviewApplications
-          ? '<button class="btn-small" data-calendar-id="' + s.id + '" data-calendar-name="' + escapeHtml(s.tag) + '">Active days</button> ' +
-            '<button class="btn-small danger" data-warn-id="' + s.id + '" data-warn-name="' + escapeHtml(s.tag) + '">Warn</button> ' +
-            '<button class="btn-small" data-promote-id="' + s.id + '" data-promote-name="' + escapeHtml(s.tag) + '" data-promote-rank="' + escapeHtml(s.rank || 'Unranked') + '">Promote</button>'
-          : '';
-        const streak = (s.currentStreak || 0) > 0 ? '🔥 ' + s.currentStreak : '—';
-        return '<tr><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(s.id, s.avatar) + '"/>' + userLink(s.id, s.tag) + '</td><td>' + rankPill + '</td><td class="mono">' + s.solvedTickets + '</td><td class="mono">' + s.totalClaims + '</td><td class="mono">' + s.unclaimedTickets + '</td><td class="mono">' + streak + '</td><td class="mono">' + (s.reviewCount || 0) + '</td><td>' + actions + '</td></tr>';
-      }).join('') || emptyRow(8, 'No staff members found.');
-      const table = document.getElementById('staffTable');
-      table.innerHTML =
-        '<thead><tr><th>Member</th><th>Rank</th><th>Solved</th><th>Claims</th><th>Unclaimed</th><th>Streak</th><th>Reviews</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
-      table.querySelectorAll('button[data-calendar-id]').forEach(function (btn) {
-        btn.addEventListener('click', function () { openStaffCalendar(btn.dataset.calendarId, btn.dataset.calendarName); });
+  function readableRankColor(hex) {
+    if (!hex) return '#6b8fa8';
+    const h = hex.replace('#', '');
+    if (h.length !== 6) return hex;
+    const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance < 0.25 ? '#6b8fa8' : hex;
+  }
+
+  let lastStaffList = [];
+  let staffSortDir = 'desc';
+  function renderStaffTable(list) {
+    const sorted = list.slice().sort(function (a, b) {
+      const diff = (b.weeklyMessages || 0) - (a.weeklyMessages || 0);
+      return staffSortDir === 'asc' ? -diff : diff;
+    });
+    const rows = sorted.map(function (s) {
+      const color = readableRankColor(s.rankColor);
+      const rankPill = s.rank ? '<span class="pill" style="background:' + color + '1a;color:' + color + ';">' + escapeHtml(s.rank) + '</span>' : '—';
+      const actions = canReviewApplications
+        ? '<button class="btn-small" data-calendar-id="' + s.id + '" data-calendar-name="' + escapeHtml(s.tag) + '">Activity</button> ' +
+          '<button class="btn-small danger" data-warn-id="' + s.id + '" data-warn-name="' + escapeHtml(s.tag) + '">Warn</button> ' +
+          '<button class="btn-small" data-promote-id="' + s.id + '" data-promote-name="' + escapeHtml(s.tag) + '" data-promote-rank="' + escapeHtml(s.rank || 'Unranked') + '">Promote</button>' +
+          (canKickStaff ? ' <button class="btn-small danger" data-kick-id="' + s.id + '" data-kick-name="' + escapeHtml(s.tag) + '">Kick</button>' : '')
+        : '';
+      const streak = (s.currentStreak || 0) > 0 ? '🔥 ' + s.currentStreak : '—';
+      return '<tr><td class="cell-user"><img class="cell-avatar" src="' + avatarUrl(s.id, s.avatar) + '"/>' + userLink(s.id, s.tag) + '</td><td>' + rankPill + '</td><td class="mono">' + s.solvedTickets + '</td><td class="mono">' + s.totalClaims + '</td><td class="mono">' + s.unclaimedTickets + '</td><td class="mono">' + streak + '</td><td class="mono">' + (s.reviewCount || 0) + '</td><td class="mono">' + (s.weeklyMessages || 0) + '</td><td>' + actions + '</td></tr>';
+    }).join('') || emptyRow(9, 'No staff members found.');
+    const table = document.getElementById('staffTable');
+    table.innerHTML =
+      '<thead><tr><th>Member</th><th>Rank</th><th>Solved</th><th>Claims</th><th>Unclaimed</th><th>Streak</th><th>Reviews</th><th>Messages (7d)</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
+    table.querySelectorAll('button[data-calendar-id]').forEach(function (btn) {
+      btn.addEventListener('click', function () { openStaffCalendar(btn.dataset.calendarId, btn.dataset.calendarName); });
+    });
+    table.querySelectorAll('button[data-promote-id]').forEach(function (btn) {
+      btn.addEventListener('click', function () { openPromoteModal(btn.dataset.promoteId, btn.dataset.promoteName, btn.dataset.promoteRank); });
+    });
+    table.querySelectorAll('button[data-warn-id]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        openWarnModal(btn.dataset.warnId, btn.dataset.warnName);
       });
-      table.querySelectorAll('button[data-promote-id]').forEach(function (btn) {
-        btn.addEventListener('click', function () { openPromoteModal(btn.dataset.promoteId, btn.dataset.promoteName, btn.dataset.promoteRank); });
-      });
-      table.querySelectorAll('button[data-warn-id]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          openWarnModal(btn.dataset.warnId, btn.dataset.warnName);
+    });
+    table.querySelectorAll('button[data-kick-id]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const id = btn.dataset.kickId, name = btn.dataset.kickName;
+        askConfirm('Kick from staff team?', 'Removes the STAFF role and highest staff rank from ' + name + '.', { reason: true }).then(function (res) {
+          if (!res.ok) return;
+          callAdmin('members.action', { targetId: id, memberAction: 'kickStaff', reason: res.reason || undefined }).then(function (d) {
+            if (d && d.ok) { showToast('Kicked from staff team.', 'success'); loadStaff(); }
+            else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+          });
         });
       });
     });
   }
+  const staffSortToggle = document.getElementById('staffSortToggle');
+  if (staffSortToggle) {
+    staffSortToggle.addEventListener('click', function () {
+      staffSortDir = staffSortDir === 'desc' ? 'asc' : 'desc';
+      staffSortToggle.dataset.dir = staffSortDir;
+      staffSortToggle.innerHTML = staffSortDir === 'desc'
+        ? 'Sort: Most active <span class="sort-arrow">↓</span>'
+        : 'Sort: Least active <span class="sort-arrow">↓</span>';
+      renderStaffTable(lastStaffList);
+    });
+  }
+  function loadStaff() {
+    return callAdmin('staff.list').then(function (d) {
+      if (!d || !d.ok) return;
+      lastStaffList = d.staff;
+      renderStaffTable(lastStaffList);
+    });
+  }
+
+  function renderExcuseDetailBox(boxId, excuse) {
+    const box = document.getElementById(boxId);
+    box.style.display = '';
+    box.innerHTML =
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><strong>Excuse</strong><span class="pill ' + excusePillClass(excuse.status) + '">' + escapeHtml(excuse.status) + '</span><span class="app-card-meta" style="margin-left:auto;">' + formatRelative(excuse.submittedAt) + '</span></div>' +
+      '<div style="font-size:13px;color:var(--text);">' + escapeHtml(excuse.reason) + '</div>';
+  }
+  const EXCUSES_HISTORY_CAP = 4;
+  function renderExcusesHistoryList(listId, moreBtnId, excuses, onItemClick) {
+    const list = document.getElementById(listId);
+    const moreBtn = moreBtnId ? document.getElementById(moreBtnId) : null;
+    if (!excuses.length) {
+      list.innerHTML = '<div class="calendar-excuses-empty">No excuses submitted yet.</div>';
+      if (moreBtn) moreBtn.style.display = 'none';
+      return;
+    }
+    const shown = excuses.slice(0, EXCUSES_HISTORY_CAP);
+    list.innerHTML = shown.map(function (e, i) {
+      const pending = (e.status || 'pending') === 'pending';
+      return '<div class="calendar-excuse-item' + (pending ? ' pending' : '') + '" data-excuse-index="' + i + '">' +
+        '<div class="calendar-excuse-item-head"><span class="pill ' + excusePillClass(e.status) + '">' + escapeHtml(e.status || 'pending') + '</span></div>' +
+        '<div class="calendar-excuse-item-reason">' + escapeHtml(e.reason || '') + '</div>' +
+        '<div class="calendar-excuse-item-meta">' + formatRelative(e.submittedAt) + '</div>' +
+      '</div>';
+    }).join('');
+    list.querySelectorAll('.calendar-excuse-item').forEach(function (el) {
+      el.addEventListener('click', function () { onItemClick(shown[parseInt(el.dataset.excuseIndex, 10)]); });
+    });
+    if (moreBtn) moreBtn.style.display = excuses.length > EXCUSES_HISTORY_CAP ? '' : 'none';
+  }
 
   const calendarModal = document.getElementById('calendarModal');
+  let currentCalendarTargetId = null, currentCalendarTargetName = null;
   function openStaffCalendar(userId, name) {
+    currentCalendarTargetId = userId;
+    currentCalendarTargetName = name;
     document.getElementById('calendarModalName').textContent = name;
     document.getElementById('calendarModalGrid').innerHTML = '';
     document.getElementById('calendarModalWarnings').innerHTML = '';
     document.getElementById('calendarModalStats').innerHTML = '';
+    document.getElementById('calendarModalExcuses').innerHTML = '';
     document.getElementById('calendarModalExcuseDetail').style.display = 'none';
     calendarModal.classList.add('active');
-    callAdmin('staff.calendar', { targetId: userId }).then(function (d) {
+    callAdmin('staff.calendar', { targetId: userId, days: 30 }).then(function (d) {
       if (!d || !d.ok) return;
       if (d.stats) {
         renderStatGrid('calendarModalStats', [
+          [d.stats.messagesToday, 'Messages today'],
           [d.stats.weeklyMessages, 'Messages this week'],
           [d.stats.solvedTickets, 'Solved tickets'],
           [d.stats.totalClaims, 'Total claims'],
@@ -1210,13 +1293,11 @@
       }
       renderActivityCalendar('calendarModalGrid', d.calendar || [], {
         excuseDays: d.excuseDays || {},
-        onExcuseClick: function (excuse) {
-          const box = document.getElementById('calendarModalExcuseDetail');
-          box.style.display = '';
-          box.innerHTML =
-            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><strong>Excuse</strong><span class="pill ' + excusePillClass(excuse.status) + '">' + escapeHtml(excuse.status) + '</span><span class="app-card-meta" style="margin-left:auto;">' + formatRelative(excuse.submittedAt) + '</span></div>' +
-            '<div style="font-size:13px;color:var(--text);">' + escapeHtml(excuse.reason) + '</div>';
-        }
+        joinedDate: d.joinedStaffAt, kickedDate: d.kickedAt,
+        onExcuseClick: function (excuse) { renderExcuseDetailBox('calendarModalExcuseDetail', excuse); }
+      });
+      renderExcusesHistoryList('calendarModalExcuses', 'calendarModalExcusesMoreBtn', d.excuses || [], function (excuse) {
+        renderExcuseDetailBox('calendarModalExcuseDetail', excuse);
       });
       const warnings = d.warnings || [];
       document.getElementById('calendarModalWarnings').innerHTML = warnings.length
@@ -1227,6 +1308,50 @@
     });
   }
   document.getElementById('calendarModalCloseBtn').addEventListener('click', function () { calendarModal.classList.remove('active'); });
+  document.getElementById('calendarModalExcusesMoreBtn').addEventListener('click', function () { calendarModal.classList.remove('active'); });
+
+  const fullActivityModal = document.getElementById('fullActivityModal');
+  const FULL_ACTIVITY_DAYS = 90;
+  function openFullActivityModal(userId, name) {
+    document.getElementById('fullActivityModalName').textContent = name;
+    document.getElementById('fullActivityModalGrid').innerHTML = '';
+    document.getElementById('fullActivityModalWarnings').innerHTML = '';
+    document.getElementById('fullActivityModalStats').innerHTML = '';
+    document.getElementById('fullActivityModalExcuseDetail').style.display = 'none';
+    fullActivityModal.classList.add('active');
+    callAdmin('staff.calendar', { targetId: userId, days: FULL_ACTIVITY_DAYS }).then(function (d) {
+      if (!d || !d.ok) return;
+      if (d.stats) {
+        renderStatGrid('fullActivityModalStats', [
+          [d.stats.messagesToday, 'Messages today'],
+          [d.stats.weeklyMessages, 'Messages this week'],
+          [d.stats.solvedTickets, 'Solved tickets'],
+          [d.stats.totalClaims, 'Total claims'],
+          [d.stats.unclaimedTickets, 'Unclaims'],
+          [d.stats.currentStreak, 'Current streak'],
+          [d.stats.peakStreak, 'Peak streak'],
+          [d.stats.reviewCount, 'Reviews']
+        ]);
+      }
+      renderActivityCalendar('fullActivityModalGrid', d.calendar || [], {
+        excuseDays: d.excuseDays || {},
+        joinedDate: d.joinedStaffAt, kickedDate: d.kickedAt,
+        onExcuseClick: function (excuse) { renderExcuseDetailBox('fullActivityModalExcuseDetail', excuse); }
+      });
+      const warnings = d.warnings || [];
+      document.getElementById('fullActivityModalWarnings').innerHTML = warnings.length
+        ? '<div class="panel-sub" style="margin-bottom:8px;">' + warnings.length + ' warning(s)</div>' + warnings.map(function (w) {
+            return '<div class="app-card"><div class="app-card-details"><span>' + formatDateTime(w.warnedAt) + ' by <strong>' + escapeHtml(w.warnedByUsername || w.warnedBy) + '</strong></span></div><div class="app-card-a" style="margin-top:8px;">' + escapeHtml(w.reason) + '</div></div>';
+          }).join('')
+        : '';
+    });
+  }
+  document.getElementById('calendarModalFullBtn').addEventListener('click', function () {
+    calendarModal.classList.remove('active');
+    openFullActivityModal(currentCalendarTargetId, currentCalendarTargetName);
+  });
+  document.getElementById('fullActivityModalCloseBtn').addEventListener('click', function () { fullActivityModal.classList.remove('active'); });
+  fullActivityModal.addEventListener('click', function (e) { if (e.target === fullActivityModal) fullActivityModal.classList.remove('active'); });
   calendarModal.addEventListener('click', function (e) { if (e.target === calendarModal) calendarModal.classList.remove('active'); });
 
   const promoteModal = document.getElementById('promoteModal');

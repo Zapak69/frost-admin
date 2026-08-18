@@ -187,7 +187,10 @@
 
     <div class="view" id="view-staff">
       <div class="panel">
-        <div class="panel-head"><h2>Current staff team</h2></div>
+        <div class="panel-head">
+          <h2>Current staff team</h2>
+          <button type="button" class="btn-small sort-toggle-btn" id="staffSortToggle" data-dir="desc">Sort: Most active <span class="sort-arrow">↓</span></button>
+        </div>
         <div class="table-wrap"><table class="data-table" id="staffTable"></table></div>
       </div>
     </div>
@@ -487,15 +490,47 @@
 <div id="calendarModal" class="modal-overlay">
   <div class="modal-box calendar-modal-box">
     <div class="modal-title"><span id="calendarModalName"></span> — activity</div>
-    <p class="modal-text" style="margin-bottom:12px;">Yellow-ringed days have a submitted excuse — click one for details.</p>
+    <div class="calendar-legend">
+      <span class="calendar-legend-item"><span class="calendar-legend-dot excuse"></span>Has excuse</span>
+      <span class="calendar-legend-item"><span class="calendar-legend-dot today"></span>Today</span>
+      <span class="calendar-legend-item"><span class="calendar-legend-dot joined"></span>Joined team</span>
+      <span class="calendar-legend-item"><span class="calendar-legend-dot kicked"></span>Kicked</span>
+    </div>
     <div class="calendar-modal-layout">
       <div class="stat-grid stat-grid-compact" id="calendarModalStats"></div>
       <div class="activity-calendar compact" id="calendarModalGrid"></div>
+      <div class="calendar-excuses-history">
+        <div class="calendar-excuses-history-title">Excuses history</div>
+        <div class="calendar-excuses-history-list" id="calendarModalExcuses"></div>
+        <button type="button" class="btn-small" id="calendarModalExcusesMoreBtn" data-goto="excuses" style="display:none;">View more</button>
+      </div>
     </div>
     <div class="excuse-detail-box" id="calendarModalExcuseDetail" style="display:none;"></div>
     <div class="app-list" id="calendarModalWarnings" style="margin-top:16px;"></div>
     <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="calendarModalFullBtn" style="margin-right:auto;">Full Activity</button>
       <button type="button" class="btn-secondary" id="calendarModalCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="fullActivityModal" class="modal-overlay">
+  <div class="modal-box calendar-modal-box full-activity-modal-box">
+    <div class="modal-title"><span id="fullActivityModalName"></span> — full activity</div>
+    <div class="calendar-legend">
+      <span class="calendar-legend-item"><span class="calendar-legend-dot excuse"></span>Has excuse</span>
+      <span class="calendar-legend-item"><span class="calendar-legend-dot today"></span>Today</span>
+      <span class="calendar-legend-item"><span class="calendar-legend-dot joined"></span>Joined team</span>
+      <span class="calendar-legend-item"><span class="calendar-legend-dot kicked"></span>Kicked</span>
+    </div>
+    <div class="stat-grid stat-grid-compact" id="fullActivityModalStats" style="margin-bottom:18px;"></div>
+    <div class="activity-calendar-scroll">
+      <div class="activity-calendar" id="fullActivityModalGrid"></div>
+    </div>
+    <div class="excuse-detail-box" id="fullActivityModalExcuseDetail" style="display:none;"></div>
+    <div class="app-list" id="fullActivityModalWarnings" style="margin-top:16px;"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="fullActivityModalCloseBtn">Close</button>
     </div>
   </div>
 </div>
