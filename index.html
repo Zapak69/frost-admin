@@ -304,6 +304,9 @@
     <div class="view" id="view-reviews">
       <div class="panel">
         <div class="panel-head"><h2>Reviews</h2></div>
+        <div class="search-row">
+          <input type="text" id="reviewsSearchInput" class="text-input" placeholder="Search by username..." autocomplete="off"/>
+        </div>
         <div class="table-wrap"><table class="data-table" id="reviewsTable"></table></div>
         <div class="table-footer" id="reviewsFooter"></div>
       </div>
@@ -461,6 +464,11 @@
         <button type="button" class="btn-small" id="excuseCalPrevBtn">‹</button>
         <span id="excuseCalLabel"></span>
         <button type="button" class="btn-small" id="excuseCalNextBtn">›</button>
+      </div>
+      <div class="calendar-legend">
+        <span class="calendar-legend-item"><span class="calendar-legend-dot today"></span>Today</span>
+        <span class="calendar-legend-item"><span class="calendar-legend-dot danger"></span>Inactive, no excuse yet</span>
+        <span class="calendar-legend-item"><span class="calendar-legend-dot excuse"></span>Already excused</span>
       </div>
       <div class="lite-calendar-grid" id="excuseCalGrid"></div>
       <p class="modal-text" id="excuseDaysSummary">No days selected.</p>

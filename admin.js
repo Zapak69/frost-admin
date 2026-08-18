@@ -462,6 +462,10 @@
         ]);
         renderRankupPanel(d.myRankup ? [d.myRankup] : [], 'myRankupList');
         renderActivityCalendar('myActivityCalendar', d.myActivityCalendar || []);
+        myActivityMap = {};
+        (d.myActivityCalendar || []).forEach(function (day) { myActivityMap[day.date] = !!day.active; });
+        myExcuseDaysMap = d.myExcuseDays || {};
+        if (excuseCalMonth) renderExcuseCalendar();
 
         const inactivityBanner = document.getElementById('inactivityBanner');
         if ((d.daysSinceLastActive || 0) >= 2) {
@@ -761,6 +765,8 @@
   const excuseCalLabel = document.getElementById('excuseCalLabel');
   let excuseCalMonth = null;
   let excuseSelectedDays = new Set();
+  let myActivityMap = {};
+  let myExcuseDaysMap = {};
 
   function renderExcuseCalendar() {
     const year = excuseCalMonth.getFullYear(), month = excuseCalMonth.getMonth();
@@ -768,12 +774,18 @@
     const firstDay = new Date(year, month, 1);
     const startOffset = (firstDay.getDay() + 6) % 7;
     const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const todayKey = localDateKey(new Date());
     let html = '';
     for (let i = 0; i < startOffset; i++) html += '<div class="lite-cal-day empty"></div>';
     for (let day = 1; day <= daysInMonth; day++) {
       const key = localDateKey(new Date(year, month, day));
       const isSelected = excuseSelectedDays.has(key);
-      html += '<div class="lite-cal-day' + (isSelected ? ' selected' : '') + '" data-date="' + key + '">' + day + '</div>';
+      const isToday = key === todayKey;
+      const hasExcuse = !!myExcuseDaysMap[key];
+      const isKnownDay = Object.prototype.hasOwnProperty.call(myActivityMap, key);
+      const needsExcuse = !isToday && !hasExcuse && isKnownDay && !myActivityMap[key];
+      const cls = 'lite-cal-day' + (isSelected ? ' selected' : '') + (isToday ? ' is-today' : '') + (needsExcuse ? ' needs-excuse' : '') + (hasExcuse ? ' has-excuse-marker' : '');
+      html += '<div class="' + cls + '" data-date="' + key + '" title="' + (needsExcuse ? 'No excuse submitted for this inactive day' : hasExcuse ? 'Excuse already submitted' : '') + '">' + day + '</div>';
     }
     excuseCalGrid.innerHTML = html;
     excuseCalGrid.querySelectorAll('.lite-cal-day[data-date]').forEach(function (el) {
@@ -1556,7 +1568,7 @@
           (l.grantedBy ? '<span class="pill manual">staff grant</span>' : '') +
           '<div class="app-card-actions">' +
             '<button class="btn-small" data-change-code-id="' + escapeHtml(l.discordId) + '" data-change-code-name="' + escapeHtml(l.username || l.discordId) + '">Change code</button>' +
-            '<button class="btn-small danger" data-delete-log-id="' + escapeHtml(logId) + '">Delete</button>' +
+            '<button class="btn-small danger" data-delete-creator-id="' + escapeHtml(l.discordId) + '" data-delete-creator-name="' + escapeHtml(l.username || l.discordId) + '">Delete creator</button>' +
           '</div>' +
         '</div>' +
         '<div class="app-card-details"><span>Signed up: <strong>' + formatRelative(l.loggedAt) + '</strong></span></div>' +
@@ -1570,13 +1582,14 @@
     if (!card) return;
     const changeBtn = card.querySelector('button[data-change-code-id]');
     if (changeBtn) changeBtn.addEventListener('click', function () { openChangeCodeModal(changeBtn.dataset.changeCodeId, changeBtn.dataset.changeCodeName); });
-    const deleteBtn = card.querySelector('button[data-delete-log-id]');
+    const deleteBtn = card.querySelector('button[data-delete-creator-id]');
     if (deleteBtn) {
       deleteBtn.addEventListener('click', function () {
-        askConfirm('Delete this log entry?', 'Removes it from the audit trail only - does not touch their code or role.', {}).then(function (res) {
+        const targetId = deleteBtn.dataset.deleteCreatorId, name = deleteBtn.dataset.deleteCreatorName;
+        askConfirm('Delete ' + name + ' as a creator?', 'Deletes their Whop discount code, removes their Media/Partner/Partner+ role, and removes them from the Partners sheet. This cannot be undone.', {}).then(function (res) {
           if (!res.ok) return;
-          callAdmin('partnerSignupLogs.delete', { id: logId }).then(function (d) {
-            if (d && d.ok) { showToast('Deleted.', 'success'); loadPartnerLogs(); }
+          callAdmin('staff.deleteCreator', { targetId: targetId }).then(function (d) {
+            if (d && d.ok) { showToast('Creator deleted.', 'success'); loadPartnerLogs(); }
             else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
           });
         });
@@ -1663,8 +1676,8 @@
     const list = document.getElementById('bannedWordsList');
     if (!lastBannedWords.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;">No blocked words yet.</p>'; return; }
     list.innerHTML = lastBannedWords.map(function (w) {
-      return '<span class="banned-word-chip">' + escapeHtml(w) +
-        '<button type="button" data-edit-word="' + escapeHtml(w) + '" aria-label="Edit" title="Edit">✎</button>' +
+      return '<span class="banned-word-chip">' +
+        '<span class="banned-word-text" data-edit-word="' + escapeHtml(w) + '" title="Click to rename">' + escapeHtml(w) + '</span>' +
         '<button type="button" class="danger" data-delete-word="' + escapeHtml(w) + '" aria-label="Delete" title="Delete">✕</button>' +
       '</span>';
     }).join('');
@@ -1676,9 +1689,9 @@
         });
       });
     });
-    list.querySelectorAll('button[data-edit-word]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        const oldWord = btn.dataset.editWord;
+    list.querySelectorAll('.banned-word-text[data-edit-word]').forEach(function (el) {
+      el.addEventListener('click', function () {
+        const oldWord = el.dataset.editWord;
         const newWord = window.prompt('Rename "' + oldWord + '" to:', oldWord);
         if (!newWord || !newWord.trim() || newWord.trim().toLowerCase() === oldWord.toLowerCase()) return;
         callAdmin('bannedWords.update', { oldWord: oldWord, newWord: newWord.trim() }).then(function (d) {
@@ -1859,20 +1872,31 @@
     });
   }
   const REVIEWS_PAGE_SIZE = 10;
+  let lastReviews = [];
   function loadReviews() {
     return callAdmin('reviews.list').then(function (d) {
       if (!d || !d.ok) return;
-      renderReviews(d.reviews, REVIEWS_PAGE_SIZE);
+      lastReviews = d.reviews;
+      renderReviews(filterReviews(lastReviews), REVIEWS_PAGE_SIZE);
     });
   }
+  function filterReviews(reviews) {
+    const query = (document.getElementById('reviewsSearchInput').value || '').trim().toLowerCase();
+    if (!query) return reviews;
+    return reviews.filter(function (r) { return (r.username || '').toLowerCase().indexOf(query) !== -1; });
+  }
+  const reviewsSearchInput = document.getElementById('reviewsSearchInput');
+  if (reviewsSearchInput) reviewsSearchInput.addEventListener('input', function () { renderReviews(filterReviews(lastReviews), REVIEWS_PAGE_SIZE); });
   function renderReviews(reviews, limit) {
     const shown = limit ? reviews.slice(0, limit) : reviews;
     const rows = shown.map(function (r) {
       const removeBtn = (r.discordId && canPublishContent) ? '<button class="btn-small danger" data-remove="' + r.discordId + '">Remove</button>' : '';
-      return '<tr><td><span class="cell-user"><img class="cell-avatar" src="' + reviewAvatarUrl(r) + '"/>' + userLink(r.discordId, r.username) + '</span></td><td class="mono">' + escapeHtml(r.stars || '') + '</td><td style="max-width:340px;">' + escapeHtml((r.comment || '').slice(0, 140)) + '</td><td>' + removeBtn + '</td></tr>';
-    }).join('') || emptyRow(4, 'No reviews yet.');
+      const hasFps = r.fpsBefore != null && r.fpsAfter != null && !isNaN(Number(r.fpsBefore)) && !isNaN(Number(r.fpsAfter));
+      const fps = hasFps ? Math.round(Number(r.fpsBefore)) + ' → ' + Math.round(Number(r.fpsAfter)) : '—';
+      return '<tr><td><span class="cell-user"><img class="cell-avatar" src="' + reviewAvatarUrl(r) + '"/>' + userLink(r.discordId, r.username) + '</span></td><td class="mono">' + escapeHtml(r.stars || '') + '</td><td class="mono">' + fps + '</td><td style="max-width:340px;">' + escapeHtml((r.comment || '').slice(0, 140)) + '</td><td>' + removeBtn + '</td></tr>';
+    }).join('') || emptyRow(5, 'No reviews yet.');
     const table = document.getElementById('reviewsTable');
-    table.innerHTML = '<thead><tr><th>Reviewer</th><th>Rating</th><th>Comment</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
+    table.innerHTML = '<thead><tr><th>Reviewer</th><th>Rating</th><th>FPS</th><th>Comment</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
     table.querySelectorAll('button[data-remove]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         const discordId = btn.dataset.remove;
