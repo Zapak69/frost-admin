@@ -2217,25 +2217,20 @@
   }
 
   function startLogin() {
-    fetch(LITE_API_URL + '?action=adminConfig', { cache: 'no-store' })
-      .then(function (r) { return r.json(); })
-      .then(function (cfg) {
-        let csrfState = '';
-        try {
-          const buf = new Uint8Array(16);
-          crypto.getRandomValues(buf);
-          csrfState = Array.from(buf).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
-          sessionStorage.setItem(OAUTH_STATE_KEY, csrfState);
-        } catch (e) {}
-        const url = 'https://discord.com/oauth2/authorize'
-          + '?client_id=' + encodeURIComponent(cfg.clientId || DISCORD_CLIENT_ID)
-          + '&response_type=code'
-          + '&redirect_uri=' + encodeURIComponent(cfg.redirectUri || DISCORD_REDIRECT_URI)
-          + '&scope=' + encodeURIComponent('identify')
-          + '&state=' + csrfState;
-        window.location.href = url;
-      })
-      .catch(function () { showGateError('Could not start sign-in. Please try again.'); });
+    let csrfState = '';
+    try {
+      const buf = new Uint8Array(16);
+      crypto.getRandomValues(buf);
+      csrfState = Array.from(buf).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+      sessionStorage.setItem(OAUTH_STATE_KEY, csrfState);
+    } catch (e) {}
+    const url = 'https://discord.com/oauth2/authorize'
+      + '?client_id=' + encodeURIComponent(DISCORD_CLIENT_ID)
+      + '&response_type=code'
+      + '&redirect_uri=' + encodeURIComponent(DISCORD_REDIRECT_URI)
+      + '&scope=' + encodeURIComponent('identify')
+      + '&state=' + csrfState;
+    window.location.href = url;
   }
   function showGateError(msg) {
     document.getElementById('gateErrorText').textContent = msg;
@@ -2270,7 +2265,7 @@
         return;
       }
 
-      fetchJsonWithRetry(LITE_API_URL + '?action=adminAuth&code=' + encodeURIComponent(code), { cache: 'no-store' }, 2)
+      fetchJsonWithRetry(LITE_API_URL + '?action=adminAuth&code=' + encodeURIComponent(code), { cache: 'no-store' }, 4)
         .then(function (data) {
           if (!data.ok) { showGateError('Discord sign-in failed. Please try again.'); return; }
           if (data.status === 'forbidden') { showGate('gateForbidden'); return; }
