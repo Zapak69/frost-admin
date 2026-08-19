@@ -2174,6 +2174,39 @@
     return outputArray;
   }
 
+  function isMobileDevice() {
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  }
+  function isStandaloneMode() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+
+  const ADD_HOME_SCREEN_DISMISSED_KEY = 'frostAdminAddHomeScreenDismissed';
+  function maybeShowAddHomeScreenPrompt() {
+    if (!isMobileDevice() || isStandaloneMode()) return;
+    try { if (localStorage.getItem(ADD_HOME_SCREEN_DISMISSED_KEY)) return; } catch (e) {}
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    const steps = isIOS
+      ? ['Tap the Share button in Safari\'s toolbar.', 'Scroll down and tap "Add to Home Screen".', 'Tap "Add" in the top-right corner.']
+      : isAndroid
+        ? ['Tap the ⋮ menu in your browser.', 'Tap "Add to Home screen" (or "Install app").', 'Confirm by tapping "Add" / "Install".']
+        : ['Open your browser\'s menu.', 'Look for "Add to Home Screen" or "Install app".', 'Confirm the install.'];
+    const list = document.getElementById('homeScreenSteps');
+    list.innerHTML = steps.map(function (s) { return '<li><span>' + escapeHtml(s) + '</span></li>'; }).join('');
+    document.getElementById('addHomeScreenModal').classList.add('active');
+  }
+  document.getElementById('addHomeScreenGotItBtn').addEventListener('click', function () {
+    document.getElementById('addHomeScreenModal').classList.remove('active');
+    try { localStorage.setItem(ADD_HOME_SCREEN_DISMISSED_KEY, '1'); } catch (e) {}
+  });
+  document.getElementById('addHomeScreenModal').addEventListener('click', function (e) {
+    if (e.target === document.getElementById('addHomeScreenModal')) {
+      e.currentTarget.classList.remove('active');
+      try { localStorage.setItem(ADD_HOME_SCREEN_DISMISSED_KEY, '1'); } catch (err) {}
+    }
+  });
+
   function subscribeToPush(registration) {
     return registration.pushManager.getSubscription().then(function (existing) {
       if (existing) return existing;
@@ -2190,6 +2223,7 @@
   }
 
   function initPushNotifications() {
+    if (!isMobileDevice() || !isStandaloneMode()) return;
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
     navigator.serviceWorker.register('sw.js').then(function (registration) {
       if (Notification.permission === 'granted') {
@@ -2213,6 +2247,7 @@
     document.getElementById('userName').textContent = user.name || user.username || 'Owner';
     showView('overview');
     startNotifPolling();
+    maybeShowAddHomeScreenPrompt();
     initPushNotifications();
   }
 
