@@ -72,6 +72,9 @@
     confirmText.textContent = text;
     confirmReasonField.style.display = opts.reason ? '' : 'none';
     confirmReasonInput.value = '';
+    confirmOkBtn.classList.toggle('btn-danger', opts.tone !== 'primary');
+    confirmOkBtn.classList.toggle('btn-primary', opts.tone === 'primary');
+    confirmOkBtn.textContent = opts.okLabel || 'Confirm';
     confirmModal.classList.add('active');
     return new Promise(function (resolve) { confirmResolve = resolve; });
   }
@@ -150,7 +153,37 @@
     if (type === 'scam_report') return { icon: NOTIF_ICON_ALERT_OCTAGON, title: 'New scam report' };
     if (type === 'staff_app_submitted') return { icon: NOTIF_ICON_USER_CHECK, title: 'New staff application' };
     if (type === 'partner_signup_logged') return { icon: NOTIF_ICON_USER_PLUS, title: 'New Media partner signup' };
+    if (type === 'test') return { icon: NOTIF_ICON_BELL, title: 'Test notification' };
     return { icon: NOTIF_ICON_BELL, title: 'Notification' };
+  }
+
+  let notifAudioCtx = null;
+  document.addEventListener('pointerdown', function unlockNotifAudio() {
+    if (!notifAudioCtx && (window.AudioContext || window.webkitAudioContext)) {
+      notifAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (notifAudioCtx && notifAudioCtx.state === 'suspended') notifAudioCtx.resume();
+  }, { once: true });
+
+  function playNotifSound() {
+    try {
+      if (!notifAudioCtx) notifAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (notifAudioCtx.state === 'suspended') notifAudioCtx.resume();
+      const now = notifAudioCtx.currentTime;
+      [880, 1318.5].forEach(function (freq, i) {
+        const osc = notifAudioCtx.createOscillator();
+        const gain = notifAudioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        const start = now + i * 0.11;
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(0.18, start + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
+        osc.connect(gain).connect(notifAudioCtx.destination);
+        osc.start(start);
+        osc.stop(start + 0.32);
+      });
+    } catch (e) {}
   }
 
   function showNotifToast(n) {
@@ -173,6 +206,7 @@
     }
     el.addEventListener('click', function () { openNotifPanel(); removeToast(); });
     notifToastStack.appendChild(el);
+    playNotifSound();
     setTimeout(removeToast, NOTIF_TOAST_SECONDS * 1000);
   }
 
@@ -2140,26 +2174,35 @@
     return outputArray;
   }
 
-  function initPushNotifications() {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-    navigator.serviceWorker.register('sw.js').then(function (registration) {
-      if (Notification.permission === 'denied') return;
-      return (Notification.permission === 'granted' ? Promise.resolve('granted') : Notification.requestPermission())
-        .then(function (permission) {
-          if (permission !== 'granted') return;
-          return registration.pushManager.getSubscription().then(function (existing) {
-            if (existing) return existing;
-            return callAdmin('push.publicKey').then(function (d) {
-              if (!d || !d.ok || !d.publicKey) return null;
-              return registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: urlBase64ToUint8Array(d.publicKey)
-              });
-            });
-          });
-        }).then(function (sub) {
-          if (sub) callAdmin('push.subscribe', { subscription: sub.toJSON() });
+  function subscribeToPush(registration) {
+    return registration.pushManager.getSubscription().then(function (existing) {
+      if (existing) return existing;
+      return callAdmin('push.publicKey').then(function (d) {
+        if (!d || !d.ok || !d.publicKey) return null;
+        return registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(d.publicKey)
         });
+      });
+    }).then(function (sub) {
+      if (sub) callAdmin('push.subscribe', { subscription: sub.toJSON() });
+    });
+  }
+
+  function initPushNotifications() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return;
+    navigator.serviceWorker.register('sw.js').then(function (registration) {
+      if (Notification.permission === 'granted') {
+        subscribeToPush(registration);
+        return;
+      }
+      if (Notification.permission === 'denied') return;
+      askConfirm('Enable notifications?', 'Get notified on this device even when Frost Admin is closed.', { tone: 'primary', okLabel: 'Enable' }).then(function (res) {
+        if (!res.ok) return;
+        Notification.requestPermission().then(function (permission) {
+          if (permission === 'granted') subscribeToPush(registration);
+        });
+      });
     }).catch(function () {});
   }
 
