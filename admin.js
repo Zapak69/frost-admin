@@ -2131,6 +2131,38 @@
     document.querySelectorAll('.gate-screen').forEach(function (el) { el.classList.toggle('active', el.id === id); });
     document.getElementById('appShell').classList.remove('active');
   }
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+    return outputArray;
+  }
+
+  function initPushNotifications() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    navigator.serviceWorker.register('sw.js').then(function (registration) {
+      if (Notification.permission === 'denied') return;
+      return (Notification.permission === 'granted' ? Promise.resolve('granted') : Notification.requestPermission())
+        .then(function (permission) {
+          if (permission !== 'granted') return;
+          return registration.pushManager.getSubscription().then(function (existing) {
+            if (existing) return existing;
+            return callAdmin('push.publicKey').then(function (d) {
+              if (!d || !d.ok || !d.publicKey) return null;
+              return registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(d.publicKey)
+              });
+            });
+          });
+        }).then(function (sub) {
+          if (sub) callAdmin('push.subscribe', { subscription: sub.toJSON() });
+        });
+    }).catch(function () {});
+  }
+
   function showApp(user) {
     document.querySelectorAll('.gate-screen').forEach(function (el) { el.classList.remove('active'); });
     document.getElementById('appShell').classList.add('active');
@@ -2138,6 +2170,7 @@
     document.getElementById('userName').textContent = user.name || user.username || 'Owner';
     showView('overview');
     startNotifPolling();
+    initPushNotifications();
   }
 
   function startLogin() {

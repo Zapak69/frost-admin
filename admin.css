@@ -645,5 +645,5 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
   .form-field-row { grid-template-columns: 1fr; }
   .panel-row-cal, .panel-row-3 { grid-template-columns: 1fr; }
   .notif-panel { width: calc(100vw - 36px); right: 18px; top: 68px; }
-  .notif-toast-stack { left: 18px; right: 18px; top: 18px; width: auto; }
+  .notif-toast-stack { left: 18px; right: 18px; top: 68px; width: auto; }
 }
