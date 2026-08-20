@@ -134,8 +134,9 @@ body {
 }
 .sidebar-logout-btn:hover { background: rgba(255,105,97,0.15); color: var(--danger); }
 .sidebar-settings-btn {
-  display: none; width: 30px; height: 30px; border-radius: 50%; background: var(--bg-elevated); border: none;
-  color: var(--muted); font-size: 14px; cursor: pointer; flex-shrink: 0; transition: background 0.2s, color 0.2s;
+  display: none; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%; background: var(--bg-elevated); border: none;
+  color: var(--muted); cursor: pointer; flex-shrink: 0; transition: background 0.2s, color 0.2s;
 }
 .sidebar-settings-btn:hover { background: var(--bg-hover); color: var(--accent); }
 
@@ -150,7 +151,8 @@ body {
 .settings-row-sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
 .settings-divider { height: 1px; background: var(--border); margin: 6px 0 4px; }
 .settings-types { display: flex; flex-direction: column; }
-.settings-types .settings-row { padding: 9px 0; }
+.settings-types .settings-row { padding: 12px 0; align-items: flex-start; }
+.settings-types .switch { margin-top: 1px; }
 .settings-types .settings-row:not(:last-child) { border-bottom: 1px solid var(--border); }
 
 .switch { position: relative; display: inline-block; width: 42px; height: 24px; flex-shrink: 0; }

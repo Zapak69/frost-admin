@@ -5,6 +5,7 @@
   const DISCORD_REDIRECT_URI = 'https://admin.frostclient.eu';
   const TOKEN_KEY = 'frostAdminToken';
   const OAUTH_STATE_KEY = 'frostAdminOauthState';
+  const APP_VERSION = '1';
 
   function loadToken() {
     try { return localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { return ''; }
@@ -2209,6 +2210,26 @@
     }
   });
 
+  function checkForAppUpdate() {
+    if (!isMobileDevice() || !isStandaloneMode()) return;
+    fetch('version.json', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d || !d.version || d.version === APP_VERSION) return;
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const steps = isIOS
+        ? ['Long-press the Frost Admin icon on your Home Screen.', 'Tap "Remove App" → "Delete App".', 'Open Safari, go to admin.frostclient.eu, and add it to your Home Screen again.']
+        : ['Long-press the Frost Admin icon on your Home Screen.', 'Tap "Remove" / "Uninstall".', 'Open your browser, go to admin.frostclient.eu, and add it to your Home Screen again.'];
+      const list = document.getElementById('appUpdateSteps');
+      list.innerHTML = steps.map(function (s) { return '<li><span>' + escapeHtml(s) + '</span></li>'; }).join('');
+      document.getElementById('appUpdateModal').classList.add('active');
+    }).catch(function () {});
+  }
+  document.getElementById('appUpdateGotItBtn').addEventListener('click', function () {
+    document.getElementById('appUpdateModal').classList.remove('active');
+  });
+  document.getElementById('appUpdateModal').addEventListener('click', function (e) {
+    if (e.target === document.getElementById('appUpdateModal')) e.currentTarget.classList.remove('active');
+  });
+
   function subscribeToPush(registration) {
     return registration.pushManager.getSubscription().then(function (existing) {
       if (existing) return existing;
@@ -2251,16 +2272,16 @@
   }
 
   const PUSH_TYPE_DEFS = [
-    { type: 'new_review', label: 'New reviews', gate: 'management' },
-    { type: 'warn', label: 'Warnings', gate: null },
-    { type: 'priority_ticket_created', label: 'Priority ticket opened', gate: null },
-    { type: 'excuse_submitted', label: 'New excuse submitted', gate: 'highStaff' },
-    { type: 'excuse_decided', label: 'Your excuse decided', gate: null },
-    { type: 'staff_app_submitted', label: 'New staff application', gate: 'highStaff' },
-    { type: 'partner_signup_logged', label: 'New Media partner signup', gate: 'management' },
-    { type: 'partner_rankup_submitted', label: 'New rank-up request', gate: 'highStaff' },
-    { type: 'scam_report', label: 'New scam report', gate: null },
-    { type: 'inactivity_reminder', label: 'Inactivity reminder', gate: null }
+    { type: 'new_review', label: 'New reviews', desc: 'A player leaves a new review on the website.', gate: 'management' },
+    { type: 'warn', label: 'Warnings', desc: 'You personally receive a staff warning.', gate: null },
+    { type: 'priority_ticket_created', label: 'Priority ticket opened', desc: 'A Booster or Lite member opens a ticket that needs a fast reply.', gate: null },
+    { type: 'excuse_submitted', label: 'New excuse submitted', desc: 'A staff member submits an excuse for review.', gate: 'highStaff' },
+    { type: 'excuse_decided', label: 'Your excuse decided', desc: 'An excuse you submitted gets approved or rejected.', gate: null },
+    { type: 'staff_app_submitted', label: 'New staff application', desc: 'Someone applies for the staff team on the website.', gate: 'highStaff' },
+    { type: 'partner_signup_logged', label: 'New Media partner signup', desc: 'Someone signs up for (or is granted) the Media creator tier.', gate: 'management' },
+    { type: 'partner_rankup_submitted', label: 'New rank-up request', desc: 'A creator requests a rank-up to Partner or Partner+.', gate: 'highStaff' },
+    { type: 'scam_report', label: 'New scam report', desc: 'Someone reports a suspected scam message for review.', gate: null },
+    { type: 'inactivity_reminder', label: 'Inactivity reminder', desc: 'You\'ve been inactive for 2+ days with no excuse on file.', gate: null }
   ];
 
   function saveSettingsTypePreferences() {
@@ -2279,7 +2300,7 @@
     container.innerHTML = visible.map(function (d) {
       const checked = prefs[d.type] !== false;
       return '<div class="settings-row">' +
-        '<div class="settings-row-label"><div class="settings-row-title">' + escapeHtml(d.label) + '</div></div>' +
+        '<div class="settings-row-label"><div class="settings-row-title">' + escapeHtml(d.label) + '</div><div class="settings-row-sub">' + escapeHtml(d.desc) + '</div></div>' +
         '<label class="switch"><input type="checkbox" class="settings-type-toggle" data-type="' + d.type + '"' + (checked ? ' checked' : '') + '/><span class="switch-track"></span></label>' +
         '</div>';
     }).join('');
@@ -2358,7 +2379,9 @@
     startNotifPolling();
     maybeShowAddHomeScreenPrompt();
     initPushNotifications();
-    document.getElementById('settingsBtn').style.display = isMobileDevice() ? 'inline-block' : 'none';
+    document.getElementById('settingsBtn').style.display = isMobileDevice() ? 'flex' : 'none';
+    checkForAppUpdate();
+    setInterval(checkForAppUpdate, 30 * 60 * 1000);
   }
 
   function startLogin() {
