@@ -482,6 +482,7 @@
       canPublishContent = !!d.canPublishContent;
       canKickStaff = !!d.canKickStaff;
       applyRolePermissions();
+      loadReputationLeaderboard(5);
       const userTagEl = document.getElementById('userTag');
       userTagEl.textContent = d.myRank || 'Staff';
       userTagEl.style.color = d.myRankColor || '';
@@ -588,6 +589,31 @@
     activityLeaderboardMoreBtn.addEventListener('click', function () {
       loadActivityLeaderboard(20);
       activityLeaderboardMoreBtn.style.display = 'none';
+    });
+  }
+
+  function renderReputationLeaderboard(entries) {
+    const list = document.getElementById('reputationLeaderboardList');
+    if (!list) return;
+    list.innerHTML = entries.map(function (m, i) {
+      return '<div class="lb-row">' +
+        '<span class="lb-rank">#' + (i + 1) + '</span>' +
+        '<img class="lb-avatar" src="' + avatarUrl(m.id, m.avatar) + '"/>' +
+        '<span class="lb-name">' + escapeHtml(m.username || m.id) + '</span>' +
+        '<span class="lb-count">' + m.reputation + ' rep</span>' +
+      '</div>';
+    }).join('') || '<p style="color:var(--muted);font-size:13px;">No reputation given out yet.</p>';
+  }
+  function loadReputationLeaderboard(limit) {
+    return callAdmin('reputation.list', { limit: limit }).then(function (d) {
+      if (d && d.ok) renderReputationLeaderboard(d.leaderboard || []);
+    });
+  }
+  const reputationLeaderboardMoreBtn = document.getElementById('reputationLeaderboardMoreBtn');
+  if (reputationLeaderboardMoreBtn) {
+    reputationLeaderboardMoreBtn.addEventListener('click', function () {
+      loadReputationLeaderboard(50);
+      reputationLeaderboardMoreBtn.style.display = 'none';
     });
   }
 
