@@ -335,7 +335,7 @@
       if (!d || !d.ok) return;
       d.notifications.filter(function (n) { return !n.read && !seenNotifToastIds.has(n.id); }).forEach(function (n) {
         seenNotifToastIds.add(n.id);
-        showNotifToast(n);
+        if (!isMobileDevice()) showNotifToast(n);
       });
       notifCache = d.notifications;
       if (!notifPanelOpen) renderNotifList(notifCache);
@@ -2242,6 +2242,113 @@
     }).catch(function () {});
   }
 
+  function unsubscribeFromPush(registration) {
+    return registration.pushManager.getSubscription().then(function (sub) {
+      if (!sub) return;
+      const endpoint = sub.endpoint;
+      return sub.unsubscribe().then(function () { callAdmin('push.unsubscribe', { endpoint: endpoint }); });
+    });
+  }
+
+  const PUSH_TYPE_DEFS = [
+    { type: 'new_review', label: 'New reviews', gate: 'management' },
+    { type: 'warn', label: 'Warnings', gate: null },
+    { type: 'priority_ticket_created', label: 'Priority ticket opened', gate: null },
+    { type: 'excuse_submitted', label: 'New excuse submitted', gate: 'highStaff' },
+    { type: 'excuse_decided', label: 'Your excuse decided', gate: null },
+    { type: 'staff_app_submitted', label: 'New staff application', gate: 'highStaff' },
+    { type: 'partner_signup_logged', label: 'New Media partner signup', gate: 'management' },
+    { type: 'partner_rankup_submitted', label: 'New rank-up request', gate: 'highStaff' },
+    { type: 'scam_report', label: 'New scam report', gate: null },
+    { type: 'inactivity_reminder', label: 'Inactivity reminder', gate: null }
+  ];
+
+  function saveSettingsTypePreferences() {
+    const prefs = {};
+    document.querySelectorAll('.settings-type-toggle').forEach(function (el) { prefs[el.dataset.type] = el.checked; });
+    callAdmin('push.setPreferences', { preferences: prefs });
+  }
+
+  function renderSettingsTypes(prefs) {
+    const container = document.getElementById('settingsTypes');
+    const visible = PUSH_TYPE_DEFS.filter(function (d) {
+      if (d.gate === 'management') return canPublishContent;
+      if (d.gate === 'highStaff') return canReviewApplications;
+      return true;
+    });
+    container.innerHTML = visible.map(function (d) {
+      const checked = prefs[d.type] !== false;
+      return '<div class="settings-row">' +
+        '<div class="settings-row-label"><div class="settings-row-title">' + escapeHtml(d.label) + '</div></div>' +
+        '<label class="switch"><input type="checkbox" class="settings-type-toggle" data-type="' + d.type + '"' + (checked ? ' checked' : '') + '/><span class="switch-track"></span></label>' +
+        '</div>';
+    }).join('');
+    container.querySelectorAll('.settings-type-toggle').forEach(function (el) {
+      el.addEventListener('change', saveSettingsTypePreferences);
+    });
+  }
+
+  function openSettingsModal() {
+    document.getElementById('settingsModal').classList.add('active');
+    const warningEl = document.getElementById('settingsPermissionWarning');
+    const masterToggle = document.getElementById('settingsMasterToggle');
+    const typesContainer = document.getElementById('settingsTypes');
+
+    const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    if (!supported) {
+      warningEl.style.display = 'none';
+      masterToggle.disabled = true;
+      masterToggle.checked = false;
+      typesContainer.innerHTML = '<div class="settings-row-sub">Push notifications aren\'t supported in this browser.</div>';
+      return;
+    }
+
+    if (Notification.permission === 'denied') {
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      const howTo = isIOS
+        ? 'Open the iPhone Settings app → Notifications → Frost Admin → turn Allow Notifications back on.'
+        : isAndroid
+          ? 'Open your browser\'s site settings for this page → Notifications → Allow.'
+          : 'Check your browser\'s site settings for this page and re-allow notifications.';
+      warningEl.innerHTML = '<strong>Notifications are blocked.</strong>' + escapeHtml(howTo);
+      warningEl.style.display = '';
+      masterToggle.disabled = true;
+      masterToggle.checked = false;
+    } else {
+      warningEl.style.display = 'none';
+      masterToggle.disabled = false;
+    }
+
+    navigator.serviceWorker.register('sw.js').then(function (registration) {
+      return registration.pushManager.getSubscription().then(function (sub) {
+        masterToggle.checked = !!sub && Notification.permission === 'granted';
+        masterToggle.onchange = function () {
+          if (masterToggle.checked) {
+            (Notification.permission === 'granted' ? Promise.resolve('granted') : Notification.requestPermission()).then(function (permission) {
+              if (permission === 'granted') subscribeToPush(registration);
+              else masterToggle.checked = false;
+            });
+          } else {
+            unsubscribeFromPush(registration);
+          }
+        };
+      });
+    }).catch(function () {});
+
+    callAdmin('push.getPreferences').then(function (d) {
+      renderSettingsTypes((d && d.ok && d.preferences) || {});
+    });
+  }
+
+  document.getElementById('settingsBtn').addEventListener('click', openSettingsModal);
+  document.getElementById('settingsCloseBtn').addEventListener('click', function () {
+    document.getElementById('settingsModal').classList.remove('active');
+  });
+  document.getElementById('settingsModal').addEventListener('click', function (e) {
+    if (e.target === document.getElementById('settingsModal')) e.currentTarget.classList.remove('active');
+  });
+
   function showApp(user) {
     document.querySelectorAll('.gate-screen').forEach(function (el) { el.classList.remove('active'); });
     document.getElementById('appShell').classList.add('active');
@@ -2251,6 +2358,7 @@
     startNotifPolling();
     maybeShowAddHomeScreenPrompt();
     initPushNotifications();
+    document.getElementById('settingsBtn').style.display = isMobileDevice() ? 'inline-block' : 'none';
   }
 
   function startLogin() {

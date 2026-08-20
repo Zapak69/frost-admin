@@ -133,6 +133,39 @@ body {
   color: var(--muted); font-size: 13px; cursor: pointer; flex-shrink: 0; transition: background 0.2s, color 0.2s;
 }
 .sidebar-logout-btn:hover { background: rgba(255,105,97,0.15); color: var(--danger); }
+.sidebar-settings-btn {
+  display: none; width: 30px; height: 30px; border-radius: 50%; background: var(--bg-elevated); border: none;
+  color: var(--muted); font-size: 14px; cursor: pointer; flex-shrink: 0; transition: background 0.2s, color 0.2s;
+}
+.sidebar-settings-btn:hover { background: var(--bg-hover); color: var(--accent); }
+
+.settings-modal-box { max-width: 420px; max-height: 88vh; overflow-y: auto; }
+.settings-permission-warning {
+  background: rgba(255,105,97,0.12); border: 1px solid rgba(255,105,97,0.3); border-radius: 12px;
+  padding: 12px 14px; font-size: 12.5px; line-height: 1.6; color: var(--text); margin-bottom: 18px;
+}
+.settings-permission-warning strong { display: block; margin-bottom: 4px; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 0; }
+.settings-row-title { font-size: 13.5px; font-weight: 600; }
+.settings-row-sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.settings-divider { height: 1px; background: var(--border); margin: 6px 0 4px; }
+.settings-types { display: flex; flex-direction: column; }
+.settings-types .settings-row { padding: 9px 0; }
+.settings-types .settings-row:not(:last-child) { border-bottom: 1px solid var(--border); }
+
+.switch { position: relative; display: inline-block; width: 42px; height: 24px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.switch-track {
+  position: absolute; inset: 0; background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: 999px; cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+.switch-track::before {
+  content: ''; position: absolute; width: 18px; height: 18px; left: 2px; top: 2px;
+  background: #fff; border-radius: 50%; transition: transform 0.2s;
+}
+.switch input:checked + .switch-track { background: var(--accent); border-color: var(--accent); }
+.switch input:checked + .switch-track::before { transform: translateX(18px); }
+.switch input:disabled + .switch-track { opacity: 0.4; cursor: not-allowed; }
 
 .content { flex: 1; min-width: 0; padding: 0 36px 60px; position: relative; z-index: 1; }
 .content-header {

@@ -86,6 +86,7 @@
           <div class="sidebar-user-tag" id="userTag">Staff</div>
         </div>
       </div>
+      <button type="button" class="sidebar-settings-btn" id="settingsBtn" title="Notification settings">⚙</button>
       <button type="button" class="sidebar-logout-btn" id="logoutBtn" title="Sign out">⏻</button>
     </div>
   </aside>
@@ -463,6 +464,25 @@
     <ol class="home-screen-steps" id="homeScreenSteps"></ol>
     <div class="modal-actions">
       <button type="button" class="btn-primary" id="addHomeScreenGotItBtn">Got it</button>
+    </div>
+  </div>
+</div>
+
+<div id="settingsModal" class="modal-overlay">
+  <div class="modal-box settings-modal-box">
+    <div class="modal-title">Notification Settings</div>
+    <div class="settings-permission-warning" id="settingsPermissionWarning" style="display:none;"></div>
+    <div class="settings-row">
+      <div class="settings-row-label">
+        <div class="settings-row-title">Push notifications</div>
+        <div class="settings-row-sub">Get notified on this device, even when it's closed.</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="settingsMasterToggle"/><span class="switch-track"></span></label>
+    </div>
+    <div class="settings-divider"></div>
+    <div class="settings-types" id="settingsTypes"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="settingsCloseBtn">Close</button>
     </div>
   </div>
 </div>
