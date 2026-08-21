@@ -596,13 +596,18 @@
     const list = document.getElementById('reputationLeaderboardList');
     if (!list) return;
     list.innerHTML = entries.map(function (m, i) {
-      return '<div class="lb-row">' +
+      return '<div class="lb-row" data-lb-id="' + escapeHtml(m.id) + '" data-lb-name="' + escapeHtml(m.username || m.id) + '" data-lb-avatar="' + escapeHtml(m.avatar || '') + '">' +
         '<span class="lb-rank">#' + (i + 1) + '</span>' +
         '<img class="lb-avatar" src="' + avatarUrl(m.id, m.avatar) + '"/>' +
         '<span class="lb-name">' + escapeHtml(m.username || m.id) + '</span>' +
         '<span class="lb-count">' + m.reputation + ' rep</span>' +
       '</div>';
     }).join('') || '<p style="color:var(--muted);font-size:13px;">No reputation given out yet.</p>';
+    list.querySelectorAll('.lb-row[data-lb-id]').forEach(function (row) {
+      row.addEventListener('click', function () {
+        openReputationHistory(row.dataset.lbId, row.dataset.lbName, row.dataset.lbAvatar);
+      });
+    });
   }
   function loadReputationLeaderboard(limit) {
     return callAdmin('reputation.list', { limit: limit }).then(function (d) {
@@ -616,6 +621,34 @@
       reputationLeaderboardMoreBtn.style.display = 'none';
     });
   }
+
+  const reputationHistoryModal = document.getElementById('reputationHistoryModal');
+  function openReputationHistory(userId, username, avatar) {
+    document.getElementById('reputationHistoryTitle').textContent = (username || userId) + ' — Reputation history';
+    const list = document.getElementById('reputationHistoryList');
+    list.innerHTML = '<p style="color:var(--muted);font-size:13px;">Loading…</p>';
+    reputationHistoryModal.classList.add('active');
+    callAdmin('reputation.history', { userId: userId }).then(function (d) {
+      if (!d || !d.ok) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;">Could not load history.</p>'; return; }
+      const history = d.history || [];
+      if (!history.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;">No reputation history yet.</p>'; return; }
+      list.innerHTML = history.map(function (h) {
+        const sign = h.type === 'remove' ? '−1' : '+1';
+        const signClass = h.type === 'remove' ? 'denied' : 'accepted';
+        return '<div class="app-card">' +
+          '<div class="app-card-details" style="align-items:center;">' +
+            '<img class="lb-avatar" src="' + avatarUrl(h.giverId, h.giverAvatar) + '"/>' +
+            '<strong>' + escapeHtml(h.giverUsername || h.giverId) + '</strong>' +
+            ' <span class="pill ' + signClass + '">' + sign + '</span>' +
+            ' <span style="color:var(--muted);">' + formatRelative(h.timestamp) + '</span>' +
+          '</div>' +
+          (h.reason ? '<div class="app-card-a" style="margin-top:8px;">' + escapeHtml(h.reason) + '</div>' : '') +
+        '</div>';
+      }).join('');
+    });
+  }
+  document.getElementById('reputationHistoryCloseBtn').addEventListener('click', function () { reputationHistoryModal.classList.remove('active'); });
+  reputationHistoryModal.addEventListener('click', function (e) { if (e.target === reputationHistoryModal) reputationHistoryModal.classList.remove('active'); });
 
   let currentGrowthGranularity = 'day';
   document.querySelectorAll('#growthGranularityFilter .filter-pill').forEach(function (btn) {

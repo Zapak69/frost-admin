@@ -123,10 +123,17 @@
             <div class="panel-head"><h2><svg class="heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Next rankups</h2><span class="panel-sub">Staff progress toward their next rank</span></div>
             <div class="rankup-list" id="rankupList"></div>
           </div>
-          <div class="panel panel-rankup-small">
-            <div class="panel-head"><h2><svg class="heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>Most active staff</h2><span class="panel-sub">By messages this week</span></div>
-            <div class="app-list" id="activityLeaderboardList"></div>
-            <button type="button" class="btn-small lb-more-btn" id="activityLeaderboardMoreBtn">Show more</button>
+          <div class="panel-col">
+            <div class="panel panel-rankup-small">
+              <div class="panel-head"><h2><svg class="heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>Most active staff</h2><span class="panel-sub">By messages this week</span></div>
+              <div class="app-list" id="activityLeaderboardList"></div>
+              <button type="button" class="btn-small lb-more-btn" id="activityLeaderboardMoreBtn">Show more</button>
+            </div>
+            <div class="panel panel-rankup-small">
+              <div class="panel-head"><h2><svg class="heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01Z"/></svg>Reputation Leaderboard</h2><span class="panel-sub">Top +rep across the server</span></div>
+              <div class="app-list" id="reputationLeaderboardList"></div>
+              <button type="button" class="btn-small lb-more-btn" id="reputationLeaderboardMoreBtn">View all</button>
+            </div>
           </div>
         </div>
       </div>
@@ -158,12 +165,6 @@
             <div class="rankup-list rankup-list-small" id="myRankupList"></div>
           </div>
         </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-head"><h2><svg class="heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01Z"/></svg>Reputation Leaderboard</h2><span class="panel-sub">Top +rep across the server</span></div>
-        <div class="app-list" id="reputationLeaderboardList"></div>
-        <button type="button" class="btn-small lb-more-btn" id="reputationLeaderboardMoreBtn">View all</button>
       </div>
     </div>
 
@@ -500,6 +501,16 @@
     <ol class="home-screen-steps" id="appUpdateSteps"></ol>
     <div class="modal-actions">
       <button type="button" class="btn-primary" id="appUpdateGotItBtn">Got it</button>
+    </div>
+  </div>
+</div>
+
+<div id="reputationHistoryModal" class="modal-overlay">
+  <div class="modal-box transcript-box">
+    <div class="modal-title" id="reputationHistoryTitle">Reputation history</div>
+    <div class="transcript-scroll" id="reputationHistoryList"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="reputationHistoryCloseBtn">Close</button>
     </div>
   </div>
 </div>
