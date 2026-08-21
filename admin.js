@@ -156,6 +156,7 @@
     if (type === 'staff_app_submitted') return { icon: NOTIF_ICON_USER_CHECK, title: 'New staff application' };
     if (type === 'partner_signup_logged') return { icon: NOTIF_ICON_USER_PLUS, title: 'New Media partner signup' };
     if (type === 'new_review') return { icon: NOTIF_ICON_STAR, title: 'New review' };
+    if (type === 'reputation_received') return { icon: NOTIF_ICON_STAR, title: 'New reputation' };
     if (type === 'test') return { icon: NOTIF_ICON_BELL, title: 'Test notification' };
     return { icon: NOTIF_ICON_BELL, title: 'Notification' };
   }
@@ -2333,6 +2334,7 @@
   const PUSH_TYPE_DEFS = [
     { type: 'new_review', label: 'New reviews', desc: 'A player leaves a new review on the website.', gate: 'management' },
     { type: 'warn', label: 'Warnings', desc: 'You personally receive a staff warning.', gate: null },
+    { type: 'reputation_received', label: 'New reputation', desc: 'Someone gives you +rep in the reputation channel.', gate: null },
     { type: 'priority_ticket_created', label: 'Priority ticket opened', desc: 'A Booster or Lite member opens a ticket that needs a fast reply.', gate: null },
     { type: 'excuse_submitted', label: 'New excuse submitted', desc: 'A staff member submits an excuse for review.', gate: 'highStaff' },
     { type: 'excuse_decided', label: 'Your excuse decided', desc: 'An excuse you submitted gets approved or rejected.', gate: null },
