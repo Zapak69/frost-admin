@@ -398,13 +398,14 @@
   const sidebar = document.getElementById('sidebar');
   const viewTitle = document.getElementById('viewTitle');
   const VIEW_TITLES = {
-    overview: 'Overview', members: 'Members', leaderboard: 'Leaderboards', staff: 'Staff Team',
+    overview: 'Overview', members: 'Members', leaderboard: 'Leaderboards', staff: 'Staff Team', staffActivity: 'Activity',
     staffApps: 'Staff Applications', partnerLogs: 'Creators', partnerRankup: 'Partner Rankup Requests', scams: 'Scam Database',
     logs: 'Action Logs', excuses: 'Excuses', warns: 'Warns', reviews: 'Reviews', drops: 'Publish Drop', giveaway: 'Publish Giveaway', tickets: 'Tickets',
     ticketArchive: 'Ticket Archive'
   };
   const VIEW_LOADERS = {
     overview: loadOverview, members: function () {}, leaderboard: loadLeaderboard, staff: loadStaff,
+    staffActivity: function () { loadStaffActivity(currentStaffActivityFilter); },
     staffApps: function () { loadStaffApps(currentStaffAppsFilter); },
     partnerLogs: function () { loadPartnerLogs(); loadBannedWords(); },
     partnerRankup: function () { loadPartnerRankupRequests(currentPartnerRankupFilter); },
@@ -1403,6 +1404,55 @@
     });
   }
 
+  const EXCUSE_STATUS_META = {
+    excused: { cls: 'accepted', label: 'Excused' },
+    pending: { cls: 'pending', label: 'Pending review' },
+    none: { cls: 'denied', label: 'No excuse' },
+    active: { cls: 'auto', label: 'Active' }
+  };
+  let currentStaffActivityFilter = 'inactive';
+  document.querySelectorAll('#staffActivityFilter .filter-pill').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('#staffActivityFilter .filter-pill').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      currentStaffActivityFilter = btn.dataset.filter;
+      loadStaffActivity(currentStaffActivityFilter);
+    });
+  });
+  function renderStaffActivityTable(list, filter) {
+    const rows = list
+      .filter(function (s) { return filter === 'all' || s.daysSinceLastActive >= 2; })
+      .map(function (s) {
+        const color = readableRankColor(s.rankColor);
+        const rankPill = s.rank ? '<span class="pill" style="background:' + color + '1a;color:' + color + ';">' + escapeHtml(s.rank) + '</span>' : '—';
+        const meta = EXCUSE_STATUS_META[s.excuseStatus] || EXCUSE_STATUS_META.none;
+        const excusePill = '<span class="pill ' + meta.cls + '">' + meta.label + '</span>';
+        const inactiveLabel = s.daysSinceLastActive <= 0 ? 'Active today' : s.daysSinceLastActive + 'd';
+        const warnsLabel = s.activeWarnsCount > 0 ? '<span style="color:var(--danger);">' + s.activeWarnsCount + '</span>' : '0';
+        const actions =
+          '<button class="btn-small" data-calendar-id="' + s.id + '" data-calendar-name="' + escapeHtml(s.tag) + '">Activity</button> ' +
+          '<button class="btn-small danger" data-warn-id="' + s.id + '" data-warn-name="' + escapeHtml(s.tag) + '">Warn</button>';
+        return '<tr><td><span class="cell-user"><img class="cell-avatar" src="' + avatarUrl(s.id, s.avatar) + '"/>' + userLink(s.id, s.tag) + '</span></td><td>' + rankPill + '</td><td class="mono">' + inactiveLabel + '</td><td>' + excusePill + '</td><td class="mono">' + warnsLabel + '</td><td>' + actions + '</td></tr>';
+      }).join('') || emptyRow(6, filter === 'all' ? 'No staff members found.' : "No one's flagged inactive right now.");
+    const table = document.getElementById('staffActivityTable');
+    table.innerHTML =
+      '<thead><tr><th>Member</th><th>Rank</th><th>Inactive for</th><th>Excuse</th><th>Warns</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
+    table.querySelectorAll('button[data-calendar-id]').forEach(function (btn) {
+      btn.addEventListener('click', function () { openStaffCalendar(btn.dataset.calendarId, btn.dataset.calendarName); });
+    });
+    table.querySelectorAll('button[data-warn-id]').forEach(function (btn) {
+      btn.addEventListener('click', function () { openWarnModal(btn.dataset.warnId, btn.dataset.warnName); });
+    });
+  }
+  function loadStaffActivity(filter) {
+    return callAdmin('staff.activity').then(function (d) {
+      if (!d || !d.ok) return;
+      lastStaffActivityList = d.activity;
+      renderStaffActivityTable(lastStaffActivityList, filter);
+    });
+  }
+  let lastStaffActivityList = [];
+
   function renderExcuseDetailBox(boxId, excuse) {
     const box = document.getElementById(boxId);
     box.style.display = '';
@@ -1567,7 +1617,7 @@
       if (d && d.ok) {
         showToast(duration ? 'Temporary warning issued.' : 'Warning issued.', 'success');
         warnModal.classList.remove('active');
-        loadStaff();
+        if (currentView === 'staffActivity') loadStaffActivity(currentStaffActivityFilter); else loadStaff();
       } else if (d && d.error === 'invalid_duration') {
         showToast('Could not parse that duration — try e.g. 7d, 12h, 30m.', 'error');
       } else {
