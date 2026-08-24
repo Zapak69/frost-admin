@@ -1063,6 +1063,7 @@
   memberSearchBtn.addEventListener('click', runMemberSearch);
   memberSearchInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') runMemberSearch(); });
 
+  const TICKET_BAN_ROLE_ID = '1373379758150254653';
   function renderMemberCard(m, idPrefix) {
     idPrefix = idPrefix || 'member-';
     const roles = (m.roles || []).map(function (r) { return '<span class="pill" style="background:rgba(255,255,255,0.06);color:' + (r.color && r.color !== '#000000' ? r.color : 'var(--muted)') + ';">' + escapeHtml(r.name) + '</span>'; }).join(' ');
@@ -1075,6 +1076,12 @@
           '<button class="btn-small danger" data-action="kick" data-id="' + m.id + '">Kick</button>' +
           (canReviewApplications ? '<button class="btn-small danger" data-action="ban" data-id="' + m.id + '">Ban</button>' : '')
         );
+    const hasTicketBan = (m.roles || []).some(function (r) { return r.id === TICKET_BAN_ROLE_ID; });
+    const ticketBanBtn = !m.isBot
+      ? (hasTicketBan
+          ? '<button class="btn-small success" data-action="ticketUnban" data-id="' + m.id + '">Ticket Unban</button>'
+          : '<button class="btn-small danger" data-action="ticketBan" data-id="' + m.id + '">Ticket ban</button>')
+      : '';
     const liteBtn = (canPublishContent && !m.isBot) ? '<button class="btn-small" data-lite-id="' + m.id + '" data-lite-name="' + escapeHtml(m.globalName || m.username) + '">Grant Lite</button>' : '';
     const grantMediaBtn = (canPublishContent && !m.isBot) ? '<button class="btn-small" data-grant-media-id="' + m.id + '" data-grant-media-name="' + escapeHtml(m.globalName || m.username) + '">Grant Media</button>' : '';
     const liteStatus = (m.lite && m.lite.gifted)
@@ -1084,7 +1091,7 @@
       '<div class="app-card" id="' + idPrefix + m.id + '">' +
         '<div class="app-card-head">' +
           '<div class="app-card-user"><img class="app-card-avatar" src="' + avatarUrl(m.id, m.avatar) + '"/>' + escapeHtml(m.globalName || m.username) + ' <span class="app-card-meta">@' + escapeHtml(m.username) + ' · ' + m.id + '</span></div>' +
-          '<div class="app-card-actions">' + modActions + liteBtn + grantMediaBtn + '</div>' +
+          '<div class="app-card-actions">' + modActions + ticketBanBtn + liteBtn + grantMediaBtn + '</div>' +
         '</div>' +
         '<div class="app-card-details">' +
           '<span>Joined: <strong>' + formatDateTime(m.joinedAt ? Date.parse(m.joinedAt) : null) + '</strong></span>' +
@@ -1101,7 +1108,9 @@
     timeout: { title: 'Timeout member', text: 'Mutes them for 24 hours.', reason: true },
     removeTimeout: { title: 'Remove timeout', text: 'Lifts their current timeout.', reason: false },
     kick: { title: 'Kick member', text: 'Removes them from the server. They can rejoin with a new invite.', reason: true },
-    ban: { title: 'Ban member', text: 'Permanently bans them from the server.', reason: true }
+    ban: { title: 'Ban member', text: 'Permanently bans them from the server.', reason: true },
+    ticketBan: { title: 'Ticket ban', text: 'Prevents them from opening new tickets.', reason: true },
+    ticketUnban: { title: 'Ticket unban', text: 'Allows them to open tickets again.', reason: false }
   };
   function wireMemberActions(m, card, onDone) {
     if (!card) return;
