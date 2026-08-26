@@ -1636,6 +1636,7 @@
   });
 
   let currentStaffAppsFilter = 'pending';
+  let currentStaffAppsRole = '';
   document.querySelectorAll('#staffAppsFilter .filter-pill').forEach(function (btn) {
     btn.addEventListener('click', function () {
       document.querySelectorAll('#staffAppsFilter .filter-pill').forEach(function (b) { b.classList.remove('active'); });
@@ -1644,16 +1645,28 @@
       loadStaffApps(currentStaffAppsFilter);
     });
   });
+  document.querySelectorAll('#staffAppsRoleFilter .filter-pill').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('#staffAppsRoleFilter .filter-pill').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      currentStaffAppsRole = btn.dataset.role;
+      loadStaffApps(currentStaffAppsFilter);
+    });
+  });
   function loadStaffApps(status) {
-    return callAdmin('staffApplications.list', { status: status }).then(function (d) {
+    return callAdmin('staffApplications.list', { status: status, role: currentStaffAppsRole }).then(function (d) {
       if (!d || !d.ok) return;
       const list = document.getElementById('staffAppsList');
       if (!d.applications.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;">No applications here.</p>'; return; }
-      list.innerHTML = d.applications.map(function (a) { return renderStaffAppCard(a, d.questionLabels); }).join('');
+      const roles = d.roles || {};
+      list.innerHTML = d.applications.map(function (a) {
+        const roleInfo = roles[a.role || 'staff'] || {};
+        return renderStaffAppCard(a, roleInfo.fields || d.questionLabels, roleInfo.label || 'Staff Team');
+      }).join('');
       d.applications.forEach(wireStaffAppActions);
     });
   }
-  function renderStaffAppCard(a, labels) {
+  function renderStaffAppCard(a, labels, roleLabel) {
     const qa = (labels || []).map(function (pair) {
       const key = pair[0], label = pair[1];
       const val = a.answers ? a.answers[key] : null;
@@ -1665,6 +1678,7 @@
       '<div class="app-card" id="staffapp-' + a.discordId + '">' +
         '<div class="app-card-head">' +
           '<div class="app-card-user">' + userLink(a.discordId, a.username || a.discordId) + ' <span class="app-card-meta">' + a.discordId + '</span></div>' +
+          '<span class="pill">' + escapeHtml(roleLabel || 'Staff Team') + '</span>' +
           '<span class="pill ' + a.status + '">' + a.status + '</span>' +
           (a.status === 'pending' ? '<div class="app-card-actions"><button class="btn-small success" data-action="accept">Accept</button><button class="btn-small danger" data-action="deny">Deny</button></div>' : '') +
         '</div>' +
