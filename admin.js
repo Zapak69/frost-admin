@@ -110,11 +110,13 @@
     scams: ['scam_report'],
     staffApps: ['staff_app_submitted'],
     partnerLogs: ['partner_signup_logged'],
-    partnerRankup: ['partner_rankup_submitted']
+    partnerRankup: ['partner_rankup_submitted'],
+    reports: ['bug_report_submitted']
   };
   const NAV_DOT_IDS = {
     warns: 'navDotWarns', excuses: 'navDotExcuses', scams: 'navDotScams',
-    staffApps: 'navDotStaffApps', partnerLogs: 'navDotPartnerLogs', partnerRankup: 'navDotPartnerRankup'
+    staffApps: 'navDotStaffApps', partnerLogs: 'navDotPartnerLogs', partnerRankup: 'navDotPartnerRankup',
+    reports: 'navDotReports'
   };
   function updateNavDots() {
     const unreadViews = new Set();
@@ -154,6 +156,7 @@
     if (type === 'excuse_submitted') return { icon: NOTIF_ICON_PENCIL, title: 'New excuse' };
     if (type === 'scam_report') return { icon: NOTIF_ICON_ALERT_OCTAGON, title: 'New scam report' };
     if (type === 'staff_app_submitted') return { icon: NOTIF_ICON_USER_CHECK, title: 'New staff application' };
+    if (type === 'bug_report_submitted') return { icon: NOTIF_ICON_ALERT_OCTAGON, title: 'New bug report' };
     if (type === 'partner_signup_logged') return { icon: NOTIF_ICON_USER_PLUS, title: 'New Media partner signup' };
     if (type === 'new_review') return { icon: NOTIF_ICON_STAR, title: 'New review' };
     if (type === 'reputation_received') return { icon: NOTIF_ICON_STAR, title: 'New reputation' };
@@ -399,7 +402,7 @@
   const viewTitle = document.getElementById('viewTitle');
   const VIEW_TITLES = {
     overview: 'Overview', members: 'Members', leaderboard: 'Leaderboards', staff: 'Staff Team', staffActivity: 'Activity',
-    staffApps: 'Staff Applications', partnerLogs: 'Creators', partnerRankup: 'Partner Rankup Requests', scams: 'Scam Database',
+    staffApps: 'Staff Applications', partnerLogs: 'Creators', partnerRankup: 'Partner Rankup Requests', reports: 'Bug Reports', scams: 'Scam Database',
     logs: 'Action Logs', excuses: 'Excuses', warns: 'Warns', reviews: 'Reviews', drops: 'Publish Drop', giveaway: 'Publish Giveaway', tickets: 'Tickets',
     ticketArchive: 'Ticket Archive'
   };
@@ -409,6 +412,7 @@
     staffApps: function () { loadStaffApps(currentStaffAppsFilter); },
     partnerLogs: function () { loadPartnerLogs(); loadBannedWords(); },
     partnerRankup: function () { loadPartnerRankupRequests(currentPartnerRankupFilter); },
+    reports: function () { loadBugReports(currentReportsFilter); },
     scams: function () { loadScams(currentScamsFilter); }, logs: loadLogs, excuses: loadExcuses, warns: loadWarns, reviews: loadReviews,
     drops: function () {}, giveaway: function () {}, tickets: loadTickets,
     ticketArchive: function () { loadTicketArchive(currentTicketArchiveFilter); }
@@ -1703,6 +1707,52 @@
       });
     });
   }
+  let currentReportsFilter = '';
+  document.querySelectorAll('#reportsFilter .filter-pill').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('#reportsFilter .filter-pill').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      currentReportsFilter = btn.dataset.category;
+      loadBugReports(currentReportsFilter);
+    });
+  });
+  function loadBugReports(category) {
+    return callAdmin('bugReports.list', { category: category }).then(function (d) {
+      if (!d || !d.ok) return;
+      const list = document.getElementById('reportsList');
+      if (!d.reports.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;">No bug reports here.</p>'; return; }
+      list.innerHTML = d.reports.map(renderReportCard).join('');
+    });
+  }
+  function reportDownloadUrl(reportId, file) {
+    return 'https://bot.frostclient.eu/bug-reports/download?token=' + encodeURIComponent(loadToken())
+      + '&reportId=' + encodeURIComponent(reportId) + '&file=' + encodeURIComponent(file);
+  }
+  function renderReportCard(r) {
+    const details = [
+      ['Description', r.description],
+      ['Mods', r.isModded ? (r.modList || 'Yes') : 'No (vanilla instance)'],
+      ['Attached link', r.linkUrl]
+    ].filter(function (p) { return p[1]; }).map(function (p) {
+      return '<div><div class="app-card-q">' + escapeHtml(p[0]) + '</div><div class="app-card-a">' + escapeHtml(p[1]) + '</div></div>';
+    }).join('');
+    const files = [r.buglogFileName].concat(r.attachmentFileNames || []).filter(Boolean);
+    const fileLinks = files.map(function (f) {
+      return '<a class="btn-small" href="' + reportDownloadUrl(r.reportId, f) + '" target="_blank" rel="noopener">' + escapeHtml(f) + '</a>';
+    }).join(' ');
+    return (
+      '<div class="app-card" id="report-' + escapeHtml(r.reportId) + '">' +
+        '<div class="app-card-head">' +
+          '<div class="app-card-user"><img class="app-card-avatar" src="' + avatarUrl(r.discordId, r.avatar) + '"/>' + userLink(r.discordId, r.username || r.discordId) + ' <span class="app-card-meta">' + r.discordId + '</span></div>' +
+          '<span class="pill">' + escapeHtml(r.category || 'Unknown') + '</span>' +
+        '</div>' +
+        '<div class="app-card-details"><span>Reported: <strong>' + formatRelative(r.createdAt) + '</strong></span></div>' +
+        '<div class="app-card-qa">' + details + '</div>' +
+        '<div class="app-card-actions" style="margin-top:10px;">' + fileLinks + '</div>' +
+      '</div>'
+    );
+  }
+
   let lastPartnerLogs = [];
   function loadPartnerLogs() {
     return callAdmin('partnerSignupLogs.list', {}).then(function (d) {

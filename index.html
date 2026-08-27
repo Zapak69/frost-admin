@@ -67,6 +67,7 @@
       <div class="nav-group-label" data-requires="highStaff" style="display:none;">Applications</div>
       <button type="button" class="nav-item" data-view="staffApps" data-requires="highStaff" style="display:none;"><span class="nav-icon">◆</span>Staff Applications<span class="nav-badge" id="badgeStaffApps" style="display:none;">0</span><span class="nav-dot" id="navDotStaffApps" style="display:none;"></span></button>
       <button type="button" class="nav-item" data-view="partnerRankup" data-requires="highStaff" style="display:none;"><span class="nav-icon">◆</span>Partner Rankup Requests<span class="nav-badge" id="badgePartnerRankup" style="display:none;">0</span><span class="nav-dot" id="navDotPartnerRankup" style="display:none;"></span></button>
+      <button type="button" class="nav-item" data-view="reports" data-requires="highStaff" style="display:none;"><span class="nav-icon">◆</span>Bug Reports<span class="nav-dot" id="navDotReports" style="display:none;"></span></button>
       <div class="nav-group-label">Security</div>
       <button type="button" class="nav-item" data-view="scams"><span class="nav-icon">◆</span>Scam Database<span class="nav-dot" id="navDotScams" style="display:none;"></span></button>
       <button type="button" class="nav-item" data-view="logs" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Action Logs</button>
@@ -247,6 +248,20 @@
           </div>
         </div>
         <div id="staffAppsList" class="app-list"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-reports">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Bug reports</h2>
+          <div class="filter-pills" id="reportsFilter">
+            <button type="button" class="filter-pill active" data-category="">All</button>
+            <button type="button" class="filter-pill" data-category="Launcher">Launcher</button>
+            <button type="button" class="filter-pill" data-category="Game">Game</button>
+          </div>
+        </div>
+        <div id="reportsList" class="app-list"></div>
       </div>
     </div>
 
