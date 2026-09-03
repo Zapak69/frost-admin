@@ -44,19 +44,28 @@
         showToast("You don't have permission to do that.", 'error');
       }
       return data;
+    }).catch(function (err) {
+      showToast("Couldn't reach the server — check your connection and try again.", 'error');
+      return { ok: false, error: 'network_error' };
     });
   }
   const toastStack = document.getElementById('toastStack');
+  const MAX_VISIBLE_TOASTS = 3;
+  function removeToastEl(el) {
+    if (!el.parentNode) return;
+    el.style.transition = 'opacity 0.3s ease';
+    el.style.opacity = '0';
+    setTimeout(function () { el.remove(); }, 300);
+  }
   function showToast(message, type) {
+    while (toastStack.children.length >= MAX_VISIBLE_TOASTS) {
+      removeToastEl(toastStack.firstElementChild);
+    }
     const el = document.createElement('div');
     el.className = 'toast' + (type ? ' ' + type : '');
     el.textContent = message;
     toastStack.appendChild(el);
-    setTimeout(function () {
-      el.style.transition = 'opacity 0.3s ease';
-      el.style.opacity = '0';
-      setTimeout(function () { el.remove(); }, 300);
-    }, 3500);
+    setTimeout(function () { removeToastEl(el); }, 3500);
   }
   const confirmModal = document.getElementById('confirmModal');
   const confirmTitle = document.getElementById('confirmTitle');
@@ -91,6 +100,7 @@
   confirmModal.addEventListener('click', function (e) { if (e.target === confirmModal) closeConfirm(false); });
 
   const NOTIF_TOAST_SECONDS = 6;
+  const MAX_INDIVIDUAL_NOTIF_TOASTS = 3;
   const notifPanel = document.getElementById('notifPanel');
   const notifBellBtn = document.getElementById('notifBellBtn');
   const notifList = document.getElementById('notifList');
@@ -193,13 +203,12 @@
     } catch (e) {}
   }
 
-  function showNotifToast(n) {
-    const meta = notifTypeMeta(n.type);
+  function renderNotifToastEl(title, msg) {
     const el = document.createElement('div');
     el.className = 'notif-toast';
     el.innerHTML =
-      '<div class="notif-toast-title">' + meta.icon + ' ' + escapeHtml(meta.title) + '</div>' +
-      '<div class="notif-toast-msg">' + escapeHtml(n.message) + '</div>' +
+      '<div class="notif-toast-title">' + title + '</div>' +
+      '<div class="notif-toast-msg">' + msg + '</div>' +
       '<div class="notif-toast-progress"></div>';
     el.querySelector('.notif-toast-progress').style.animationDuration = NOTIF_TOAST_SECONDS + 's';
     let removed = false;
@@ -215,6 +224,13 @@
     notifToastStack.appendChild(el);
     playNotifSound();
     setTimeout(removeToast, NOTIF_TOAST_SECONDS * 1000);
+  }
+  function showNotifToast(n) {
+    const meta = notifTypeMeta(n.type);
+    renderNotifToastEl(meta.icon + ' ' + escapeHtml(meta.title), escapeHtml(n.message));
+  }
+  function showAggregateNotifToast(count) {
+    renderNotifToastEl(NOTIF_ICON_BELL + ' ' + count + ' new notifications', 'Click to view them all.');
   }
 
   function wireNotifSwipe(item) {
@@ -322,26 +338,25 @@
     });
   });
   document.getElementById('notifClearAllBtn').addEventListener('click', function () {
-    askConfirm('Clear all notifications?', 'This permanently removes your notification history.', {}).then(function (res) {
-      if (!res.ok) return;
-      callAdmin('notifications.clearAll').then(function (d) {
-        if (d && d.ok) {
-          notifCache = [];
-          renderNotifList(notifCache);
-          updateNavDots();
-          setNotifUnread(0);
-        }
-      });
+    callAdmin('notifications.clearAll').then(function (d) {
+      if (d && d.ok) {
+        notifCache = [];
+        renderNotifList(notifCache);
+        updateNavDots();
+        setNotifUnread(0);
+      }
     });
   });
 
   function loadNotifications() {
     return callAdmin('notifications.list').then(function (d) {
       if (!d || !d.ok) return;
-      d.notifications.filter(function (n) { return !n.read && !seenNotifToastIds.has(n.id); }).forEach(function (n) {
-        seenNotifToastIds.add(n.id);
-        if (!isMobileDevice()) showNotifToast(n);
-      });
+      const fresh = d.notifications.filter(function (n) { return !n.read && !seenNotifToastIds.has(n.id); });
+      fresh.forEach(function (n) { seenNotifToastIds.add(n.id); });
+      if (!isMobileDevice() && fresh.length) {
+        if (fresh.length > MAX_INDIVIDUAL_NOTIF_TOASTS) showAggregateNotifToast(fresh.length);
+        else fresh.forEach(showNotifToast);
+      }
       notifCache = d.notifications;
       if (!notifPanelOpen) renderNotifList(notifCache);
       updateNavDots();
@@ -465,9 +480,23 @@
   let canReviewApplications = false;
   let canPublishContent = false;
   let canKickStaff = false;
+  function updateNavGroupVisibility() {
+    const children = Array.from(document.getElementById('sidebarNav').children);
+    children.forEach(function (el, i) {
+      if (!el.classList.contains('nav-group-label')) return;
+      let hasVisibleItem = false;
+      for (let j = i + 1; j < children.length; j++) {
+        const sib = children[j];
+        if (sib.classList.contains('nav-group-label')) break;
+        if (sib.style.display !== 'none') { hasVisibleItem = true; break; }
+      }
+      el.style.display = hasVisibleItem ? '' : 'none';
+    });
+  }
   function applyRolePermissions() {
     document.querySelectorAll('[data-requires="highStaff"]').forEach(function (el) { el.style.display = canReviewApplications ? '' : 'none'; });
     document.querySelectorAll('[data-requires="management"]').forEach(function (el) { el.style.display = canPublishContent ? '' : 'none'; });
+    updateNavGroupVisibility();
   }
   function renderStatGrid(containerId, cards) {
     document.getElementById(containerId).innerHTML = cards.map(function (c) {
@@ -1088,6 +1117,16 @@
       : '';
     const liteBtn = (canPublishContent && !m.isBot) ? '<button class="btn-small" data-lite-id="' + m.id + '" data-lite-name="' + escapeHtml(m.globalName || m.username) + '">Grant Lite</button>' : '';
     const grantMediaBtn = (canPublishContent && !m.isBot) ? '<button class="btn-small" data-grant-media-id="' + m.id + '" data-grant-media-name="' + escapeHtml(m.globalName || m.username) + '">Grant Media</button>' : '';
+    const topRoleName = (m.roles || []).length ? m.roles[0].name : 'Unranked';
+    const staffBtns = (m.isStaff && canReviewApplications)
+      ? '<button class="btn-small" data-calendar-id="' + m.id + '" data-calendar-name="' + escapeHtml(m.globalName || m.username) + '">Activity</button>' +
+        '<button class="btn-small danger" data-warn-id="' + m.id + '" data-warn-name="' + escapeHtml(m.globalName || m.username) + '">Warn</button>' +
+        '<button class="btn-small" data-promote-id="' + m.id + '" data-promote-name="' + escapeHtml(m.globalName || m.username) + '" data-promote-rank="' + escapeHtml(topRoleName) + '">Promote</button>'
+      : '';
+    const creatorBtns = (m.isCreator && canPublishContent)
+      ? '<button class="btn-small" data-change-code-id="' + m.id + '" data-change-code-name="' + escapeHtml(m.globalName || m.username) + '">Change code</button>' +
+        '<button class="btn-small danger" data-delete-creator-id="' + m.id + '" data-delete-creator-name="' + escapeHtml(m.globalName || m.username) + '">Delete creator</button>'
+      : '';
     const liteStatus = (m.lite && m.lite.gifted)
       ? '<span>Lite until <strong style="color:var(--success);">' + formatDateTime(Date.parse(m.lite.expiresAt)) + '</strong> (gifted)</span>'
       : (m.hasLiteRole ? '<span>Lite: <strong style="color:var(--success);">purchased</strong></span>' : '');
@@ -1095,7 +1134,7 @@
       '<div class="app-card" id="' + idPrefix + m.id + '">' +
         '<div class="app-card-head">' +
           '<div class="app-card-user"><img class="app-card-avatar" src="' + avatarUrl(m.id, m.avatar) + '"/>' + escapeHtml(m.globalName || m.username) + ' <span class="app-card-meta">@' + escapeHtml(m.username) + ' · ' + m.id + '</span></div>' +
-          '<div class="app-card-actions">' + modActions + ticketBanBtn + liteBtn + grantMediaBtn + '</div>' +
+          '<div class="app-card-actions">' + modActions + ticketBanBtn + liteBtn + grantMediaBtn + staffBtns + creatorBtns + '</div>' +
         '</div>' +
         '<div class="app-card-details">' +
           '<span>Joined: <strong>' + formatDateTime(m.joinedAt ? Date.parse(m.joinedAt) : null) + '</strong></span>' +
@@ -1138,6 +1177,27 @@
     if (liteBtn) liteBtn.addEventListener('click', function () { openLiteModal(liteBtn.dataset.liteId, liteBtn.dataset.liteName, onDone); });
     const grantMediaBtn = card.querySelector('button[data-grant-media-id]');
     if (grantMediaBtn) grantMediaBtn.addEventListener('click', function () { openGrantMediaModal(grantMediaBtn.dataset.grantMediaId, grantMediaBtn.dataset.grantMediaName, onDone); });
+    const calendarBtn = card.querySelector('button[data-calendar-id]');
+    if (calendarBtn) calendarBtn.addEventListener('click', function () { openStaffCalendar(calendarBtn.dataset.calendarId, calendarBtn.dataset.calendarName); });
+    const warnBtn = card.querySelector('button[data-warn-id]');
+    if (warnBtn) warnBtn.addEventListener('click', function () { openWarnModal(warnBtn.dataset.warnId, warnBtn.dataset.warnName); });
+    const promoteBtn = card.querySelector('button[data-promote-id]');
+    if (promoteBtn) promoteBtn.addEventListener('click', function () { openPromoteModal(promoteBtn.dataset.promoteId, promoteBtn.dataset.promoteName, promoteBtn.dataset.promoteRank); });
+    const changeCodeBtn = card.querySelector('button[data-change-code-id]');
+    if (changeCodeBtn) changeCodeBtn.addEventListener('click', function () { openChangeCodeModal(changeCodeBtn.dataset.changeCodeId, changeCodeBtn.dataset.changeCodeName); });
+    const deleteCreatorBtn = card.querySelector('button[data-delete-creator-id]');
+    if (deleteCreatorBtn) {
+      deleteCreatorBtn.addEventListener('click', function () {
+        const targetId = deleteCreatorBtn.dataset.deleteCreatorId, name = deleteCreatorBtn.dataset.deleteCreatorName;
+        askConfirm('Delete ' + name + ' as a creator?', 'Deletes their Whop discount code, removes their Media/Partner/Partner+ role, and removes them from the Partners sheet. This cannot be undone.', {}).then(function (res) {
+          if (!res.ok) return;
+          callAdmin('staff.deleteCreator', { targetId: targetId }).then(function (d) {
+            if (d && d.ok) { showToast('Creator deleted.', 'success'); (onDone || runMemberSearch)(); }
+            else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+          });
+        });
+      });
+    }
   }
 
   function userLink(id, label) {
@@ -1166,6 +1226,68 @@
   });
   document.getElementById('memberModalCloseBtn').addEventListener('click', function () { memberModal.classList.remove('active'); });
   memberModal.addEventListener('click', function (e) { if (e.target === memberModal) memberModal.classList.remove('active'); });
+
+  const globalSearchModal = document.getElementById('globalSearchModal');
+  const globalSearchInput = document.getElementById('globalSearchInput');
+  const globalSearchResults = document.getElementById('globalSearchResults');
+  const GLOBAL_SEARCH_HINT = '<p style="color:var(--muted);font-size:13px;">Search by username, Discord ID, or creator code.</p>';
+  let globalSearchSeq = 0;
+  let globalSearchTimer = null;
+  function openGlobalSearch() {
+    globalSearchModal.classList.add('active');
+    globalSearchInput.value = '';
+    globalSearchResults.innerHTML = GLOBAL_SEARCH_HINT;
+    setTimeout(function () { globalSearchInput.focus(); }, 50);
+  }
+  function closeGlobalSearch() { globalSearchModal.classList.remove('active'); }
+  document.getElementById('globalSearchBtn').addEventListener('click', openGlobalSearch);
+  globalSearchModal.addEventListener('click', function (e) { if (e.target === globalSearchModal) closeGlobalSearch(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && globalSearchModal.classList.contains('active')) closeGlobalSearch();
+  });
+  function renderGlobalSearchResults(members, creators) {
+    if (!members.length && !creators.length) { globalSearchResults.innerHTML = '<p style="color:var(--muted);font-size:13px;">No matches.</p>'; return; }
+    let html = '';
+    if (members.length) {
+      html += '<div class="global-search-group-label">Members</div>' + members.map(function (m) {
+        return '<div class="global-search-row" data-user-id="' + escapeHtml(m.id) + '">' +
+          '<img class="lb-avatar" src="' + avatarUrl(m.id, m.avatar) + '"/>' +
+          '<span class="lb-name">' + escapeHtml(m.globalName || m.username) + '</span>' +
+          '<span class="app-card-meta">@' + escapeHtml(m.username) + '</span>' +
+          (m.isStaff ? '<span class="pill">staff</span>' : '') +
+        '</div>';
+      }).join('');
+    }
+    if (creators.length) {
+      html += '<div class="global-search-group-label">Creators</div>' + creators.map(function (c) {
+        return '<div class="global-search-row" data-user-id="' + escapeHtml(c.id) + '">' +
+          '<img class="lb-avatar" src="' + avatarUrl(c.id, c.avatar) + '"/>' +
+          '<span class="lb-name">' + escapeHtml(c.globalName || c.username) + '</span>' +
+          (c.code ? '<span class="pill">' + escapeHtml(c.code) + '</span>' : '') +
+        '</div>';
+      }).join('');
+    }
+    globalSearchResults.innerHTML = html;
+    globalSearchResults.querySelectorAll('.global-search-row[data-user-id]').forEach(function (row) {
+      row.addEventListener('click', function () { closeGlobalSearch(); openMemberModal(row.dataset.userId); });
+    });
+  }
+  function runGlobalSearch() {
+    const query = globalSearchInput.value.trim();
+    if (!query) return;
+    const mySeq = ++globalSearchSeq;
+    callAdmin('search.global', { query: query }).then(function (d) {
+      if (mySeq !== globalSearchSeq) return;
+      if (!d || !d.ok) { globalSearchResults.innerHTML = '<p style="color:var(--danger);font-size:13px;">Search failed.</p>'; return; }
+      renderGlobalSearchResults(d.members || [], d.creators || []);
+    });
+  }
+  globalSearchInput.addEventListener('input', function () {
+    clearTimeout(globalSearchTimer);
+    if (!globalSearchInput.value.trim()) { globalSearchResults.innerHTML = GLOBAL_SEARCH_HINT; return; }
+    globalSearchResults.innerHTML = '<p style="color:var(--muted);font-size:13px;">Searching…</p>';
+    globalSearchTimer = setTimeout(runGlobalSearch, 300);
+  });
 
   const liteModal = document.getElementById('liteModal');
   const liteCalGrid = document.getElementById('liteCalGrid');
@@ -1785,7 +1907,7 @@
       '<div class="app-card" id="creator-' + escapeHtml(logId) + '">' +
         '<div class="app-card-head">' +
           '<div class="app-card-user"><img class="app-card-avatar" src="' + avatarUrl(l.discordId, l.avatar) + '"/>' + userLink(l.discordId, l.username || l.discordId) + ' <span class="app-card-meta">' + l.discordId + '</span></div>' +
-          (l.grantedBy ? '<span class="pill manual">staff grant</span>' : '') +
+          (l.grantedBy ? '<span class="pill manual">staff grant</span>' : (l.hasSignupLog === false ? '<span class="pill manual">role only — no signup record</span>' : '')) +
           '<div class="app-card-actions">' +
             '<button class="btn-small" data-change-code-id="' + escapeHtml(l.discordId) + '" data-change-code-name="' + escapeHtml(l.username || l.discordId) + '">Change code</button>' +
             '<button class="btn-small danger" data-delete-creator-id="' + escapeHtml(l.discordId) + '" data-delete-creator-name="' + escapeHtml(l.username || l.discordId) + '">Delete creator</button>' +
@@ -2001,6 +2123,7 @@
           '<div class="app-card-user">' + userLink(r.discordId, r.username || r.discordId) + ' <span class="app-card-meta">' + r.discordId + '</span></div>' +
           '<span class="pill ' + r.status + '">' + r.status + '</span>' +
           (r.status === 'pending' ? '<div class="app-card-actions"><button class="btn-small success" data-action="accept">Accept</button><button class="btn-small danger" data-action="deny">Deny</button></div>' : '') +
+          (r.sheetSyncPending ? '<div class="app-card-actions"><button class="btn-small warn" data-mark-synced-id="' + r.discordId + '">Sheet not updated — mark done</button></div>' : '') +
         '</div>' +
         '<div class="app-card-details"><span>Requested: <strong>' + formatRelative(r.requestedAt) + '</strong></span>' + (r.decidedAt ? '<span>Decided: <strong>' + formatRelative(r.decidedAt) + '</strong></span>' : '') + '</div>' +
         '<div class="app-card-qa">' + details + '</div>' +
@@ -2023,6 +2146,15 @@
         });
       });
     });
+    const markSyncedBtn = card.querySelector('button[data-mark-synced-id]');
+    if (markSyncedBtn) {
+      markSyncedBtn.addEventListener('click', function () {
+        callAdmin('partnerRankupRequests.markSheetSynced', { discordId: r.discordId }).then(function (d) {
+          if (d && d.ok) { showToast('Marked as updated.', 'success'); loadPartnerRankupRequests(currentPartnerRankupFilter); }
+          else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+        });
+      });
+    }
   }
   let currentScamsFilter = '';
   document.querySelectorAll('#scamsFilter .filter-pill').forEach(function (btn) {

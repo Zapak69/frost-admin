@@ -323,6 +323,8 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
 .btn-small:hover { background: var(--bg-hover); }
 .btn-small.success:hover { border-color: var(--success); color: var(--success); }
 .btn-small.danger:hover { border-color: var(--danger); color: var(--danger); }
+.btn-small.warn { background: rgba(255,201,77,0.14); border-color: rgba(255,201,77,0.4); color: var(--warning); }
+.btn-small.warn:hover { background: rgba(255,201,77,0.22); }
 
 .table-wrap { overflow-x: auto; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -630,6 +632,14 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
 .lite-cal-day.needs-excuse { box-shadow: inset 0 0 0 2px var(--danger); color: var(--danger); }
 .lite-cal-day.has-excuse-marker { box-shadow: inset 0 0 0 2px var(--warning); color: var(--warning); }
 .lite-cal-day.is-today.selected, .lite-cal-day.needs-excuse.selected, .lite-cal-day.has-excuse-marker.selected { color: #fff; }
+
+.global-search-box { max-width: 560px; align-self: flex-start; margin-top: 8vh; }
+.global-search-results { max-height: 60vh; overflow-y: auto; margin-top: 4px; }
+.global-search-group-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted-dim); padding: 12px 6px 6px; }
+.global-search-row { display: flex; align-items: center; gap: 10px; padding: 9px 6px; border-radius: 10px; cursor: pointer; }
+.global-search-row:hover { background: rgba(255,255,255,0.05); }
+.global-search-row .app-card-meta { color: var(--muted); }
+.global-search-row .pill { margin-left: auto; }
 
 .member-modal-box { max-width: 460px; }
 .member-modal-box .app-card-head { flex-direction: column; align-items: flex-start; gap: 12px; }
