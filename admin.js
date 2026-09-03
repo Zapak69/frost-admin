@@ -67,6 +67,10 @@
     toastStack.appendChild(el);
     setTimeout(function () { removeToastEl(el); }, 3500);
   }
+  function setBtnLoading(btn, loading) {
+    btn.disabled = loading;
+    btn.classList.toggle('is-loading', loading);
+  }
   const confirmModal = document.getElementById('confirmModal');
   const confirmTitle = document.getElementById('confirmTitle');
   const confirmText = document.getElementById('confirmText');
@@ -75,8 +79,13 @@
   const confirmOkBtn = document.getElementById('confirmOkBtn');
   const confirmCancelBtn = document.getElementById('confirmCancelBtn');
   let confirmResolve = null;
+  let confirmAction = null;
 
-  function askConfirm(title, text, opts) {
+  // `action`, when given, is called with the reason (if any) once the user hits Confirm - the
+  // modal stays open with a spinner on confirmOkBtn until it resolves, instead of closing
+  // instantly, since most confirmed actions (ban/kick/warn/accept/deny/...) are real network
+  // round trips and closing immediately gave no feedback that anything was happening.
+  function askConfirm(title, text, opts, action) {
     opts = opts || {};
     confirmTitle.textContent = title;
     confirmText.textContent = text;
@@ -84,20 +93,38 @@
     confirmReasonInput.value = '';
     confirmOkBtn.classList.toggle('btn-danger', opts.tone !== 'primary');
     confirmOkBtn.classList.toggle('btn-primary', opts.tone === 'primary');
-    confirmOkBtn.textContent = opts.okLabel || 'Confirm';
+    confirmOkBtn.querySelector('.btn-label').textContent = opts.okLabel || 'Confirm';
+    confirmOkBtn.classList.remove('is-loading');
+    confirmOkBtn.disabled = false;
+    confirmCancelBtn.disabled = false;
+    confirmAction = action || null;
     confirmModal.classList.add('active');
     return new Promise(function (resolve) { confirmResolve = resolve; });
   }
-  function closeConfirm(result) {
+  function closeConfirm(result, reason) {
     confirmModal.classList.remove('active');
+    confirmOkBtn.classList.remove('is-loading');
+    confirmOkBtn.disabled = false;
+    confirmCancelBtn.disabled = false;
+    confirmAction = null;
     if (confirmResolve) {
-      confirmResolve(result ? { ok: true, reason: confirmReasonInput.value.trim() } : { ok: false });
+      confirmResolve(result ? { ok: true, reason: reason || '' } : { ok: false });
       confirmResolve = null;
     }
   }
-  confirmOkBtn.addEventListener('click', function () { closeConfirm(true); });
+  confirmOkBtn.addEventListener('click', function () {
+    const reason = confirmReasonInput.value.trim();
+    if (confirmAction) {
+      confirmOkBtn.disabled = true;
+      confirmCancelBtn.disabled = true;
+      confirmOkBtn.classList.add('is-loading');
+      Promise.resolve(confirmAction(reason)).then(function () { closeConfirm(true, reason); }, function () { closeConfirm(true, reason); });
+      return;
+    }
+    closeConfirm(true, reason);
+  });
   confirmCancelBtn.addEventListener('click', function () { closeConfirm(false); });
-  confirmModal.addEventListener('click', function (e) { if (e.target === confirmModal) closeConfirm(false); });
+  confirmModal.addEventListener('click', function (e) { if (e.target === confirmModal && !confirmOkBtn.disabled) closeConfirm(false); });
 
   const NOTIF_TOAST_SECONDS = 6;
   const MAX_INDIVIDUAL_NOTIF_TOASTS = 3;
@@ -953,7 +980,10 @@
     const reason = document.getElementById('excuseReasonInput').value.trim();
     if (!reason) { showToast('Please write a reason.', 'error'); return; }
     if (!excuseSelectedDays.size) { showToast('Select at least one inactive day.', 'error'); return; }
+    const btn = document.getElementById('excuseSubmitBtn');
+    setBtnLoading(btn, true);
     callAdmin('staff.submitExcuse', { reason: reason, days: Array.from(excuseSelectedDays) }).then(function (d) {
+      setBtnLoading(btn, false);
       if (d && d.ok) {
         showToast('Excuse submitted.', 'success');
         excuseModal.classList.remove('active');
@@ -993,18 +1023,16 @@
       btn.addEventListener('click', function () {
         const action = btn.dataset.action;
         if (action === 'delete') {
-          askConfirm('Delete excuse?', "Permanently removes " + (e.username || e.userId) + "'s excuse.", {}).then(function (res) {
-            if (!res.ok) return;
-            callAdmin('staff.excuses.delete', { id: e.id }).then(function (d) {
+          askConfirm('Delete excuse?', "Permanently removes " + (e.username || e.userId) + "'s excuse.", {}, function () {
+            return callAdmin('staff.excuses.delete', { id: e.id }).then(function (d) {
               if (d && d.ok) { showToast('Excuse deleted.', 'success'); loadExcuses(); }
               else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
             });
           });
           return;
         }
-        askConfirm(action === 'approve' ? 'Approve excuse?' : 'Reject excuse?', (e.username || e.userId) + "'s excuse.", {}).then(function (res) {
-          if (!res.ok) return;
-          callAdmin('staff.excuses.decide', { id: e.id, decision: action }).then(function (d) {
+        askConfirm(action === 'approve' ? 'Approve excuse?' : 'Reject excuse?', (e.username || e.userId) + "'s excuse.", {}, function () {
+          return callAdmin('staff.excuses.decide', { id: e.id, decision: action }).then(function (d) {
             if (d && d.ok) { showToast('Excuse ' + action + 'd.', 'success'); loadExcuses(); }
             else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
           });
@@ -1064,9 +1092,8 @@
         table.querySelectorAll('button[data-warn-delete-id]').forEach(function (btn) {
           btn.addEventListener('click', function () {
             const warnId = btn.dataset.warnDeleteId, targetId = btn.dataset.warnDeleteTarget;
-            askConfirm('Delete this warning?', 'Permanently removes it from the record.', {}).then(function (res) {
-              if (!res.ok) return;
-              callAdmin('staff.warns.delete', { id: warnId, targetId: targetId }).then(function (r) {
+            askConfirm('Delete this warning?', 'Permanently removes it from the record.', {}, function () {
+              return callAdmin('staff.warns.delete', { id: warnId, targetId: targetId }).then(function (r) {
                 if (r && r.ok) { showToast('Warning deleted.', 'success'); loadWarns(); }
                 else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
               });
@@ -1161,10 +1188,9 @@
       btn.addEventListener('click', function () {
         const action = btn.dataset.action;
         const copy = MEMBER_ACTION_COPY[action];
-        askConfirm(copy.title, copy.text + ' Target: ' + (m.globalName || m.username), { reason: copy.reason }).then(function (res) {
-          if (!res.ok) return;
-          callAdmin('members.action', {
-            targetId: m.id, memberAction: action, reason: res.reason || undefined,
+        askConfirm(copy.title, copy.text + ' Target: ' + (m.globalName || m.username), { reason: copy.reason }, function (reason) {
+          return callAdmin('members.action', {
+            targetId: m.id, memberAction: action, reason: reason || undefined,
             durationMs: action === 'timeout' ? 24 * 60 * 60 * 1000 : undefined
           }).then(function (d) {
             if (d && d.ok) { showToast('Done.', 'success'); (onDone || runMemberSearch)(); }
@@ -1189,9 +1215,8 @@
     if (deleteCreatorBtn) {
       deleteCreatorBtn.addEventListener('click', function () {
         const targetId = deleteCreatorBtn.dataset.deleteCreatorId, name = deleteCreatorBtn.dataset.deleteCreatorName;
-        askConfirm('Delete ' + name + ' as a creator?', 'Deletes their Whop discount code, removes their Media/Partner/Partner+ role, and removes them from the Partners sheet. This cannot be undone.', {}).then(function (res) {
-          if (!res.ok) return;
-          callAdmin('staff.deleteCreator', { targetId: targetId }).then(function (d) {
+        askConfirm('Delete ' + name + ' as a creator?', 'Deletes their Whop discount code, removes their Media/Partner/Partner+ role, and removes them from the Partners sheet. This cannot be undone.', {}, function () {
+          return callAdmin('staff.deleteCreator', { targetId: targetId }).then(function (d) {
             if (d && d.ok) { showToast('Creator deleted.', 'success'); (onDone || runMemberSearch)(); }
             else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
           });
@@ -1362,7 +1387,10 @@
   document.getElementById('liteModalGrantBtn').addEventListener('click', function () {
     if (!liteSelectedEnd || !liteTargetId) { showToast('Pick a day first.', 'error'); return; }
     const days = Math.round((liteSelectedEnd - startOfToday()) / 86400000) + 1;
+    const btn = document.getElementById('liteModalGrantBtn');
+    setBtnLoading(btn, true);
     callAdmin('members.grantLite', { targetId: liteTargetId, days: days, source: 'gift' }).then(function (d) {
+      setBtnLoading(btn, false);
       if (d && d.ok) {
         showToast('Lite granted for ' + days + ' day(s).', 'success');
         liteModal.classList.remove('active');
@@ -1394,9 +1422,9 @@
     }
     if (!grantMediaTargetId) return;
     const btn = document.getElementById('grantMediaSubmitBtn');
-    btn.disabled = true;
+    setBtnLoading(btn, true);
     callAdmin('staff.grantMedia', { targetId: grantMediaTargetId, code: code }).then(function (d) {
-      btn.disabled = false;
+      setBtnLoading(btn, false);
       if (d && d.ok) {
         showToast('Granted Media with code ' + d.code + '.', 'success');
         grantMediaModal.classList.remove('active');
@@ -1504,9 +1532,8 @@
     table.querySelectorAll('button[data-kick-id]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         const id = btn.dataset.kickId, name = btn.dataset.kickName;
-        askConfirm('Kick from staff team?', 'Removes the STAFF role and highest staff rank from ' + name + '.', { reason: true }).then(function (res) {
-          if (!res.ok) return;
-          callAdmin('members.action', { targetId: id, memberAction: 'kickStaff', reason: res.reason || undefined }).then(function (d) {
+        askConfirm('Kick from staff team?', 'Removes the STAFF role and highest staff rank from ' + name + '.', { reason: true }, function (reason) {
+          return callAdmin('members.action', { targetId: id, memberAction: 'kickStaff', reason: reason || undefined }).then(function (d) {
             if (d && d.ok) { showToast('Kicked from staff team.', 'success'); loadStaff(); }
             else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
           });
@@ -1722,7 +1749,10 @@
   document.getElementById('promoteSubmitBtn').addEventListener('click', function () {
     const reason = document.getElementById('promoteReasonInput').value.trim();
     if (!reason || !currentPromoteTargetId) { showToast('Please write a reason.', 'error'); return; }
+    const btn = document.getElementById('promoteSubmitBtn');
+    setBtnLoading(btn, true);
     callAdmin('staff.promote', { targetId: currentPromoteTargetId, reason: reason }).then(function (d) {
+      setBtnLoading(btn, false);
       if (d && d.ok) {
         showToast('Promoted to ' + d.newRank + '.', 'success');
         promoteModal.classList.remove('active');
@@ -1748,7 +1778,10 @@
     const reason = document.getElementById('warnReasonInput').value.trim();
     const duration = document.getElementById('warnDurationInput').value.trim();
     if (!reason || !currentWarnTargetId) { showToast('Please write a reason.', 'error'); return; }
+    const btn = document.getElementById('warnSubmitBtn');
+    setBtnLoading(btn, true);
     callAdmin('staff.warn', { targetId: currentWarnTargetId, reason: reason, duration: duration }).then(function (d) {
+      setBtnLoading(btn, false);
       if (d && d.ok) {
         showToast(duration ? 'Temporary warning issued.' : 'Warning issued.', 'success');
         warnModal.classList.remove('active');
@@ -1819,9 +1852,8 @@
     card.querySelectorAll('button[data-action]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         const decision = btn.dataset.action;
-        askConfirm(decision === 'accept' ? 'Accept application?' : 'Deny application?', (a.username || a.discordId) + "'s staff application.", {}).then(function (res) {
-          if (!res.ok) return;
-          callAdmin('staffApplications.decide', { discordId: a.discordId, decision: decision }).then(function (d) {
+        askConfirm(decision === 'accept' ? 'Accept application?' : 'Deny application?', (a.username || a.discordId) + "'s staff application.", {}, function () {
+          return callAdmin('staffApplications.decide', { discordId: a.discordId, decision: decision }).then(function (d) {
             if (d && d.ok) { showToast('Application ' + decision + 'ed.', 'success'); loadStaffApps(currentStaffAppsFilter); loadOverview(); }
             else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
           });
@@ -1928,9 +1960,8 @@
     if (deleteBtn) {
       deleteBtn.addEventListener('click', function () {
         const targetId = deleteBtn.dataset.deleteCreatorId, name = deleteBtn.dataset.deleteCreatorName;
-        askConfirm('Delete ' + name + ' as a creator?', 'Deletes their Whop discount code, removes their Media/Partner/Partner+ role, and removes them from the Partners sheet. This cannot be undone.', {}).then(function (res) {
-          if (!res.ok) return;
-          callAdmin('staff.deleteCreator', { targetId: targetId }).then(function (d) {
+        askConfirm('Delete ' + name + ' as a creator?', 'Deletes their Whop discount code, removes their Media/Partner/Partner+ role, and removes them from the Partners sheet. This cannot be undone.', {}, function () {
+          return callAdmin('staff.deleteCreator', { targetId: targetId }).then(function (d) {
             if (d && d.ok) { showToast('Creator deleted.', 'success'); loadPartnerLogs(); }
             else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
           });
@@ -1990,11 +2021,9 @@
     }
     if (!changeCodeTargetId) return;
     const btn = document.getElementById('changeCodeSubmitBtn');
-    btn.disabled = true;
-    btn.classList.add('is-loading');
+    setBtnLoading(btn, true);
     callAdmin('staff.changeMediaCode', { targetId: changeCodeTargetId, newCode: code }).then(function (d) {
-      btn.disabled = false;
-      btn.classList.remove('is-loading');
+      setBtnLoading(btn, false);
       if (d && d.ok) {
         showToast('Code changed to ' + d.code + '.', 'success');
         changeCodeModal.classList.remove('active');
@@ -2137,9 +2166,8 @@
       btn.addEventListener('click', function () {
         const decision = btn.dataset.action;
         const note = decision === 'accept' ? ' Their Discord role will be swapped immediately.' : '';
-        askConfirm(decision === 'accept' ? 'Accept rankup request?' : 'Deny rankup request?', (r.username || r.discordId) + "'s request to rank up to " + (TIER_LABELS[r.requestedTier] || r.requestedTier) + '.' + note, {}).then(function (res) {
-          if (!res.ok) return;
-          callAdmin('partnerRankupRequests.decide', { discordId: r.discordId, decision: decision }).then(function (d) {
+        askConfirm(decision === 'accept' ? 'Accept rankup request?' : 'Deny rankup request?', (r.username || r.discordId) + "'s request to rank up to " + (TIER_LABELS[r.requestedTier] || r.requestedTier) + '.' + note, {}, function () {
+          return callAdmin('partnerRankupRequests.decide', { discordId: r.discordId, decision: decision }).then(function (d) {
             if (d && d.ok) { showToast('Rankup request ' + decision + 'ed.', 'success'); loadPartnerRankupRequests(currentPartnerRankupFilter); loadOverview(); }
             else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
           });
@@ -2196,9 +2224,8 @@
         btn.addEventListener('click', function (e) {
           e.stopPropagation();
           const entryId = btn.dataset.scamDeleteId;
-          askConfirm('Delete this scam report?', 'Permanently removes it from the database.', {}).then(function (res) {
-            if (!res.ok) return;
-            callAdmin('scams.delete', { id: entryId }).then(function (r) {
+          askConfirm('Delete this scam report?', 'Permanently removes it from the database.', {}, function () {
+            return callAdmin('scams.delete', { id: entryId }).then(function (r) {
               if (r && r.ok) { showToast('Scam report deleted.', 'success'); loadScams(currentScamsFilter); }
               else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
             });
@@ -2280,9 +2307,8 @@
     table.querySelectorAll('button[data-remove]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         const discordId = btn.dataset.remove;
-        askConfirm('Remove review?', 'This deletes the Discord message and the export entry.', {}).then(function (res) {
-          if (!res.ok) return;
-          callAdmin('reviews.remove', { discordId: discordId }).then(function (d2) {
+        askConfirm('Remove review?', 'This deletes the Discord message and the export entry.', {}, function () {
+          return callAdmin('reviews.remove', { discordId: discordId }).then(function (d2) {
             if (d2 && d2.ok) { showToast('Review removed.', 'success'); loadReviews(); }
             else showToast('Failed: ' + (d2 && d2.error || 'unknown error'), 'error');
           });
@@ -2307,9 +2333,9 @@
     const code = document.getElementById('dropCode').value.trim();
     const description = document.getElementById('dropDescription').value.trim();
     if (!name || (!link && !code)) { showToast('Name and a link or code are required.', 'error'); return; }
-    btn.disabled = true;
+    setBtnLoading(btn, true);
     callAdmin('drops.publish', { name: name, link: link, code: code, description: description }).then(function (d) {
-      btn.disabled = false;
+      setBtnLoading(btn, false);
       if (d && d.ok) {
         showToast('Drop published!', 'success');
         ['dropName', 'dropLink', 'dropCode', 'dropDescription'].forEach(function (id) { document.getElementById(id).value = ''; });
@@ -2324,9 +2350,9 @@
     const duration = document.getElementById('gwDuration').value.trim();
     const channelId = document.getElementById('gwChannelId').value.trim();
     if (!title || !channelId) { showToast('Title and channel ID are required.', 'error'); return; }
-    btn.disabled = true;
+    setBtnLoading(btn, true);
     callAdmin('giveaway.publish', { title: title, description: description, winners: winners, duration: duration, channelId: channelId }).then(function (d) {
-      btn.disabled = false;
+      setBtnLoading(btn, false);
       if (d && d.ok) {
         showToast('Giveaway published!', 'success');
         ['gwTitle', 'gwDescription', 'gwWinners', 'gwDuration', 'gwChannelId'].forEach(function (id) { document.getElementById(id).value = ''; });
@@ -2394,9 +2420,8 @@
         btn.addEventListener('click', function (e) {
           e.stopPropagation();
           const channelId = btn.dataset.archiveDelete;
-          askConfirm('Delete this archived ticket?', 'Permanently removes the transcript and record.', {}).then(function (res) {
-            if (!res.ok) return;
-            callAdmin('ticketArchive.delete', { channelId: channelId }).then(function (r) {
+          askConfirm('Delete this archived ticket?', 'Permanently removes the transcript and record.', {}, function () {
+            return callAdmin('ticketArchive.delete', { channelId: channelId }).then(function (r) {
               if (r && r.ok) { showToast('Ticket deleted.', 'success'); loadTicketArchive(currentTicketArchiveFilter); }
               else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
             });
@@ -2569,9 +2594,8 @@
         return;
       }
       if (Notification.permission === 'denied') return;
-      askConfirm('Enable notifications?', 'Get notified on this device even when Frost Admin is closed.', { tone: 'primary', okLabel: 'Enable' }).then(function (res) {
-        if (!res.ok) return;
-        Notification.requestPermission().then(function (permission) {
+      askConfirm('Enable notifications?', 'Get notified on this device even when Frost Admin is closed.', { tone: 'primary', okLabel: 'Enable' }, function () {
+        return Notification.requestPermission().then(function (permission) {
           if (permission === 'granted') subscribeToPush(registration);
         });
       });
@@ -2686,12 +2710,20 @@
     if (e.target === document.getElementById('settingsModal')) e.currentTarget.classList.remove('active');
   });
 
+  const PENDING_ACTION_KEY = 'frostAdminPendingAction';
   function showApp(user) {
     document.querySelectorAll('.gate-screen').forEach(function (el) { el.classList.remove('active'); });
     document.getElementById('appShell').classList.add('active');
     document.getElementById('userAvatar').src = avatarUrl(user.id, user.avatar);
     document.getElementById('userName').textContent = user.name || user.username || 'Owner';
-    showView('overview');
+    let pendingAction = '';
+    try { pendingAction = sessionStorage.getItem(PENDING_ACTION_KEY) || ''; sessionStorage.removeItem(PENDING_ACTION_KEY); } catch (e) {}
+    if (pendingAction === 'writeExcuse') {
+      showView('excuses');
+      openExcuseModal();
+    } else {
+      showView('overview');
+    }
     startNotifPolling();
     maybeShowAddHomeScreenPrompt();
     initPushNotifications();
@@ -2731,6 +2763,13 @@
 
   (function init() {
     const params = new URLSearchParams(window.location.search);
+
+    if (params.has('writeExcuse')) {
+      try { sessionStorage.setItem(PENDING_ACTION_KEY, 'writeExcuse'); } catch (e) {}
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete('writeExcuse');
+      window.history.replaceState(null, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+    }
 
     if (params.has('code')) {
       const code = params.get('code');

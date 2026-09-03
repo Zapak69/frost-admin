@@ -287,7 +287,7 @@
         <p style="color:var(--muted);font-size:12.5px;margin:-6px 0 14px;">Any code containing one of these (as a substring, case-insensitive) is rejected on signup.</p>
         <div class="search-row">
           <input type="text" id="bannedWordInput" class="text-input" placeholder="Add a word..." autocomplete="off" maxlength="40"/>
-          <button type="button" class="btn-primary" id="bannedWordAddBtn">Add</button>
+          <button type="button" class="btn-primary" id="bannedWordAddBtn"><span class="btn-spinner"></span><span class="btn-label">Add</span></button>
         </div>
         <div id="bannedWordsList" class="banned-words-list"></div>
       </div>
@@ -388,7 +388,7 @@
           <label>Description <span class="optional-tag">(optional)</span></label>
           <textarea id="dropDescription" class="text-input" placeholder="What is this drop?"></textarea>
         </div>
-        <button type="button" class="btn-primary" id="dropSubmitBtn">Publish drop</button>
+        <button type="button" class="btn-primary" id="dropSubmitBtn"><span class="btn-spinner"></span><span class="btn-label">Publish drop</span></button>
       </div>
     </div>
 
@@ -417,7 +417,7 @@
           <label>Channel ID</label>
           <input type="text" id="gwChannelId" class="text-input" placeholder="Right-click channel → Copy Channel ID" autocomplete="off"/>
         </div>
-        <button type="button" class="btn-primary" id="gwSubmitBtn">Publish giveaway</button>
+        <button type="button" class="btn-primary" id="gwSubmitBtn"><span class="btn-spinner"></span><span class="btn-label">Publish giveaway</span></button>
       </div>
     </div>
 
@@ -511,7 +511,7 @@
     </div>
     <div class="modal-actions">
       <button type="button" class="btn-secondary" id="confirmCancelBtn">Cancel</button>
-      <button type="button" class="btn-danger" id="confirmOkBtn">Confirm</button>
+      <button type="button" class="btn-danger" id="confirmOkBtn"><span class="btn-spinner"></span><span class="btn-label">Confirm</span></button>
     </div>
   </div>
 </div>
@@ -592,7 +592,7 @@
     </div>
     <div class="modal-actions">
       <button type="button" class="btn-secondary" id="excuseCancelBtn">Cancel</button>
-      <button type="button" class="btn-primary" id="excuseSubmitBtn">Submit</button>
+      <button type="button" class="btn-primary" id="excuseSubmitBtn"><span class="btn-spinner"></span><span class="btn-label">Submit</span></button>
     </div>
   </div>
 </div>
@@ -607,7 +607,7 @@
     </div>
     <div class="modal-actions">
       <button type="button" class="btn-secondary" id="promoteCancelBtn">Cancel</button>
-      <button type="button" class="btn-primary" id="promoteSubmitBtn">Promote</button>
+      <button type="button" class="btn-primary" id="promoteSubmitBtn"><span class="btn-spinner"></span><span class="btn-label">Promote</span></button>
     </div>
   </div>
 </div>
@@ -625,7 +625,7 @@
     </div>
     <div class="modal-actions">
       <button type="button" class="btn-secondary" id="warnCancelBtn">Cancel</button>
-      <button type="button" class="btn-danger" id="warnSubmitBtn">Issue warning</button>
+      <button type="button" class="btn-danger" id="warnSubmitBtn"><span class="btn-spinner"></span><span class="btn-label">Issue warning</span></button>
     </div>
   </div>
 </div>
@@ -693,7 +693,7 @@
     <p class="modal-text" id="liteSelectionSummary">No days selected.</p>
     <div class="modal-actions">
       <button type="button" class="btn-secondary" id="liteModalCancelBtn">Cancel</button>
-      <button type="button" class="btn-primary" id="liteModalGrantBtn">Grant Lite</button>
+      <button type="button" class="btn-primary" id="liteModalGrantBtn"><span class="btn-spinner"></span><span class="btn-label">Grant Lite</span></button>
     </div>
   </div>
 </div>
@@ -709,7 +709,7 @@
     <p class="modal-text" id="grantMediaError" style="display:none;color:var(--danger);"></p>
     <div class="modal-actions">
       <button type="button" class="btn-secondary" id="grantMediaCancelBtn">Cancel</button>
-      <button type="button" class="btn-primary" id="grantMediaSubmitBtn">Grant Media</button>
+      <button type="button" class="btn-primary" id="grantMediaSubmitBtn"><span class="btn-spinner"></span><span class="btn-label">Grant Media</span></button>
     </div>
   </div>
 </div>
