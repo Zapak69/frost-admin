@@ -451,7 +451,7 @@
   const VIEW_LOADERS = {
     overview: loadOverview, members: function () {}, leaderboard: loadLeaderboard, staff: loadStaff,
     staffActivity: function () { loadStaffActivity(currentStaffActivityFilter); },
-    staffApps: function () { loadStaffApps(currentStaffAppsFilter); },
+    staffApps: function () { loadRecruitment(); loadStaffApps(currentStaffAppsFilter); },
     partnerLogs: function () { loadPartnerLogs(); loadBannedWords(); },
     partnerRankup: function () { loadPartnerRankupRequests(currentPartnerRankupFilter); },
     reports: function () { loadBugReports(currentReportsFilter); },
@@ -1825,6 +1825,39 @@
       d.applications.forEach(wireStaffAppActions);
     });
   }
+  function renderRecruitment(roles) {
+    const list = document.getElementById('recruitmentList');
+    list.innerHTML = Object.keys(roles).map(function (id) {
+      const r = roles[id];
+      return '<label class="recruitment-row' + (r.open ? '' : ' closed') + '" data-role-id="' + escapeHtml(id) + '">' +
+        '<span>' + escapeHtml(r.label) + '</span>' +
+        '<span class="pill ' + (r.open ? 'accepted' : 'denied') + '">' + (r.open ? 'open' : 'closed') + '</span>' +
+        '<span class="switch"><input type="checkbox"' + (r.open ? ' checked' : '') + '/><span class="switch-track"></span></span>' +
+      '</label>';
+    }).join('');
+    list.querySelectorAll('.recruitment-row input').forEach(function (input) {
+      input.addEventListener('change', function () {
+        const row = input.closest('.recruitment-row');
+        const roleId = row.dataset.roleId;
+        input.disabled = true;
+        callAdmin('staffApplications.setRecruitment', { roleId: roleId, open: input.checked }).then(function (d) {
+          if (d && d.ok) {
+            showToast((roles[roleId] ? roles[roleId].label : roleId) + ' applications ' + (input.checked ? 'opened.' : 'closed.'), 'success');
+            renderRecruitment(d.roles || roles);
+          } else {
+            input.checked = !input.checked;
+            input.disabled = false;
+            showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+          }
+        });
+      });
+    });
+  }
+  function loadRecruitment() {
+    return callAdmin('staffApplications.getRecruitment').then(function (d) {
+      if (d && d.ok && d.roles) renderRecruitment(d.roles);
+    });
+  }
   function renderStaffAppCard(a, labels, roleLabel) {
     const qa = (labels || []).map(function (pair) {
       const key = pair[0], label = pair[1];
@@ -1832,7 +1865,8 @@
       if (!val) return '';
       return '<div><div class="app-card-q">' + escapeHtml(label) + '</div><div class="app-card-a">' + escapeHtml(val) + '</div></div>';
     }).join('');
-    const extra = a.extra ? '<div><div class="app-card-q">Anything else</div><div class="app-card-a">' + escapeHtml(a.extra) + '</div></div>' : '';
+    const extra = (a.extra ? '<div><div class="app-card-q">Anything else</div><div class="app-card-a">' + escapeHtml(a.extra) + '</div></div>' : '') +
+      (a.status === 'denied' && a.denyReason ? '<div><div class="app-card-q">Denial reason</div><div class="app-card-a" style="color:var(--danger);">' + escapeHtml(a.denyReason) + '</div></div>' : '');
     return (
       '<div class="app-card" id="staffapp-' + a.discordId + '">' +
         '<div class="app-card-head">' +
@@ -1852,8 +1886,9 @@
     card.querySelectorAll('button[data-action]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         const decision = btn.dataset.action;
-        askConfirm(decision === 'accept' ? 'Accept application?' : 'Deny application?', (a.username || a.discordId) + "'s staff application.", {}, function () {
-          return callAdmin('staffApplications.decide', { discordId: a.discordId, decision: decision }).then(function (d) {
+        const opts = decision === 'deny' ? { reason: true, okLabel: 'Deny' } : { tone: 'primary', okLabel: 'Accept' };
+        askConfirm(decision === 'accept' ? 'Accept application?' : 'Deny application?', (a.username || a.discordId) + "'s staff application." + (decision === 'deny' ? ' You can add a reason — the applicant will see it.' : ''), opts, function (reason) {
+          return callAdmin('staffApplications.decide', { discordId: a.discordId, decision: decision, reason: reason || undefined }).then(function (d) {
             if (d && d.ok) { showToast('Application ' + decision + 'ed.', 'success'); loadStaffApps(currentStaffAppsFilter); loadOverview(); }
             else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
           });

@@ -386,6 +386,14 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
 .filter-pill.active { background: var(--accent-bright); border-color: var(--accent-bright); color: #fff; }
 
 .app-list { display: flex; flex-direction: column; gap: 14px; }
+.recruitment-list { display: flex; flex-wrap: wrap; gap: 10px; }
+.recruitment-row {
+  display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+  border: 1px solid var(--border); border-radius: 12px; background: var(--bg-elevated);
+  font-size: 13px; font-weight: 600; transition: opacity 0.2s, border-color 0.2s;
+}
+.recruitment-row.closed { opacity: 0.65; }
+.recruitment-row .pill { margin-left: 2px; }
 .app-card {
   background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 18px; padding: 18px 20px;
   transition: box-shadow 0.2s ease;
