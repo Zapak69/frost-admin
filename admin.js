@@ -201,35 +201,6 @@
     return { icon: NOTIF_ICON_BELL, title: 'Notification' };
   }
 
-  let notifAudioCtx = null;
-  document.addEventListener('pointerdown', function unlockNotifAudio() {
-    if (!notifAudioCtx && (window.AudioContext || window.webkitAudioContext)) {
-      notifAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (notifAudioCtx && notifAudioCtx.state === 'suspended') notifAudioCtx.resume();
-  }, { once: true });
-
-  function playNotifSound() {
-    try {
-      if (!notifAudioCtx) notifAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (notifAudioCtx.state === 'suspended') notifAudioCtx.resume();
-      const now = notifAudioCtx.currentTime;
-      [880, 1318.5].forEach(function (freq, i) {
-        const osc = notifAudioCtx.createOscillator();
-        const gain = notifAudioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        const start = now + i * 0.11;
-        gain.gain.setValueAtTime(0, start);
-        gain.gain.linearRampToValueAtTime(0.18, start + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
-        osc.connect(gain).connect(notifAudioCtx.destination);
-        osc.start(start);
-        osc.stop(start + 0.32);
-      });
-    } catch (e) {}
-  }
-
   function renderNotifToastEl(title, msg) {
     const el = document.createElement('div');
     el.className = 'notif-toast';
@@ -249,7 +220,6 @@
     }
     el.addEventListener('click', function () { openNotifPanel(); removeToast(); });
     notifToastStack.appendChild(el);
-    playNotifSound();
     setTimeout(removeToast, NOTIF_TOAST_SECONDS * 1000);
   }
   function showNotifToast(n) {
