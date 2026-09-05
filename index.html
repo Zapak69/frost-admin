@@ -80,6 +80,7 @@
       <button type="button" class="nav-item" data-view="giveaway" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Publish Giveaway</button>
       <button type="button" class="nav-item" data-view="tickets"><span class="nav-icon">◆</span>Tickets</button>
       <button type="button" class="nav-item" data-view="ticketArchive"><span class="nav-icon">◆</span>Ticket Archive</button>
+      <button type="button" class="nav-item" data-view="autoreplies" data-requires="highStaff" style="display:none;"><span class="nav-icon">◆</span>Auto Replies</button>
     </nav>
     <div class="sidebar-bottom">
       <div class="sidebar-user">
@@ -430,6 +431,47 @@
       <div class="panel">
         <div class="panel-head"><h2>Open tickets</h2></div>
         <div class="table-wrap"><table class="data-table" id="ticketsTable"></table></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-autoreplies">
+      <div class="panel">
+        <div class="panel-head"><h2>Built-in auto replies</h2><span class="panel-sub">Staff mark a wrong reply with the red button in Discord. A rule pauses itself once it has 5+ wrong marks and its precision drops under 60 %, or when a new message looks like the ones marked wrong. Mode overrides that.</span></div>
+        <div class="table-wrap"><table class="data-table" id="autoreplyBuiltinTable"></table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Custom auto replies</h2><span class="panel-sub">Keyword-triggered replies, learning applies to them too. Use {user} to mention the member.</span><button type="button" class="btn-small" id="autoreplyNewBtn">+ New reply</button></div>
+        <div id="autoreplyForm" class="autoreply-form" style="display:none;">
+          <div class="form-field-row">
+            <div class="form-field">
+              <label>Name</label>
+              <input type="text" id="autoreplyName" class="text-input" placeholder="e.g. Shader installation" autocomplete="off"/>
+            </div>
+            <div class="form-field">
+              <label>Keywords <span class="optional-tag">(comma separated, case-insensitive)</span></label>
+              <input type="text" id="autoreplyKeywords" class="text-input" placeholder="shader, shaders, iris" autocomplete="off"/>
+            </div>
+          </div>
+          <div class="form-field">
+            <label>Reply</label>
+            <textarea id="autoreplyReply" class="text-input" placeholder="Hey {user}, shaders go into the Shaders tab of your instance in the launcher..."></textarea>
+          </div>
+          <div class="autoreply-options">
+            <label class="check-row"><input type="checkbox" id="autoreplyRequireAll"/><span>All keywords must match</span></label>
+            <label class="check-row"><input type="checkbox" id="autoreplyTicketOnly" checked/><span>Only inside tickets</span></label>
+            <label class="check-row"><input type="checkbox" id="autoreplyPlain"/><span>Plain text instead of embed</span></label>
+            <label class="check-row"><input type="checkbox" id="autoreplyEnabled" checked/><span>Enabled</span></label>
+          </div>
+          <div class="autoreply-form-actions">
+            <button type="button" class="btn-primary" id="autoreplySaveBtn"><span class="btn-spinner"></span><span class="btn-label">Save reply</span></button>
+            <button type="button" class="btn-small" id="autoreplyCancelBtn">Cancel</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table class="data-table" id="autoreplyCustomTable"></table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Recent feedback</h2><span class="panel-sub">Latest marks from Discord: wrong reply from staff, solved from the ticket owner</span></div>
+        <div class="table-wrap"><table class="data-table" id="autoreplyFeedbackTable"></table></div>
       </div>
     </div>
 

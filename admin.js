@@ -446,7 +446,7 @@
     overview: 'Overview', members: 'Members', leaderboard: 'Leaderboards', staff: 'Staff Team', staffActivity: 'Activity',
     staffApps: 'Staff Applications', partnerLogs: 'Creators', partnerRankup: 'Partner Rankup Requests', reports: 'Bug Reports', scams: 'Scam Database',
     logs: 'Action Logs', excuses: 'Excuses', warns: 'Warns', reviews: 'Reviews', drops: 'Publish Drop', giveaway: 'Publish Giveaway', tickets: 'Tickets',
-    ticketArchive: 'Ticket Archive'
+    ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies'
   };
   const VIEW_LOADERS = {
     overview: loadOverview, members: function () {}, leaderboard: loadLeaderboard, staff: loadStaff,
@@ -457,7 +457,8 @@
     reports: function () { loadBugReports(currentReportsFilter); },
     scams: function () { loadScams(currentScamsFilter); }, logs: loadLogs, excuses: loadExcuses, warns: loadWarns, reviews: loadReviews,
     drops: function () {}, giveaway: function () {}, tickets: loadTickets,
-    ticketArchive: function () { loadTicketArchive(currentTicketArchiveFilter); }
+    ticketArchive: function () { loadTicketArchive(currentTicketArchiveFilter); },
+    autoreplies: function () { loadAutoreplies(); }
   };
   let currentView = 'overview';
 
@@ -1858,6 +1859,130 @@
       if (d && d.ok && d.roles) renderRecruitment(d.roles);
     });
   }
+
+  const AUTOREPLY_MODES = { auto: 'Auto (learn)', on: 'Always on', off: 'Off' };
+  let autoreplyCustomRules = [];
+  function autoreplyPrecision(r) {
+    return r.precision == null ? '—' : Math.round(r.precision * 100) + '%';
+  }
+  function autoreplyStatePill(r) {
+    if (r.override === 'off') return '<span class="pill denied">forced off</span>';
+    if (r.override === 'on') return '<span class="pill accepted">forced on</span>';
+    if (r.state !== 'active') return '<span class="pill denied" title="' + escapeHtml(r.reason || '') + '">paused</span>';
+    return '<span class="pill ' + (r.reason === 'learning' ? 'auto' : 'accepted') + '">' + (r.reason === 'learning' ? 'learning' : 'active') + '</span>';
+  }
+  function autoreplyModeSelect(key, value) {
+    return '<select class="text-input autoreply-mode" data-key="' + escapeHtml(key) + '">' + Object.keys(AUTOREPLY_MODES).map(function (m) {
+      return '<option value="' + m + '"' + (value === m ? ' selected' : '') + '>' + AUTOREPLY_MODES[m] + '</option>';
+    }).join('') + '</select>';
+  }
+  function bindAutoreplyModes(table) {
+    table.querySelectorAll('.autoreply-mode').forEach(function (sel) {
+      sel.addEventListener('change', function () {
+        sel.disabled = true;
+        callAdmin('autoreply.setOverride', { key: sel.dataset.key, mode: sel.value }).then(function (d) {
+          if (d && d.ok) { showToast('Auto reply mode saved.', 'success'); loadAutoreplies(); }
+          else { showToast('Failed: ' + (d && d.error || 'unknown error'), 'error'); sel.disabled = false; }
+        });
+      });
+    });
+  }
+  function renderAutoreplies(d) {
+    const builtinTable = document.getElementById('autoreplyBuiltinTable');
+    builtinTable.innerHTML = '<thead><tr><th>Rule</th><th>Good</th><th>Wrong</th><th>Precision</th><th>State</th><th>Mode</th></tr></thead><tbody>' +
+      (d.builtin.map(function (r) {
+        return '<tr><td><strong>' + escapeHtml(r.key) + '</strong><div class="autoreply-desc">' + escapeHtml(r.label) + '</div></td>' +
+          '<td class="mono">' + r.good + (r.weak ? ' <span class="autoreply-weak" title="' + r.weak + ' counted as good because nobody marked them within 24h">(' + r.weak + ' silent)</span>' : '') + '</td>' +
+          '<td class="mono">' + r.bad + '</td><td class="mono">' + autoreplyPrecision(r) + '</td><td>' + autoreplyStatePill(r) + '</td><td>' + autoreplyModeSelect(r.key, r.override) + '</td></tr>';
+      }).join('') || emptyRow(6, 'No built-in rules.')) + '</tbody>';
+    bindAutoreplyModes(builtinTable);
+
+    autoreplyCustomRules = d.custom || [];
+    const customTable = document.getElementById('autoreplyCustomTable');
+    customTable.innerHTML = '<thead><tr><th>Name</th><th>Keywords</th><th>Reply</th><th>Good / Wrong</th><th>State</th><th>Mode</th><th></th></tr></thead><tbody>' +
+      (autoreplyCustomRules.map(function (r) {
+        const flags = [r.requireAll ? 'all keywords' : 'any keyword', r.ticketOnly ? 'tickets only' : 'everywhere', r.plain ? 'plain' : 'embed'].join(' · ');
+        return '<tr data-rule-id="' + escapeHtml(r.id) + '"' + (r.enabled ? '' : ' style="opacity:0.55;"') + '>' +
+          '<td><strong>' + escapeHtml(r.name) + '</strong><div class="autoreply-desc">' + escapeHtml(flags) + (r.enabled ? '' : ' · disabled') + '</div></td>' +
+          '<td>' + (r.keywords || []).map(function (k) { return '<span class="pill report">' + escapeHtml(k) + '</span>'; }).join(' ') + '</td>' +
+          '<td class="autoreply-reply">' + escapeHtml(String(r.reply || '').slice(0, 140)) + (String(r.reply || '').length > 140 ? '…' : '') + '</td>' +
+          '<td class="mono">' + r.good + ' / ' + r.bad + '</td><td>' + autoreplyStatePill(r) + '</td><td>' + autoreplyModeSelect('custom:' + r.id, r.override) + '</td>' +
+          '<td><button type="button" class="btn-small" data-autoreply-edit="' + escapeHtml(r.id) + '">Edit</button> <button type="button" class="btn-small danger" data-autoreply-delete="' + escapeHtml(r.id) + '">Delete</button></td></tr>';
+      }).join('') || emptyRow(7, 'No custom replies yet. Click "+ New reply" to add one.')) + '</tbody>';
+    bindAutoreplyModes(customTable);
+    customTable.querySelectorAll('[data-autoreply-edit]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const rule = autoreplyCustomRules.find(function (r) { return r.id === btn.dataset.autoreplyEdit; });
+        if (rule) openAutoreplyForm(rule);
+      });
+    });
+    customTable.querySelectorAll('[data-autoreply-delete]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const rule = autoreplyCustomRules.find(function (r) { return r.id === btn.dataset.autoreplyDelete; });
+        askConfirm('Delete this auto reply?', (rule ? '"' + rule.name + '"' : 'This reply') + ' will stop triggering immediately.', {}, function () {
+          return callAdmin('autoreply.deleteCustom', { id: btn.dataset.autoreplyDelete }).then(function (r) {
+            if (r && r.ok) { showToast('Auto reply deleted.', 'success'); loadAutoreplies(); }
+            else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
+          });
+        });
+      });
+    });
+
+    const feedbackTable = document.getElementById('autoreplyFeedbackTable');
+    feedbackTable.innerHTML = '<thead><tr><th>When</th><th>Rule</th><th>Mark</th><th>User message</th><th>By</th></tr></thead><tbody>' +
+      ((d.recent || []).map(function (e) {
+        return '<tr><td class="mono">' + formatRelative(e.at) + '</td><td class="mono">' + escapeHtml(e.ruleKey) + '</td>' +
+          '<td><span class="pill ' + (e.label === 'bad' ? 'denied' : 'accepted') + '">' + (e.label === 'bad' ? 'wrong reply' : 'solved') + '</span></td>' +
+          '<td class="autoreply-reply">' + escapeHtml(String(e.text || '').slice(0, 160)) + '</td>' +
+          '<td>' + (e.by ? userLink(e.by, e.byUsername || e.by) : '—') + '</td></tr>';
+      }).join('') || emptyRow(5, 'No feedback yet.')) + '</tbody>';
+  }
+  function loadAutoreplies() {
+    return callAdmin('autoreply.overview').then(function (d) {
+      if (d && d.ok) renderAutoreplies(d);
+      else if (d && d.error) showToast('Could not load auto replies: ' + d.error, 'error');
+    });
+  }
+  let autoreplyEditingId = null;
+  function openAutoreplyForm(rule) {
+    autoreplyEditingId = rule ? rule.id : null;
+    document.getElementById('autoreplyName').value = rule ? rule.name : '';
+    document.getElementById('autoreplyKeywords').value = rule ? (rule.keywords || []).join(', ') : '';
+    document.getElementById('autoreplyReply').value = rule ? rule.reply : '';
+    document.getElementById('autoreplyRequireAll').checked = !!(rule && rule.requireAll);
+    document.getElementById('autoreplyTicketOnly').checked = rule ? rule.ticketOnly !== false : true;
+    document.getElementById('autoreplyPlain').checked = !!(rule && rule.plain);
+    document.getElementById('autoreplyEnabled').checked = rule ? rule.enabled !== false : true;
+    document.querySelector('#autoreplySaveBtn .btn-label').textContent = rule ? 'Save changes' : 'Save reply';
+    document.getElementById('autoreplyForm').style.display = '';
+    document.getElementById('autoreplyName').focus();
+  }
+  function closeAutoreplyForm() {
+    autoreplyEditingId = null;
+    document.getElementById('autoreplyForm').style.display = 'none';
+  }
+  document.getElementById('autoreplyNewBtn').addEventListener('click', function () { openAutoreplyForm(null); });
+  document.getElementById('autoreplyCancelBtn').addEventListener('click', closeAutoreplyForm);
+  document.getElementById('autoreplySaveBtn').addEventListener('click', function () {
+    const btn = document.getElementById('autoreplySaveBtn');
+    const payload = {
+      id: autoreplyEditingId,
+      name: document.getElementById('autoreplyName').value.trim(),
+      keywords: document.getElementById('autoreplyKeywords').value.split(',').map(function (k) { return k.trim(); }).filter(Boolean),
+      reply: document.getElementById('autoreplyReply').value.trim(),
+      requireAll: document.getElementById('autoreplyRequireAll').checked,
+      ticketOnly: document.getElementById('autoreplyTicketOnly').checked,
+      plain: document.getElementById('autoreplyPlain').checked,
+      enabled: document.getElementById('autoreplyEnabled').checked
+    };
+    if (!payload.name || !payload.keywords.length || !payload.reply) { showToast('Name, at least one keyword and a reply are required.', 'error'); return; }
+    setBtnLoading(btn, true);
+    callAdmin('autoreply.saveCustom', payload).then(function (d) {
+      setBtnLoading(btn, false);
+      if (d && d.ok) { showToast('Auto reply saved.', 'success'); closeAutoreplyForm(); loadAutoreplies(); }
+      else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+    });
+  });
   function renderStaffAppCard(a, labels, roleLabel) {
     const qa = (labels || []).map(function (pair) {
       const key = pair[0], label = pair[1];
