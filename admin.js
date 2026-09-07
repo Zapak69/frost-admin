@@ -59,7 +59,7 @@
   }
   function showToast(message, type) {
     while (toastStack.children.length >= MAX_VISIBLE_TOASTS) {
-      removeToastEl(toastStack.firstElementChild);
+      toastStack.firstElementChild.remove();
     }
     const el = document.createElement('div');
     el.className = 'toast' + (type ? ' ' + type : '');
@@ -416,7 +416,7 @@
     overview: 'Overview', members: 'Members', leaderboard: 'Leaderboards', staff: 'Staff Team', staffActivity: 'Activity',
     staffApps: 'Staff Applications', partnerLogs: 'Creators', partnerRankup: 'Partner Rankup Requests', reports: 'Bug Reports', scams: 'Scam Database',
     logs: 'Action Logs', excuses: 'Excuses', warns: 'Warns', reviews: 'Reviews', drops: 'Publish Drop', giveaway: 'Publish Giveaway', tickets: 'Tickets',
-    ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies'
+    ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies', scamFilter: 'Scam Filter'
   };
   const VIEW_LOADERS = {
     overview: loadOverview, members: function () {}, leaderboard: loadLeaderboard, staff: loadStaff,
@@ -428,7 +428,8 @@
     scams: function () { loadScams(currentScamsFilter); }, logs: loadLogs, excuses: loadExcuses, warns: loadWarns, reviews: loadReviews,
     drops: function () {}, giveaway: function () {}, tickets: loadTickets,
     ticketArchive: function () { loadTicketArchive(currentTicketArchiveFilter); },
-    autoreplies: function () { loadAutoreplies(); }
+    autoreplies: function () { loadAutoreplies(); },
+    scamFilter: function () { loadScamFilter(); }
   };
   let currentView = 'overview';
 
@@ -1951,6 +1952,146 @@
       setBtnLoading(btn, false);
       if (d && d.ok) { showToast('Auto reply saved.', 'success'); closeAutoreplyForm(); loadAutoreplies(); }
       else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+    });
+  });
+  function scamFilterPct(v) { return v == null ? '—' : Math.round(v * 100) + ' %'; }
+  function scamFilterReasonText(score) {
+    if (!score) return '—';
+    if (score.reason === 'similar_to_report') return scamFilterPct(score.similarity) + ' similar to a report';
+    if (score.reason === 'bayes') return 'probability ' + scamFilterPct(score.pScam);
+    return escapeHtml(String(score.reason || '').replace(/_/g, ' '));
+  }
+  function scamFilterReviewPill(review) {
+    if (!review) return '<span class="pill pending">awaiting review</span>';
+    return review.label === 'wrong'
+      ? '<span class="pill denied">wrong deletion</span>'
+      : '<span class="pill accepted">confirmed scam</span>';
+  }
+  function renderScamFilter(d) {
+    const s = d.settings || {};
+    const st = d.stats || {};
+    document.getElementById('scamFilterStats').innerHTML = [
+      [st.deletedToday || 0, 'Deleted today', st.deletedToday > 0 ? 'warn' : ''],
+      [st.deletedTotal || 0, 'Deleted total'],
+      [st.pendingReview || 0, 'Awaiting review', st.pendingReview > 0 ? 'warn' : ''],
+      [st.samples || 0, 'Learned scam examples'],
+      [st.hamMessages || 0, 'Normal messages learned'],
+      [st.reviewedWrong || 0, 'Wrong deletions', st.reviewedWrong > 0 ? 'danger' : '']
+    ].map(function (c) {
+      return '<div class="stat-card"><div class="num ' + (c[2] || '') + '">' + c[0] + '</div><div class="label">' + c[1] + '</div></div>';
+    }).join('');
+    let state, cls;
+    if (!s.enabled) { state = 'Off — nothing is deleted automatically.'; cls = 'off'; }
+    else if (d.paused) { state = 'Paused since ' + formatRelative(d.paused.at) + ' (' + escapeHtml(d.paused.reason || 'too many wrong deletions') + '). Resume it once you have reviewed the recent deletions.'; cls = 'paused'; }
+    else if ((st.samples || 0) < (s.minSamples || 0)) { state = 'Learning — copies of reported scams are deleted right away, probability-based deletion starts at ' + s.minSamples + ' learned examples (' + (st.samples || 0) + ' so far).'; cls = 'learning'; }
+    else { state = 'Active — deleting messages that look like the learned scams.'; cls = 'active'; }
+    const statusEl = document.getElementById('scamFilterStatus');
+    statusEl.className = 'scamfilter-status ' + cls;
+    statusEl.textContent = state;
+    document.getElementById('scamFilterThreshold').value = Math.round((s.threshold || 0.95) * 100);
+    document.getElementById('scamFilterSimilarity').value = Math.round((s.similarity || 0.75) * 100);
+    document.getElementById('scamFilterMinSamples').value = s.minSamples || 8;
+    document.getElementById('scamFilterMinTokens').value = s.minTokens || 4;
+    document.getElementById('scamFilterPauseAfter').value = s.pauseAfterFalsePositives || 3;
+    document.getElementById('scamFilterEnabled').checked = s.enabled !== false;
+    document.getElementById('scamFilterTimeout').checked = !!s.timeoutOnDelete;
+    document.getElementById('scamFilterResumeBtn').style.display = d.paused ? '' : 'none';
+    const badge = document.getElementById('badgeScamFilter');
+    if (badge) { badge.textContent = st.pendingReview || 0; badge.style.display = st.pendingReview > 0 ? '' : 'none'; }
+
+    const recentTable = document.getElementById('scamFilterRecentTable');
+    recentTable.innerHTML = '<thead><tr><th>When</th><th>User</th><th>Message</th><th>Why</th><th>Review</th><th></th></tr></thead><tbody>' +
+      ((d.recent || []).map(function (e) {
+        const user = e.targetUserId
+          ? '<span class="cell-user"><img class="cell-avatar" src="' + avatarUrl(e.targetUserId, e.targetAvatar) + '"/>' + userLink(e.targetUserId, e.targetUsername || e.targetUserId) + '</span>'
+          : '—';
+        const reviewBy = e.review && e.review.by ? '<div class="autoreply-desc">by ' + userLink(e.review.by, e.review.byUsername || e.review.by) + ' · ' + formatRelative(e.review.at) + '</div>' : '';
+        const actions = '<button type="button" class="btn-small danger" data-scamfilter-review="wrong" data-id="' + escapeHtml(e.id) + '"' + (e.review && e.review.label === 'wrong' ? ' disabled' : '') + '>Wrong</button> ' +
+          '<button type="button" class="btn-small success" data-scamfilter-review="ok" data-id="' + escapeHtml(e.id) + '"' + (e.review && e.review.label === 'ok' ? ' disabled' : '') + '>Confirm</button>';
+        return '<tr><td class="mono" style="white-space:nowrap;">' + formatRelative(e.timestamp) + '</td><td>' + user + '</td>' +
+          '<td class="autoreply-reply">' + escapeHtml(String(e.messageContent || '').slice(0, 200)) + '</td>' +
+          '<td class="mono">' + scamFilterReasonText(e.filterScore) + (e.timedOut ? '<div class="autoreply-desc">timed out 24 h</div>' : '') + '</td>' +
+          '<td>' + scamFilterReviewPill(e.review) + reviewBy + '</td><td style="white-space:nowrap;">' + actions + '</td></tr>';
+      }).join('') || emptyRow(6, 'The filter has not deleted anything yet.')) + '</tbody>';
+    recentTable.querySelectorAll('button[data-scamfilter-review]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const label = btn.dataset.scamfilterReview;
+        const run = function () {
+          return callAdmin('scamfilter.review', { id: btn.dataset.id, label: label }).then(function (r) {
+            if (r && r.ok) { showToast(label === 'wrong' ? 'Marked as wrong deletion — the filter learned from it.' + (r.paused ? ' The filter paused itself.' : '') : 'Confirmed as scam.', 'success'); loadScamFilter(); }
+            else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
+          });
+        };
+        if (label === 'wrong') askConfirm('Mark as wrong deletion?', 'The message goes on the safe list and its report (if any) stops being used as an example.', {}, run);
+        else run();
+      });
+    });
+
+    const samplesTable = document.getElementById('scamFilterSamplesTable');
+    samplesTable.innerHTML = '<thead><tr><th>When</th><th>Source</th><th>Text</th><th>Sender</th><th>State</th><th></th></tr></thead><tbody>' +
+      ((d.samples || []).map(function (e) {
+        let state;
+        if (e.ignored) state = '<span class="pill denied">ignored</span>';
+        else if (e.pendingReview) state = '<span class="pill pending">not confirmed</span>';
+        else if (e.active) state = '<span class="pill accepted">used</span>';
+        else state = '<span class="pill">unused</span>';
+        const btn = e.pendingReview ? '' : '<button type="button" class="btn-small' + (e.ignored ? '' : ' danger') + '" data-scamfilter-ignore="' + (e.ignored ? '0' : '1') + '" data-id="' + escapeHtml(e.id) + '">' + (e.ignored ? 'Use again' : 'Ignore') + '</button>';
+        return '<tr><td class="mono" style="white-space:nowrap;">' + formatRelative(e.timestamp) + '</td><td><span class="pill ' + escapeHtml(e.type) + '">' + escapeHtml(e.type) + '</span>' + (e.reporterUsername ? '<div class="autoreply-desc">' + escapeHtml(e.reporterUsername) + '</div>' : '') + '</td>' +
+          '<td class="autoreply-reply">' + escapeHtml(e.text) + '</td><td>' + (e.targetUserId ? userLink(e.targetUserId, e.targetUsername || e.targetUserId) : '—') + '</td><td>' + state + '</td><td>' + btn + '</td></tr>';
+      }).join('') || emptyRow(6, 'No examples yet — scam reports with text will show up here.')) + '</tbody>';
+    samplesTable.querySelectorAll('button[data-scamfilter-ignore]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        callAdmin('scamfilter.ignoreSample', { id: btn.dataset.id, ignored: btn.dataset.scamfilterIgnore === '1' }).then(function (r) {
+          if (r && r.ok) { showToast(btn.dataset.scamfilterIgnore === '1' ? 'Example ignored.' : 'Example is used again.', 'success'); loadScamFilter(); }
+          else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
+        });
+      });
+    });
+  }
+  function loadScamFilter() {
+    return callAdmin('scamfilter.overview').then(function (d) {
+      if (d && d.ok) renderScamFilter(d);
+      else if (d && d.error) showToast('Could not load the scam filter: ' + d.error, 'error');
+    });
+  }
+  function scamFilterSettingsPayload() {
+    return {
+      enabled: document.getElementById('scamFilterEnabled').checked,
+      timeoutOnDelete: document.getElementById('scamFilterTimeout').checked,
+      threshold: Number(document.getElementById('scamFilterThreshold').value) / 100,
+      similarity: Number(document.getElementById('scamFilterSimilarity').value) / 100,
+      minSamples: Number(document.getElementById('scamFilterMinSamples').value),
+      minTokens: Number(document.getElementById('scamFilterMinTokens').value),
+      pauseAfterFalsePositives: Number(document.getElementById('scamFilterPauseAfter').value)
+    };
+  }
+  document.getElementById('scamFilterSaveBtn').addEventListener('click', function () {
+    const btn = document.getElementById('scamFilterSaveBtn');
+    setBtnLoading(btn, true);
+    callAdmin('scamfilter.saveSettings', { settings: scamFilterSettingsPayload() }).then(function (d) {
+      setBtnLoading(btn, false);
+      if (d && d.ok) { showToast('Scam filter settings saved.', 'success'); loadScamFilter(); }
+      else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+    });
+  });
+  document.getElementById('scamFilterResumeBtn').addEventListener('click', function () {
+    callAdmin('scamfilter.saveSettings', { settings: scamFilterSettingsPayload(), resume: true }).then(function (d) {
+      if (d && d.ok) { showToast('Scam filter resumed.', 'success'); loadScamFilter(); }
+      else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+    });
+  });
+  document.getElementById('scamFilterTestBtn').addEventListener('click', function () {
+    const text = document.getElementById('scamFilterTestText').value.trim();
+    const out = document.getElementById('scamFilterTestResult');
+    if (!text) { out.textContent = 'Paste a message first.'; return; }
+    out.textContent = 'Scoring…';
+    callAdmin('scamfilter.test', { text: text }).then(function (d) {
+      if (!d || !d.ok) { out.textContent = 'Failed: ' + (d && d.error || 'unknown error'); return; }
+      const r = d.decision;
+      const verdict = r.action === 'delete' ? 'Would delete' : 'Would keep';
+      out.innerHTML = '<span class="pill ' + (r.action === 'delete' ? 'denied' : 'accepted') + '">' + verdict + '</span> ' +
+        escapeHtml(String(r.reason || '').replace(/_/g, ' ')) + ' · probability ' + scamFilterPct(r.pScam) + ' · closest example ' + scamFilterPct(r.similarity) +
+        (r.matched ? ' (' + escapeHtml(r.matched.type) + ': ' + escapeHtml(String(r.matched.text || '').slice(0, 80)) + ')' : '') + ' · ' + r.tokens + ' words';
     });
   });
   function renderStaffAppCard(a, labels, roleLabel) {

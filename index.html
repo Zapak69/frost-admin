@@ -71,6 +71,7 @@
       <button type="button" class="nav-item" data-view="reports" data-requires="highStaff" style="display:none;"><span class="nav-icon">◆</span>Bug Reports<span class="nav-dot" id="navDotReports" style="display:none;"></span></button>
       <div class="nav-group-label">Moderation</div>
       <button type="button" class="nav-item" data-view="scams"><span class="nav-icon">◆</span>Scam Database<span class="nav-dot" id="navDotScams" style="display:none;"></span></button>
+      <button type="button" class="nav-item" data-view="scamFilter" data-requires="highStaff" style="display:none;"><span class="nav-icon">◆</span>Scam Filter<span class="nav-badge" id="badgeScamFilter" style="display:none;">0</span></button>
       <button type="button" class="nav-item" data-view="warns"><span class="nav-icon">◆</span>Warns<span class="nav-dot" id="navDotWarns" style="display:none;"></span></button>
       <button type="button" class="nav-item" data-view="excuses"><span class="nav-icon">◆</span>Excuses<span class="nav-dot" id="navDotExcuses" style="display:none;"></span></button>
       <button type="button" class="nav-item" data-view="logs" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Action Logs</button>
@@ -320,9 +321,72 @@
             <button type="button" class="filter-pill" data-type="auto">Auto-mod</button>
             <button type="button" class="filter-pill" data-type="manual">Manual (/scam)</button>
             <button type="button" class="filter-pill" data-type="report">Reported</button>
+            <button type="button" class="filter-pill" data-type="filter">Scam filter</button>
           </div>
         </div>
         <div class="table-wrap"><table class="data-table" id="scamsTable"></table></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-scamFilter">
+      <div class="panel">
+        <div class="panel-head"><h2>Scam filter</h2><span class="panel-sub">Learns from scam reports, /scam removals and the image auto-mod, then deletes new messages that look like them. Every deletion goes to the automod channel with review buttons, and marking one as wrong teaches the filter.</span></div>
+        <div class="scamfilter-stats" id="scamFilterStats"></div>
+        <div class="scamfilter-status" id="scamFilterStatus"></div>
+        <div class="autoreply-form" id="scamFilterSettings">
+          <div class="form-field-row">
+            <div class="form-field">
+              <label>Delete when scam probability is at least <span class="optional-tag">(%)</span></label>
+              <input type="number" id="scamFilterThreshold" class="text-input" min="50" max="99" step="1"/>
+            </div>
+            <div class="form-field">
+              <label>Delete when similar to a reported scam <span class="optional-tag">(%)</span></label>
+              <input type="number" id="scamFilterSimilarity" class="text-input" min="30" max="100" step="1"/>
+            </div>
+          </div>
+          <div class="form-field-row">
+            <div class="form-field">
+              <label>Learned examples needed before probability deletes</label>
+              <input type="number" id="scamFilterMinSamples" class="text-input" min="1" max="500" step="1"/>
+            </div>
+            <div class="form-field">
+              <label>Minimum words in a message to check it</label>
+              <input type="number" id="scamFilterMinTokens" class="text-input" min="1" max="30" step="1"/>
+            </div>
+          </div>
+          <div class="form-field-row">
+            <div class="form-field">
+              <label>Pause after this many wrong deletions in 24 h</label>
+              <input type="number" id="scamFilterPauseAfter" class="text-input" min="1" max="50" step="1"/>
+            </div>
+          </div>
+          <div class="autoreply-options">
+            <label class="check-row"><input type="checkbox" id="scamFilterEnabled"/><span>Filter enabled</span></label>
+            <label class="check-row"><input type="checkbox" id="scamFilterTimeout"/><span>Also time out the sender for 24 h</span></label>
+          </div>
+          <div class="autoreply-form-actions">
+            <button type="button" class="btn-primary" id="scamFilterSaveBtn"><span class="btn-spinner"></span><span class="btn-label">Save settings</span></button>
+            <button type="button" class="btn-small" id="scamFilterResumeBtn" style="display:none;">Resume filter</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Test a message</h2><span class="panel-sub">Paste any text to see what the filter would do with it right now.</span></div>
+        <div class="form-field">
+          <textarea id="scamFilterTestText" class="text-input" placeholder="Free nitro giveaway, claim here: https://..."></textarea>
+        </div>
+        <div class="autoreply-form-actions">
+          <button type="button" class="btn-small" id="scamFilterTestBtn">Score message</button>
+          <span id="scamFilterTestResult" class="scamfilter-test-result"></span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Recent deletions</h2><span class="panel-sub">Same review as the buttons in Discord. Wrong marks add the message to the safe list and can pause the filter.</span></div>
+        <div class="table-wrap"><table class="data-table" id="scamFilterRecentTable"></table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Learned examples</h2><span class="panel-sub">Every scam report, manual removal and confirmed deletion with text is an example. Ignore one if it was a false report.</span></div>
+        <div class="table-wrap"><table class="data-table" id="scamFilterSamplesTable"></table></div>
       </div>
     </div>
 
