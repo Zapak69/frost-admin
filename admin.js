@@ -426,7 +426,7 @@
     partnerRankup: function () { loadPartnerRankupRequests(currentPartnerRankupFilter); },
     reports: function () { loadBugReports(currentReportsFilter); },
     scams: function () { loadScams(currentScamsFilter); }, logs: loadLogs, excuses: loadExcuses, warns: loadWarns, reviews: loadReviews,
-    drops: function () {}, giveaway: function () {}, tickets: loadTickets,
+    drops: function () { loadDropCapeOptions(); }, giveaway: function () {}, tickets: loadTickets,
     ticketArchive: function () { loadTicketArchive(currentTicketArchiveFilter); },
     autoreplies: function () { loadAutoreplies(); },
     scamFilter: function () { loadScamFilter(); }
@@ -2597,19 +2597,40 @@
       footer.innerHTML = '';
     }
   }
+  let dropCapeOptionsLoaded = false;
+  function loadDropCapeOptions() {
+    if (dropCapeOptionsLoaded) return;
+    dropCapeOptionsLoaded = true;
+    const select = document.getElementById('dropTarget');
+    if (!select) return;
+    fetch('https://bot.frostclient.eu/launcher/capes/capes.json', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (list) {
+        if (!Array.isArray(list)) return;
+        list.filter(function (c) { return c.store && c.store.checkout; }).forEach(function (c) {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.name + ' cape';
+          select.appendChild(opt);
+        });
+      })
+      .catch(function () { dropCapeOptionsLoaded = false; });
+  }
   document.getElementById('dropSubmitBtn').addEventListener('click', function () {
     const btn = this;
     const name = document.getElementById('dropName').value.trim();
     const link = document.getElementById('dropLink').value.trim();
     const code = document.getElementById('dropCode').value.trim();
     const description = document.getElementById('dropDescription').value.trim();
+    const redeemTarget = document.getElementById('dropTarget').value;
     if (!name || (!link && !code)) { showToast('Name and a link or code are required.', 'error'); return; }
     setBtnLoading(btn, true);
-    callAdmin('drops.publish', { name: name, link: link, code: code, description: description }).then(function (d) {
+    callAdmin('drops.publish', { name: name, link: link, code: code, description: description, redeemTarget: redeemTarget }).then(function (d) {
       setBtnLoading(btn, false);
       if (d && d.ok) {
         showToast('Drop published!', 'success');
         ['dropName', 'dropLink', 'dropCode', 'dropDescription'].forEach(function (id) { document.getElementById(id).value = ''; });
+        document.getElementById('dropTarget').value = '';
       } else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
     });
   });
