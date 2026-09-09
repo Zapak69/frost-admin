@@ -2107,9 +2107,11 @@
       '<div class="app-card" id="staffapp-' + a.discordId + '">' +
         '<div class="app-card-head">' +
           '<div class="app-card-user">' + userLink(a.discordId, a.username || a.discordId) + ' <span class="app-card-meta">' + a.discordId + '</span></div>' +
-          '<span class="pill">' + escapeHtml(roleLabel || 'Staff Team') + '</span>' +
+          '<span class="pill role-' + escapeHtml(a.role || 'staff') + '">' + escapeHtml(roleLabel || 'Staff Team') + '</span>' +
           '<span class="pill ' + a.status + '">' + a.status + '</span>' +
-          (a.status === 'pending' ? '<div class="app-card-actions"><button class="btn-small success" data-action="accept">Accept</button><button class="btn-small danger" data-action="deny">Deny</button></div>' : '') +
+          '<div class="app-card-actions"><button class="btn-small" data-action="ticket">Create Ticket</button>' +
+          (a.status === 'pending' ? '<button class="btn-small success" data-action="accept">Accept</button><button class="btn-small danger" data-action="deny">Deny</button>' : '') +
+          '</div>' +
         '</div>' +
         '<div class="app-card-details"><span>Applied: <strong>' + formatRelative(a.appliedAt) + '</strong></span>' + (a.decidedAt ? '<span>Decided: <strong>' + formatRelative(a.decidedAt) + '</strong></span>' : '') + '</div>' +
         '<div class="app-card-qa">' + qa + extra + '</div>' +
@@ -2122,6 +2124,15 @@
     card.querySelectorAll('button[data-action]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         const decision = btn.dataset.action;
+        if (decision === 'ticket') {
+          setBtnLoading(btn, true);
+          callAdmin('staffApplications.createTicket', { discordId: a.discordId }).then(function (d) {
+            setBtnLoading(btn, false);
+            if (d && d.ok) showToast('Ticket created: ' + (d.channelName || ''), 'success');
+            else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+          });
+          return;
+        }
         const opts = decision === 'deny' ? { reason: true, okLabel: 'Deny' } : { tone: 'primary', okLabel: 'Accept' };
         askConfirm(decision === 'accept' ? 'Accept application?' : 'Deny application?', (a.username || a.discordId) + "'s staff application." + (decision === 'deny' ? ' You can add a reason — the applicant will see it.' : ''), opts, function (reason) {
           return callAdmin('staffApplications.decide', { discordId: a.discordId, decision: decision, reason: reason || undefined }).then(function (d) {
