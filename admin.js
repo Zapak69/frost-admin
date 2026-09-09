@@ -1978,7 +1978,8 @@
       [st.hamMessages || 0, 'Normal messages learned'],
       [st.reviewedWrong || 0, 'Wrong deletions', st.reviewedWrong > 0 ? 'danger' : ''],
       [st.attachmentOnlyDeletedTotal || 0, 'Attachment-only deleted'],
-      [st.attachmentOnlyFalsePositives || 0, 'Attachment-only wrong', st.attachmentOnlyFalsePositives > 0 ? 'danger' : '']
+      [st.attachmentOnlyFalsePositives || 0, 'Attachment-only wrong', st.attachmentOnlyFalsePositives > 0 ? 'danger' : ''],
+      [st.attachmentOnlyKnownFilenames || 0, 'Known scam filenames']
     ].map(function (c) {
       return '<div class="stat-card"><div class="num ' + (c[2] || '') + '">' + c[0] + '</div><div class="label">' + c[1] + '</div></div>';
     }).join('');
@@ -1998,6 +1999,7 @@
     document.getElementById('scamFilterEnabled').checked = s.enabled !== false;
     document.getElementById('scamFilterTimeout').checked = !!s.timeoutOnDelete;
     document.getElementById('scamFilterDeleteAttachmentOnly').checked = s.deleteAttachmentOnly !== false;
+    document.getElementById('scamFilterAttachmentOnlyMinCount').value = s.attachmentOnlyMinCount || 4;
     document.getElementById('scamFilterResumeBtn').style.display = d.paused ? '' : 'none';
     document.getElementById('scamFilterResumeAttachmentOnlyBtn').style.display = d.attachmentOnlyPaused ? '' : 'none';
     const badge = document.getElementById('badgeScamFilter');
@@ -2063,6 +2065,7 @@
       enabled: document.getElementById('scamFilterEnabled').checked,
       timeoutOnDelete: document.getElementById('scamFilterTimeout').checked,
       deleteAttachmentOnly: document.getElementById('scamFilterDeleteAttachmentOnly').checked,
+      attachmentOnlyMinCount: Number(document.getElementById('scamFilterAttachmentOnlyMinCount').value),
       threshold: Number(document.getElementById('scamFilterThreshold').value) / 100,
       similarity: Number(document.getElementById('scamFilterSimilarity').value) / 100,
       minSamples: Number(document.getElementById('scamFilterMinSamples').value),

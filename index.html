@@ -362,10 +362,16 @@
               <input type="number" id="scamFilterPauseAfter" class="text-input" min="1" max="50" step="1"/>
             </div>
           </div>
+          <div class="form-field-row">
+            <div class="form-field">
+              <label>Attachment-only: delete on sight at this many attachments</label>
+              <input type="number" id="scamFilterAttachmentOnlyMinCount" class="text-input" min="2" max="20" step="1"/>
+            </div>
+          </div>
           <div class="autoreply-options">
             <label class="check-row"><input type="checkbox" id="scamFilterEnabled"/><span>Filter enabled</span></label>
             <label class="check-row"><input type="checkbox" id="scamFilterTimeout"/><span>Also time out the sender for 24 h</span></label>
-            <label class="check-row"><input type="checkbox" id="scamFilterDeleteAttachmentOnly"/><span>Delete messages that are only an attachment with no text</span></label>
+            <label class="check-row"><input type="checkbox" id="scamFilterDeleteAttachmentOnly"/><span>Delete messages that are only attachments with no text (below the count above, only if a filename matches the scam database)</span></label>
           </div>
           <div class="autoreply-form-actions">
             <button type="button" class="btn-primary" id="scamFilterSaveBtn"><span class="btn-spinner"></span><span class="btn-label">Save settings</span></button>
