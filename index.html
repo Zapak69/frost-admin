@@ -75,6 +75,7 @@
       <button type="button" class="nav-item" data-view="warns"><span class="nav-icon">◆</span>Warns<span class="nav-dot" id="navDotWarns" style="display:none;"></span></button>
       <button type="button" class="nav-item" data-view="excuses"><span class="nav-icon">◆</span>Excuses<span class="nav-dot" id="navDotExcuses" style="display:none;"></span></button>
       <button type="button" class="nav-item" data-view="logs" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Action Logs</button>
+      <button type="button" class="nav-item" data-view="statusPage" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Status Page</button>
       <div class="nav-group-label">Content &amp; Tickets</div>
       <button type="button" class="nav-item" data-view="reviews"><span class="nav-icon">◆</span>Reviews</button>
       <button type="button" class="nav-item" data-view="drops" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Publish Drop</button>
@@ -397,6 +398,17 @@
       <div class="panel">
         <div class="panel-head"><h2>Learned examples</h2><span class="panel-sub">Every scam report, manual removal and confirmed deletion with text is an example. Ignore one if it was a false report.</span></div>
         <div class="table-wrap"><table class="data-table" id="scamFilterSamplesTable"></table></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-statusPage">
+      <div class="panel">
+        <div class="panel-head"><h2>Status page</h2><span class="panel-sub">Sets what frostclient.eu/status shows. Changes go live the moment you click Update — no more editing the JSON by hand.</span></div>
+        <div class="scamfilter-status" id="statusPageMeta"></div>
+        <div class="table-wrap"><table class="data-table" id="statusPageTable"></table></div>
+        <div class="autoreply-form-actions">
+          <button type="button" class="btn-primary" id="statusPageSaveBtn"><span class="btn-spinner"></span><span class="btn-label">Update</span></button>
+        </div>
       </div>
     </div>
 

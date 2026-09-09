@@ -416,7 +416,7 @@
     overview: 'Overview', members: 'Members', leaderboard: 'Leaderboards', staff: 'Staff Team', staffActivity: 'Activity',
     staffApps: 'Staff Applications', partnerLogs: 'Creators', partnerRankup: 'Partner Rankup Requests', reports: 'Bug Reports', scams: 'Scam Database',
     logs: 'Action Logs', excuses: 'Excuses', warns: 'Warns', reviews: 'Reviews', drops: 'Publish Drop', giveaway: 'Publish Giveaway', tickets: 'Tickets',
-    ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies', scamFilter: 'Scam Filter'
+    ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies', scamFilter: 'Scam Filter', statusPage: 'Status Page'
   };
   const VIEW_LOADERS = {
     overview: loadOverview, members: function () {}, leaderboard: loadLeaderboard, staff: loadStaff,
@@ -429,7 +429,8 @@
     drops: function () { loadDropCapeOptions(); }, giveaway: function () {}, tickets: loadTickets,
     ticketArchive: function () { loadTicketArchive(currentTicketArchiveFilter); },
     autoreplies: function () { loadAutoreplies(); },
-    scamFilter: function () { loadScamFilter(); }
+    scamFilter: function () { loadScamFilter(); },
+    statusPage: function () { loadStatusPage(); }
   };
   let currentView = 'overview';
 
@@ -2106,6 +2107,44 @@
       out.innerHTML = '<span class="pill ' + (r.action === 'delete' ? 'denied' : 'accepted') + '">' + verdict + '</span> ' +
         escapeHtml(String(r.reason || '').replace(/_/g, ' ')) + ' · probability ' + scamFilterPct(r.pScam) + ' · closest example ' + scamFilterPct(r.similarity) +
         (r.matched ? ' (' + escapeHtml(r.matched.type) + ': ' + escapeHtml(String(r.matched.text || '').slice(0, 80)) + ')' : '') + ' · ' + r.tokens + ' words';
+    });
+  });
+  const STATUS_PAGE_LABELS = { operational: 'Operational', updating: 'Updating', maintenance: 'Under Maintenance', degraded: 'Degraded Performance', outage: 'Outage' };
+  function renderStatusPage(d) {
+    document.getElementById('statusPageMeta').textContent = 'Last updated: ' + formatDateTime(d.updatedAt ? new Date(d.updatedAt).getTime() : null);
+    const table = document.getElementById('statusPageTable');
+    table.innerHTML = '<thead><tr><th>Service</th><th>Status</th><th>Note</th></tr></thead><tbody>' +
+      (d.services || []).map(function (s) {
+        const options = Object.keys(STATUS_PAGE_LABELS).map(function (key) {
+          return '<option value="' + key + '"' + (s.status === key ? ' selected' : '') + '>' + STATUS_PAGE_LABELS[key] + '</option>';
+        }).join('');
+        return '<tr data-name="' + escapeHtml(s.name) + '"><td>' + escapeHtml(s.name) + '</td>' +
+          '<td><select class="text-input status-page-status">' + options + '</select></td>' +
+          '<td><input type="text" class="text-input status-page-note" maxlength="200" placeholder="Optional note" value="' + escapeHtml(s.note || '') + '"/></td></tr>';
+      }).join('') + '</tbody>';
+  }
+  function loadStatusPage() {
+    return callAdmin('status.overview').then(function (d) {
+      if (d && d.ok) renderStatusPage(d);
+      else if (d && d.error) showToast('Could not load the status page: ' + d.error, 'error');
+    });
+  }
+  function statusPageServicesPayload() {
+    return Array.from(document.querySelectorAll('#statusPageTable tbody tr')).map(function (row) {
+      return {
+        name: row.dataset.name,
+        status: row.querySelector('.status-page-status').value,
+        note: row.querySelector('.status-page-note').value
+      };
+    });
+  }
+  document.getElementById('statusPageSaveBtn').addEventListener('click', function () {
+    const btn = document.getElementById('statusPageSaveBtn');
+    setBtnLoading(btn, true);
+    callAdmin('status.update', { services: statusPageServicesPayload() }).then(function (d) {
+      setBtnLoading(btn, false);
+      if (d && d.ok) { showToast('Status page updated.', 'success'); renderStatusPage(d); }
+      else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
     });
   });
   function renderStaffAppCard(a, labels, roleLabel) {
