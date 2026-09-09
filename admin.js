@@ -1976,7 +1976,9 @@
       [st.pendingReview || 0, 'Awaiting review', st.pendingReview > 0 ? 'warn' : ''],
       [st.samples || 0, 'Learned scam examples'],
       [st.hamMessages || 0, 'Normal messages learned'],
-      [st.reviewedWrong || 0, 'Wrong deletions', st.reviewedWrong > 0 ? 'danger' : '']
+      [st.reviewedWrong || 0, 'Wrong deletions', st.reviewedWrong > 0 ? 'danger' : ''],
+      [st.attachmentOnlyDeletedTotal || 0, 'Attachment-only deleted'],
+      [st.attachmentOnlyFalsePositives || 0, 'Attachment-only wrong', st.attachmentOnlyFalsePositives > 0 ? 'danger' : '']
     ].map(function (c) {
       return '<div class="stat-card"><div class="num ' + (c[2] || '') + '">' + c[0] + '</div><div class="label">' + c[1] + '</div></div>';
     }).join('');
@@ -1995,7 +1997,9 @@
     document.getElementById('scamFilterPauseAfter').value = s.pauseAfterFalsePositives || 3;
     document.getElementById('scamFilterEnabled').checked = s.enabled !== false;
     document.getElementById('scamFilterTimeout').checked = !!s.timeoutOnDelete;
+    document.getElementById('scamFilterDeleteAttachmentOnly').checked = s.deleteAttachmentOnly !== false;
     document.getElementById('scamFilterResumeBtn').style.display = d.paused ? '' : 'none';
+    document.getElementById('scamFilterResumeAttachmentOnlyBtn').style.display = d.attachmentOnlyPaused ? '' : 'none';
     const badge = document.getElementById('badgeScamFilter');
     if (badge) { badge.textContent = st.pendingReview || 0; badge.style.display = st.pendingReview > 0 ? '' : 'none'; }
 
@@ -2058,6 +2062,7 @@
     return {
       enabled: document.getElementById('scamFilterEnabled').checked,
       timeoutOnDelete: document.getElementById('scamFilterTimeout').checked,
+      deleteAttachmentOnly: document.getElementById('scamFilterDeleteAttachmentOnly').checked,
       threshold: Number(document.getElementById('scamFilterThreshold').value) / 100,
       similarity: Number(document.getElementById('scamFilterSimilarity').value) / 100,
       minSamples: Number(document.getElementById('scamFilterMinSamples').value),
@@ -2077,6 +2082,12 @@
   document.getElementById('scamFilterResumeBtn').addEventListener('click', function () {
     callAdmin('scamfilter.saveSettings', { settings: scamFilterSettingsPayload(), resume: true }).then(function (d) {
       if (d && d.ok) { showToast('Scam filter resumed.', 'success'); loadScamFilter(); }
+      else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+    });
+  });
+  document.getElementById('scamFilterResumeAttachmentOnlyBtn').addEventListener('click', function () {
+    callAdmin('scamfilter.saveSettings', { settings: scamFilterSettingsPayload(), resumeAttachmentOnly: true }).then(function (d) {
+      if (d && d.ok) { showToast('Attachment-only rule resumed.', 'success'); loadScamFilter(); }
       else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
     });
   });
@@ -2490,8 +2501,12 @@
           ? '<span class="cell-user"><img class="cell-avatar" src="' + avatarUrl(actionerId, e.actorAvatar) + '"/>' + userLink(actionerId, e.actorUsername || e.reporterUsername || actionerId) + '</span>'
           : '<span style="color:var(--muted-dim);">—</span>';
         const attachCount = (e.attachments || e.attachmentNames || []).length;
+        const reviewBtns = e.type === 'attachment_only'
+          ? '<button class="btn-small danger" data-scam-review="wrong" data-id="' + escapeHtml(e.id) + '"' + (e.review && e.review.label === 'wrong' ? ' disabled' : '') + '>Wrong Deletion</button> ' +
+            '<button class="btn-small success" data-scam-review="ok" data-id="' + escapeHtml(e.id) + '"' + (e.review && e.review.label === 'ok' ? ' disabled' : '') + '>Correct</button> '
+          : '';
         const deleteBtn = canPublishContent ? '<button class="btn-small danger" data-scam-delete-id="' + escapeHtml(e.id) + '">Delete</button>' : '';
-        return '<tr class="clickable-row" data-scam-index="' + i + '"><td class="mono" style="white-space:nowrap;">' + formatRelative(e.timestamp) + '</td><td><span class="pill ' + e.type + '">' + e.type + '</span></td><td>' + target + '</td><td>' + content + '</td><td>' + actionedBy + '</td><td class="mono">' + (attachCount || '—') + '</td><td>' + deleteBtn + '</td></tr>';
+        return '<tr class="clickable-row" data-scam-index="' + i + '"><td class="mono" style="white-space:nowrap;">' + formatRelative(e.timestamp) + '</td><td><span class="pill ' + e.type + '">' + e.type + '</span></td><td>' + target + '</td><td>' + content + '</td><td>' + actionedBy + '</td><td class="mono">' + (attachCount || '—') + '</td><td style="white-space:nowrap;">' + reviewBtns + deleteBtn + '</td></tr>';
       }).join('') || emptyRow(7, 'No scam entries logged yet.');
       const table = document.getElementById('scamsTable');
       table.innerHTML =
@@ -2512,6 +2527,21 @@
               else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
             });
           });
+        });
+      });
+      table.querySelectorAll('button[data-scam-review]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          const label = btn.dataset.scamReview;
+          const entryId = btn.dataset.id;
+          const run = function () {
+            return callAdmin('scamfilter.review', { id: entryId, label: label }).then(function (r) {
+              if (r && r.ok) { showToast(label === 'wrong' ? 'Marked as wrong deletion — the rule learned from it.' + (r.paused ? ' It paused itself.' : '') : 'Confirmed as scam.', 'success'); loadScams(currentScamsFilter); }
+              else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
+            });
+          };
+          if (label === 'wrong') askConfirm('Mark as wrong deletion?', 'The rule counts this toward its own pause threshold.', {}, run);
+          else run();
         });
       });
     });

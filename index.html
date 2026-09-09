@@ -323,6 +323,7 @@
             <button type="button" class="filter-pill" data-type="manual">Manual (/scam)</button>
             <button type="button" class="filter-pill" data-type="report">Reported</button>
             <button type="button" class="filter-pill" data-type="filter">Scam filter</button>
+            <button type="button" class="filter-pill" data-type="attachment_only">Attachment-only</button>
           </div>
         </div>
         <div class="table-wrap"><table class="data-table" id="scamsTable"></table></div>
@@ -364,10 +365,12 @@
           <div class="autoreply-options">
             <label class="check-row"><input type="checkbox" id="scamFilterEnabled"/><span>Filter enabled</span></label>
             <label class="check-row"><input type="checkbox" id="scamFilterTimeout"/><span>Also time out the sender for 24 h</span></label>
+            <label class="check-row"><input type="checkbox" id="scamFilterDeleteAttachmentOnly"/><span>Delete messages that are only an attachment with no text</span></label>
           </div>
           <div class="autoreply-form-actions">
             <button type="button" class="btn-primary" id="scamFilterSaveBtn"><span class="btn-spinner"></span><span class="btn-label">Save settings</span></button>
             <button type="button" class="btn-small" id="scamFilterResumeBtn" style="display:none;">Resume filter</button>
+            <button type="button" class="btn-small" id="scamFilterResumeAttachmentOnlyBtn" style="display:none;">Resume attachment-only rule</button>
           </div>
         </div>
       </div>
