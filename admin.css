@@ -568,7 +568,7 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
 .activity-day.has-excuse.is-pending-excuse.is-kicked { box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 4px rgba(0,0,0,0.4); }
 .activity-day.in-streak { font-size: 13px; }
 .activity-calendar.compact .activity-day.in-streak { font-size: 11px; }
-.activity-day:hover::after {
+.activity-day:hover::after, .activity-day.show-date::after {
   content: attr(data-date); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
   background: var(--bg-elevated); border: 1px solid var(--border-strong); border-radius: 6px;
   padding: 4px 8px; font-size: 11px; white-space: nowrap; z-index: 5; font-family: 'Space Mono', monospace;
@@ -704,15 +704,49 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
     transition: transform 0.25s ease; box-shadow: 20px 0 60px rgba(0,0,0,0.5);
   }
   .sidebar.open { transform: translateX(0); }
-  .sidebar-collapse-btn { display: block; }
-  .mobile-menu-btn { display: block; }
+  .sidebar-collapse-btn { display: flex; align-items: center; justify-content: center; padding: 10px; }
+  .mobile-menu-btn { display: flex; align-items: center; justify-content: center; padding: 10px; margin: -10px; }
   .content { padding: 0 18px 50px; }
-  .content-header { margin: 0 -18px; padding: 22px 18px 16px; }
+  .content-header { margin: 0 -18px; padding: 18px 18px 14px; gap: 10px; }
+  .content-header h1 { font-size: 18px; }
+  .content-header-actions { gap: 8px; }
   .form-field-row { grid-template-columns: 1fr; }
   .panel-row-cal, .panel-row-3 { grid-template-columns: 1fr; }
   .notif-panel { width: calc(100vw - 36px); right: 18px; top: 68px; }
   .notif-toast-stack { left: 18px; right: 18px; top: 68px; width: auto; }
   .filter-pills { flex-wrap: wrap; margin-left: 0; }
+
+  .panel { padding: 18px 16px; border-radius: 16px; }
+  .modal-box { padding: 24px 20px; max-height: 88vh; overflow-y: auto; }
+
+  .table-wrap {
+    margin: 0 -16px; padding: 0 16px; width: calc(100% + 32px);
+    box-shadow: inset -18px 0 12px -12px rgba(0,0,0,0.55);
+  }
+  .data-table td, .data-table th { padding: 12px 10px; }
+  .data-table .btn-small + .btn-small { margin-left: 8px; }
+  .data-table .btn-small { padding: 8px 14px; }
+
+  .banned-word-chip button { width: 30px; height: 30px; }
+  .progress-label { min-width: 88px; }
+  .rankup-list-small .progress-label { min-width: 76px; }
+
+  .app-card-actions { width: 100%; margin-left: 0; }
+  .app-card-actions .btn-small { flex: 1 1 auto; }
+
+  .global-search-box { margin-top: 4vh; }
+  .global-search-results { max-height: 55vh; }
+
+  .calendar-modal-layout { flex-direction: column; }
+  .stat-grid-compact { flex: 1 1 auto; }
+  .calendar-excuses-history { max-width: none; flex: 1 1 auto; }
+  .activity-calendar-scroll { max-height: none; overflow-y: visible; padding-right: 0; }
+}
+
+@media (max-width: 480px) {
+  .chart-wrap { height: 170px; }
+  .stat-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+  .rankup-path { margin-left: 0; flex-basis: 100%; }
 }
 .autoreply-form { border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px 6px; margin-bottom: 16px; background: var(--bg-elevated); }
 .autoreply-options { display: flex; flex-wrap: wrap; gap: 14px 22px; margin-bottom: 14px; }

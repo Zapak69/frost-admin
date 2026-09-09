@@ -324,6 +324,11 @@
   document.addEventListener('click', function (e) {
     if (notifPanelOpen && !notifPanel.contains(e.target) && e.target !== notifBellBtn) closeNotifPanel();
   });
+  document.addEventListener('click', function (e) {
+    const day = e.target.closest('.activity-day[data-date]');
+    document.querySelectorAll('.activity-day.show-date').forEach(function (el) { if (el !== day) el.classList.remove('show-date'); });
+    if (day) day.classList.toggle('show-date');
+  });
   document.getElementById('notifMarkAllBtn').addEventListener('click', function () {
     callAdmin('notifications.markAllRead').then(function (d) {
       if (d && d.ok) {
@@ -763,9 +768,9 @@
     const hitRect = svgEl('rect', { x: PAD_L, y: 0, width: plotW, height: H, fill: 'transparent' });
     svg.appendChild(hitRect);
 
-    hitRect.addEventListener('mousemove', function (e) {
+    function updateHover(clientX) {
       const rect = svg.getBoundingClientRect();
-      const relX = (e.clientX - rect.left) * (W / rect.width);
+      const relX = (clientX - rect.left) * (W / rect.width);
       let idx = Math.round((relX - PAD_L) / (xStep || 1));
       idx = Math.max(0, Math.min(buckets.length - 1, idx));
       const b = buckets[idx];
@@ -778,12 +783,17 @@
       const dateLabel = granularity === 'week' ? 'Week of ' + b.date : b.date;
       tooltip.innerHTML = '<div class="val">+' + b.count + ' member' + (b.count === 1 ? '' : 's') + '</div><div class="date">' + dateLabel + '</div>';
       tooltip.classList.add('show');
-    });
-    hitRect.addEventListener('mouseleave', function () {
+    }
+    function clearHover() {
       hoverDot.setAttribute('opacity', 0);
       crosshair.setAttribute('opacity', 0);
       tooltip.classList.remove('show');
-    });
+    }
+    hitRect.addEventListener('mousemove', function (e) { updateHover(e.clientX); });
+    hitRect.addEventListener('mouseleave', clearHover);
+    hitRect.addEventListener('touchstart', function (e) { if (e.touches[0]) updateHover(e.touches[0].clientX); }, { passive: true });
+    hitRect.addEventListener('touchmove', function (e) { if (e.touches[0]) updateHover(e.touches[0].clientX); }, { passive: true });
+    hitRect.addEventListener('touchend', function () { setTimeout(clearHover, 1500); }, { passive: true });
   }
 
   function renderRankupPanel(rankups, containerId) {
