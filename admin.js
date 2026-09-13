@@ -421,7 +421,7 @@
     overview: 'Overview', members: 'Members', leaderboard: 'Leaderboards', staff: 'Staff Team', staffActivity: 'Activity',
     staffApps: 'Staff Applications', partnerLogs: 'Creators', partnerRankup: 'Partner Rankup Requests', reports: 'Bug Reports', scams: 'Scam Database',
     logs: 'Action Logs', excuses: 'Excuses', warns: 'Warns', reviews: 'Reviews', drops: 'Publish Drop', giveaway: 'Publish Giveaway', tickets: 'Tickets',
-    ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies', scamFilter: 'Scam Filter', statusPage: 'Status Page'
+    ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies', scamFilter: 'Scam Filter', statusPage: 'Status Page', liteBoosts: 'Lite Boosts'
   };
   const VIEW_LOADERS = {
     overview: loadOverview, members: function () {}, leaderboard: loadLeaderboard, staff: loadStaff,
@@ -435,7 +435,8 @@
     ticketArchive: function () { loadTicketArchive(currentTicketArchiveFilter); },
     autoreplies: function () { loadAutoreplies(); },
     scamFilter: function () { loadScamFilter(); },
-    statusPage: function () { loadStatusPage(); }
+    statusPage: function () { loadStatusPage(); },
+    liteBoosts: function () { loadLiteBoosts(); }
   };
   let currentView = 'overview';
 
@@ -2154,6 +2155,42 @@
     callAdmin('status.update', { services: statusPageServicesPayload() }).then(function (d) {
       setBtnLoading(btn, false);
       if (d && d.ok) { showToast('Status page updated.', 'success'); renderStatusPage(d); }
+      else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+    });
+  });
+  function describeLiteBoostSync(sync) {
+    return Object.keys(sync || {}).map(function (k) { return k + ' ' + String(sync[k]).replace(/_/g, ' '); }).join(', ') || 'nothing to do';
+  }
+  function renderLiteBoosts(d) {
+    document.getElementById('liteBoostsInput').value = d.boosts;
+    const messages = d.messages || {};
+    document.getElementById('liteBoostsMeta').textContent = 'Currently ' + d.boosts + ' boost' + (d.boosts === 1 ? '' : 's') + ' required · Perks embed: ' +
+      (messages.perks ? 'posted' : 'not posted yet') + ' · Download embed: ' + (messages.download ? 'posted' : 'not posted yet');
+    document.querySelector('#liteBoostsSendBtn .btn-label').textContent = messages.perks && messages.download ? 'Update embeds' : 'Send embeds';
+  }
+  function loadLiteBoosts() {
+    return callAdmin('liteBoosts.overview', {}).then(function (d) {
+      if (d && d.ok) renderLiteBoosts(d);
+      else if (d && d.error) showToast('Could not load Lite boost settings: ' + d.error, 'error');
+    });
+  }
+  document.getElementById('liteBoostsSaveBtn').addEventListener('click', function () {
+    const btn = document.getElementById('liteBoostsSaveBtn');
+    const boosts = parseInt(document.getElementById('liteBoostsInput').value, 10);
+    if (!(boosts >= 1 && boosts <= 20)) { showToast('Enter a number between 1 and 20.', 'error'); return; }
+    setBtnLoading(btn, true);
+    callAdmin('liteBoosts.update', { boosts: boosts }).then(function (d) {
+      setBtnLoading(btn, false);
+      if (d && d.ok) { showToast('Saved. Embeds: ' + describeLiteBoostSync(d.sync), 'success'); renderLiteBoosts(d); }
+      else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+    });
+  });
+  document.getElementById('liteBoostsSendBtn').addEventListener('click', function () {
+    const btn = document.getElementById('liteBoostsSendBtn');
+    setBtnLoading(btn, true);
+    callAdmin('liteBoosts.sendEmbeds', {}).then(function (d) {
+      setBtnLoading(btn, false);
+      if (d && d.ok) { showToast('Embeds: ' + describeLiteBoostSync(d.sync), 'success'); renderLiteBoosts(d); }
       else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
     });
   });
