@@ -2328,7 +2328,9 @@
   function renderPartnerLogCard(l) {
     const logId = l.id || (l.discordId + '_' + l.loggedAt);
     const details = [
-      ['Code', l.code], ['Promoting at', l.socialLink],
+      ['Code', l.code],
+      ['Previous code' + ((l.previousCodes || []).length > 1 ? 's' : ''), (l.previousCodes || []).length ? l.previousCodes.join(', ') : null],
+      ['Promoting at', l.socialLink],
       ['Granted by', l.grantedBy ? ('Staff (' + l.grantedBy + ')') : null]
     ].filter(function (p) { return p[1]; }).map(function (p) {
       return '<div><div class="app-card-q">' + escapeHtml(p[0]) + '</div><div class="app-card-a">' + escapeHtml(p[1]) + '</div></div>';
