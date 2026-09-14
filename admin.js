@@ -80,11 +80,14 @@
   const confirmCancelBtn = document.getElementById('confirmCancelBtn');
   let confirmResolve = null;
   let confirmAction = null;
+  let confirmReasonRequired = false;
 
   // `action`, when given, is called with the reason (if any) once the user hits Confirm - the
   // modal stays open with a spinner on confirmOkBtn until it resolves, instead of closing
   // instantly, since most confirmed actions (ban/kick/warn/accept/deny/...) are real network
   // round trips and closing immediately gave no feedback that anything was happening.
+  // `opts.requireReason` keeps Confirm disabled until the reason field is non-empty - for actions
+  // like a staff-app ban where the reason isn't just a nice-to-have, it's shown to the banned user.
   function askConfirm(title, text, opts, action) {
     opts = opts || {};
     confirmTitle.textContent = title;
@@ -95,12 +98,16 @@
     confirmOkBtn.classList.toggle('btn-primary', opts.tone === 'primary');
     confirmOkBtn.querySelector('.btn-label').textContent = opts.okLabel || 'Confirm';
     confirmOkBtn.classList.remove('is-loading');
-    confirmOkBtn.disabled = false;
+    confirmReasonRequired = !!opts.requireReason;
+    confirmOkBtn.disabled = confirmReasonRequired;
     confirmCancelBtn.disabled = false;
     confirmAction = action || null;
     confirmModal.classList.add('active');
     return new Promise(function (resolve) { confirmResolve = resolve; });
   }
+  confirmReasonInput.addEventListener('input', function () {
+    if (confirmReasonRequired) confirmOkBtn.disabled = !confirmReasonInput.value.trim();
+  });
   function closeConfirm(result, reason) {
     confirmModal.classList.remove('active');
     confirmOkBtn.classList.remove('is-loading');
@@ -2202,7 +2209,7 @@
       return '<div><div class="app-card-q">' + escapeHtml(label) + '</div><div class="app-card-a">' + escapeHtml(val) + '</div></div>';
     }).join('');
     const extra = (a.extra ? '<div><div class="app-card-q">Anything else</div><div class="app-card-a">' + escapeHtml(a.extra) + '</div></div>' : '') +
-      ((a.status === 'denied' || a.status === 'withdrawn') && a.denyReason ? '<div><div class="app-card-q">' + (a.status === 'withdrawn' ? 'Withdrawn' : 'Denial reason') + '</div><div class="app-card-a" style="color:var(--danger);">' + escapeHtml(a.denyReason) + '</div></div>' : '');
+      ((a.status === 'denied' || a.status === 'withdrawn' || a.status === 'banned') && a.denyReason ? '<div><div class="app-card-q">' + (a.status === 'withdrawn' ? 'Withdrawn' : a.status === 'banned' ? 'Ban reason' : 'Denial reason') + '</div><div class="app-card-a" style="color:var(--danger);">' + escapeHtml(a.denyReason) + '</div></div>' : '');
     return (
       '<div class="app-card" id="staffapp-' + a.discordId + '">' +
         '<div class="app-card-head">' +
@@ -2210,7 +2217,7 @@
           '<span class="pill role-' + escapeHtml(a.role || 'staff') + '">' + escapeHtml(roleLabel || 'Staff Team') + '</span>' +
           '<span class="pill ' + a.status + '">' + a.status + '</span>' +
           '<div class="app-card-actions"><button class="btn-small" data-action="ticket">Create Ticket</button>' +
-          (a.status === 'pending' ? '<button class="btn-small success" data-action="accept">Accept</button><button class="btn-small danger" data-action="deny">Deny</button>' : '') +
+          (a.status === 'pending' ? '<button class="btn-small success" data-action="accept">Accept</button><button class="btn-small danger" data-action="deny">Deny</button><button class="btn-small danger" data-action="ban">Ban</button>' : '') +
           '</div>' +
         '</div>' +
         '<div class="app-card-details"><span>Applied: <strong>' + formatRelative(a.appliedAt) + '</strong></span>' + (a.decidedAt ? '<span>Decided: <strong>' + formatRelative(a.decidedAt) + '</strong></span>' : '') + '</div>' +
@@ -2230,6 +2237,15 @@
             setBtnLoading(btn, false);
             if (d && d.ok) showToast('Ticket created: ' + (d.channelName || ''), 'success');
             else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+          });
+          return;
+        }
+        if (decision === 'ban') {
+          askConfirm('Ban from staff applications?', (a.username || a.discordId) + " won't be able to apply again, and their staff page will show this reason instead of the recruitment form. A reason is required.", { reason: true, requireReason: true, okLabel: 'Ban' }, function (reason) {
+            return callAdmin('staffApplications.ban', { discordId: a.discordId, reason: reason }).then(function (d) {
+              if (d && d.ok) { showToast('Banned from staff applications.', 'success'); loadStaffApps(currentStaffAppsFilter); loadOverview(); }
+              else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+            });
           });
           return;
         }
@@ -2781,25 +2797,47 @@
       } else showToast('Failed: ' + (d && d.error === 'invalid_input' ? 'Check winners count and duration format.' : (d && d.error || 'unknown error')), 'error');
     });
   });
+  let lastOpenTickets = [];
+  let ticketsClaimSortDir = 'asc';
+  function renderTicketsTable() {
+    const sorted = lastOpenTickets.slice().sort(function (a, b) {
+      if (!!a.isPriority !== !!b.isPriority) return b.isPriority - a.isPriority;
+      const aClaimed = a.claimedBy ? 1 : 0, bClaimed = b.claimedBy ? 1 : 0;
+      const diff = aClaimed - bClaimed;
+      if (diff !== 0) return ticketsClaimSortDir === 'asc' ? diff : -diff;
+      return (a.createdAt ? Date.parse(a.createdAt) : 0) - (b.createdAt ? Date.parse(b.createdAt) : 0);
+    });
+    const rows = sorted.map(function (t) {
+      const name = (t.isPriority ? '<span class="priority-flag" title="Priority ticket"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg></span>' : '') + escapeHtml(t.name);
+      return '<tr class="clickable-row ' + (t.isPriority ? 'priority-row' : '') + '" data-channel="' + t.id + '"><td>' + name + '</td><td class="mono">' + escapeHtml(t.category || '—') + '</td><td>' + (t.claimedBy ? '<span class="pill accepted">claimed</span>' : '<span class="pill pending">unclaimed</span>') + '</td><td class="mono">' + formatRelative(t.createdAt ? Date.parse(t.createdAt) : null) + '</td></tr>';
+    }).join('') || emptyRow(4, 'No open tickets.');
+    const ticketsTable = document.getElementById('ticketsTable');
+    ticketsTable.innerHTML =
+      '<thead><tr><th>Channel</th><th>Category</th><th>Claim status</th><th>Created</th></tr></thead><tbody>' + rows + '</tbody>';
+    ticketsTable.querySelectorAll('tr[data-channel]').forEach(function (row) {
+      row.addEventListener('click', function (e) {
+        if (e.target.closest('.user-link') || e.target.closest('button')) return;
+        openLiveTicket(row.dataset.channel);
+      });
+    });
+  }
+  const ticketsClaimSortToggle = document.getElementById('ticketsClaimSortToggle');
+  if (ticketsClaimSortToggle) {
+    ticketsClaimSortToggle.addEventListener('click', function () {
+      ticketsClaimSortDir = ticketsClaimSortDir === 'asc' ? 'desc' : 'asc';
+      ticketsClaimSortToggle.dataset.dir = ticketsClaimSortDir;
+      ticketsClaimSortToggle.innerHTML = (ticketsClaimSortDir === 'asc' ? 'Unclaimed first' : 'Claimed first') + ' <span class="sort-arrow">↓</span>';
+      renderTicketsTable();
+    });
+  }
   function loadTickets() {
     return callAdmin('tickets.overview').then(function (d) {
       if (!d || !d.ok) return;
       document.getElementById('ticketsStats').innerHTML =
         '<div class="stat-card"><div class="num">' + d.openCount + '</div><div class="label">Open tickets</div></div>' +
         '<div class="stat-card"><div class="num">' + d.closedCount + '</div><div class="label">Closed tickets</div></div>';
-      const rows = d.open.map(function (t) {
-        const name = (t.isPriority ? '<span class="priority-flag" title="Priority ticket"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg></span>' : '') + escapeHtml(t.name);
-        return '<tr class="clickable-row ' + (t.isPriority ? 'priority-row' : '') + '" data-channel="' + t.id + '"><td>' + name + '</td><td class="mono">' + escapeHtml(t.category || '—') + '</td><td>' + (t.claimedBy ? '<span class="pill accepted">claimed</span>' : '<span class="pill pending">unclaimed</span>') + '</td><td class="mono">' + formatRelative(t.createdAt ? Date.parse(t.createdAt) : null) + '</td></tr>';
-      }).join('') || emptyRow(4, 'No open tickets.');
-      const ticketsTable = document.getElementById('ticketsTable');
-      ticketsTable.innerHTML =
-        '<thead><tr><th>Channel</th><th>Category</th><th>Claim status</th><th>Created</th></tr></thead><tbody>' + rows + '</tbody>';
-      ticketsTable.querySelectorAll('tr[data-channel]').forEach(function (row) {
-        row.addEventListener('click', function (e) {
-          if (e.target.closest('.user-link') || e.target.closest('button')) return;
-          openLiveTicket(row.dataset.channel);
-        });
-      });
+      lastOpenTickets = d.open || [];
+      renderTicketsTable();
     });
   }
   let currentTicketArchiveFilter = '';
@@ -2812,10 +2850,23 @@
     });
   });
   const TICKET_ARCHIVE_STATUS_PILL = { open: 'pending', closed: 'accepted', deleted: 'denied' };
+  let lastTicketArchiveEntries = [];
   function loadTicketArchive(status) {
     return callAdmin('ticketArchive.list', { status: status }).then(function (d) {
       if (!d || !d.ok) return;
-      const rows = d.entries.map(function (t) {
+      lastTicketArchiveEntries = d.entries;
+      renderTicketArchiveTable();
+    });
+  }
+  function renderTicketArchiveTable() {
+    const query = (document.getElementById('ticketArchiveSearchInput').value || '').trim().toLowerCase();
+    const entries = !query ? lastTicketArchiveEntries : lastTicketArchiveEntries.filter(function (t) {
+      return (t.createdByUsername || '').toLowerCase().indexOf(query) !== -1 ||
+        (t.channelName || '').toLowerCase().indexOf(query) !== -1 ||
+        String(t.ticketNumber != null ? t.ticketNumber : '').indexOf(query) !== -1 ||
+        String(t.createdBy || '').indexOf(query) !== -1;
+    });
+    const rows = entries.map(function (t) {
         const created = t.createdBy ? userLink(t.createdBy, t.createdByUsername || t.createdBy) : '—';
         const claimed = t.claimedBy ? userLink(t.claimedBy, t.claimedByUsername || t.claimedBy) : '—';
         const closed = t.closedBy ? userLink(t.closedBy, t.closedByUsername || t.closedBy) : '—';
@@ -2830,9 +2881,9 @@
           '<td>' + claimed + '</td>' +
           '<td>' + closed + '</td>' +
           '<td><span class="pill ' + (TICKET_ARCHIVE_STATUS_PILL[t.status] || '') + '">' + escapeHtml(t.status) + '</span></td>' +
-          '<td><button class="btn-small" data-transcript="' + t.channelId + '">View chat</button>' + recoverBtn + deleteBtn + '</td>' +
+          '<td class="actions-cell"><button class="btn-small" data-transcript="' + t.channelId + '">View chat</button>' + recoverBtn + deleteBtn + '</td>' +
         '</tr>';
-      }).join('') || emptyRow(8, 'No archived tickets yet.');
+      }).join('') || emptyRow(8, lastTicketArchiveEntries.length ? 'No tickets match your search.' : 'No archived tickets yet.');
       const table = document.getElementById('ticketArchiveTable');
       table.innerHTML =
         '<thead><tr><th>Ticket</th><th>Category</th><th>Created by</th><th>Created</th><th>Claimed by</th><th>Closed by</th><th>Status</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
@@ -2869,8 +2920,9 @@
           openTranscript(row.dataset.channel);
         });
       });
-    });
   }
+  const ticketArchiveSearchInput = document.getElementById('ticketArchiveSearchInput');
+  if (ticketArchiveSearchInput) ticketArchiveSearchInput.addEventListener('input', renderTicketArchiveTable);
 
   function renderTranscriptMessagesHtml(messages) {
     return messages.map(function (m) {

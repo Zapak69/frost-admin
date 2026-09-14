@@ -535,7 +535,10 @@
     <div class="view" id="view-tickets">
       <div class="stat-grid" id="ticketsStats"></div>
       <div class="panel">
-        <div class="panel-head"><h2>Open tickets</h2></div>
+        <div class="panel-head">
+          <h2>Open tickets</h2>
+          <button type="button" class="btn-small sort-toggle-btn" id="ticketsClaimSortToggle" data-dir="asc">Unclaimed first <span class="sort-arrow">↓</span></button>
+        </div>
         <div class="table-wrap"><table class="data-table" id="ticketsTable"></table></div>
       </div>
     </div>
@@ -591,6 +594,9 @@
             <button type="button" class="filter-pill" data-status="closed">Closed</button>
             <button type="button" class="filter-pill" data-status="deleted">Deleted</button>
           </div>
+        </div>
+        <div class="search-row">
+          <input type="text" id="ticketArchiveSearchInput" class="text-input" placeholder="Search by username, ticket number or channel name..." autocomplete="off"/>
         </div>
         <div class="table-wrap"><table class="data-table" id="ticketArchiveTable"></table></div>
       </div>

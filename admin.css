@@ -336,6 +336,7 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
   font-weight: 600; padding: 0 12px 10px; border-bottom: 1px solid var(--border); white-space: nowrap;
 }
 .data-table td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.data-table td.actions-cell { white-space: nowrap; }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tr:hover td { background: rgba(255,255,255,0.025); }
 .data-table tr.clickable-row { cursor: pointer; }
@@ -356,6 +357,7 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
 .pill.accepted { background: rgba(50,215,75,0.14); color: var(--success); }
 .pill.denied { background: rgba(255,105,97,0.14); color: var(--danger); }
 .pill.withdrawn { background: rgba(134,134,139,0.16); color: var(--muted); }
+.pill.banned { background: rgba(255,105,97,0.14); color: var(--danger); }
 .pill.auto { background: rgba(79,200,248,0.14); color: var(--accent); }
 .pill.manual { background: rgba(255,201,77,0.14); color: var(--warning); }
 .pill.report { background: rgba(134,134,139,0.16); color: var(--muted); }
