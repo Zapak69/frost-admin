@@ -2202,7 +2202,7 @@
       return '<div><div class="app-card-q">' + escapeHtml(label) + '</div><div class="app-card-a">' + escapeHtml(val) + '</div></div>';
     }).join('');
     const extra = (a.extra ? '<div><div class="app-card-q">Anything else</div><div class="app-card-a">' + escapeHtml(a.extra) + '</div></div>' : '') +
-      (a.status === 'denied' && a.denyReason ? '<div><div class="app-card-q">Denial reason</div><div class="app-card-a" style="color:var(--danger);">' + escapeHtml(a.denyReason) + '</div></div>' : '');
+      ((a.status === 'denied' || a.status === 'withdrawn') && a.denyReason ? '<div><div class="app-card-q">' + (a.status === 'withdrawn' ? 'Withdrawn' : 'Denial reason') + '</div><div class="app-card-a" style="color:var(--danger);">' + escapeHtml(a.denyReason) + '</div></div>' : '');
     return (
       '<div class="app-card" id="staffapp-' + a.discordId + '">' +
         '<div class="app-card-head">' +
@@ -2821,6 +2821,7 @@
         const closed = t.closedBy ? userLink(t.closedBy, t.closedByUsername || t.closedBy) : '—';
         const name = (t.isPriority ? '<span class="priority-flag" title="Priority ticket"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg></span>' : '') + escapeHtml(t.channelName || t.channelId);
         const deleteBtn = canPublishContent ? ' <button class="btn-small danger" data-archive-delete="' + t.channelId + '">Delete</button>' : '';
+        const recoverBtn = (canPublishContent && t.status !== 'open') ? ' <button class="btn-small" data-archive-recover="' + t.channelId + '">Recover</button>' : '';
         return '<tr class="clickable-row ' + (t.isPriority ? 'priority-row' : '') + '" data-channel="' + t.channelId + '">' +
           '<td>' + name + '</td>' +
           '<td class="mono">' + escapeHtml(t.category || '—') + '</td>' +
@@ -2829,7 +2830,7 @@
           '<td>' + claimed + '</td>' +
           '<td>' + closed + '</td>' +
           '<td><span class="pill ' + (TICKET_ARCHIVE_STATUS_PILL[t.status] || '') + '">' + escapeHtml(t.status) + '</span></td>' +
-          '<td><button class="btn-small" data-transcript="' + t.channelId + '">View chat</button>' + deleteBtn + '</td>' +
+          '<td><button class="btn-small" data-transcript="' + t.channelId + '">View chat</button>' + recoverBtn + deleteBtn + '</td>' +
         '</tr>';
       }).join('') || emptyRow(8, 'No archived tickets yet.');
       const table = document.getElementById('ticketArchiveTable');
@@ -2845,6 +2846,18 @@
           askConfirm('Delete this archived ticket?', 'Permanently removes the transcript and record.', {}, function () {
             return callAdmin('ticketArchive.delete', { channelId: channelId }).then(function (r) {
               if (r && r.ok) { showToast('Ticket deleted.', 'success'); loadTicketArchive(currentTicketArchiveFilter); }
+              else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
+            });
+          });
+        });
+      });
+      table.querySelectorAll('button[data-archive-recover]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          const channelId = btn.dataset.archiveRecover;
+          askConfirm('Recover this ticket?', 'Creates a new ticket channel in the same category, re-adds the original owner and replays the archived messages via webhook.', { tone: 'primary', okLabel: 'Recover' }, function () {
+            return callAdmin('ticketArchive.recover', { channelId: channelId }).then(function (r) {
+              if (r && r.ok) { showToast('Ticket recovered as #' + (r.channelName || 'ticket') + '.', 'success'); loadTicketArchive(currentTicketArchiveFilter); }
               else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
             });
           });

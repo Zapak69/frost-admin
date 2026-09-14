@@ -355,6 +355,7 @@ textarea.text-input { min-height: 80px; resize: vertical; line-height: 1.5; }
 .pill.pending { background: rgba(255,201,77,0.14); color: var(--warning); }
 .pill.accepted { background: rgba(50,215,75,0.14); color: var(--success); }
 .pill.denied { background: rgba(255,105,97,0.14); color: var(--danger); }
+.pill.withdrawn { background: rgba(134,134,139,0.16); color: var(--muted); }
 .pill.auto { background: rgba(79,200,248,0.14); color: var(--accent); }
 .pill.manual { background: rgba(255,201,77,0.14); color: var(--warning); }
 .pill.report { background: rgba(134,134,139,0.16); color: var(--muted); }
