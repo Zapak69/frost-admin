@@ -493,6 +493,7 @@
   let canReviewApplications = false;
   let canPublishContent = false;
   let canKickStaff = false;
+  let myUserId = '';
   function updateNavGroupVisibility() {
     const children = Array.from(document.getElementById('sidebarNav').children);
     children.forEach(function (el, i) {
@@ -529,6 +530,7 @@
       canReviewApplications = !!d.canReviewApplications;
       canPublishContent = !!d.canPublishContent;
       canKickStaff = !!d.canKickStaff;
+      myUserId = (d.user && d.user.id) || '';
       applyRolePermissions();
       loadReputationLeaderboard(5);
       const userTagEl = document.getElementById('userTag');
@@ -597,6 +599,9 @@
         [d.partnerCount, 'Creators'],
         [d.totalPlayersSeen, 'Total players seen'],
         [d.openTickets, 'Open tickets'],
+        [d.unclaimedOpenTickets, 'Unclaimed open tickets', d.unclaimedOpenTickets > 0 ? 'warn' : ''],
+        [d.oldestUnclaimedTicketAt ? Math.round((Date.now() - d.oldestUnclaimedTicketAt) / 3600000) : 0, 'Oldest unclaimed (hours)'],
+        [d.staffAtClaimLimit, 'Staff at claim limit', d.staffAtClaimLimit > 0 ? 'warn' : ''],
         [d.totalReviews, 'Reviews'],
         [d.pendingStaffApps, 'Pending staff apps'],
         [d.mediaSignupsToday, 'Media signups today'],
@@ -1504,11 +1509,13 @@
           (canKickStaff ? ' <button class="btn-small danger" data-kick-id="' + s.id + '" data-kick-name="' + escapeHtml(s.tag) + '">Kick</button>' : '')
         : '';
       const streak = (s.currentStreak || 0) > 0 ? '<span class="streak-icon">' + STREAK_FIRE_SVG + '</span>' + s.currentStreak : '—';
-      return '<tr><td><span class="cell-user"><img class="cell-avatar" src="' + avatarUrl(s.id, s.avatar) + '"/>' + userLink(s.id, s.tag) + '</span></td><td>' + rankPill + '</td><td class="mono">' + s.solvedTickets + '</td><td class="mono">' + s.totalClaims + '</td><td class="mono">' + s.unclaimedTickets + '</td><td class="mono">' + streak + '</td><td class="mono">' + (s.reviewCount || 0) + '</td><td class="mono">' + (s.weeklyMessages || 0) + '</td><td>' + actions + '</td></tr>';
-    }).join('') || emptyRow(9, 'No staff members found.');
+      const atLimit = s.claimLimit != null && (s.activeClaims || 0) >= s.claimLimit;
+      const activeClaimsCell = '<span class="pill' + (atLimit ? ' pending' : '') + '">' + (s.activeClaims || 0) + ' / ' + (s.claimLimit == null ? '∞' : s.claimLimit) + '</span>';
+      return '<tr><td><span class="cell-user"><img class="cell-avatar" src="' + avatarUrl(s.id, s.avatar) + '"/>' + userLink(s.id, s.tag) + '</span></td><td>' + rankPill + '</td><td class="mono">' + s.solvedTickets + '</td><td class="mono">' + s.totalClaims + '</td><td>' + activeClaimsCell + '</td><td class="mono">' + s.unclaimedTickets + '</td><td class="mono">' + streak + '</td><td class="mono">' + (s.reviewCount || 0) + '</td><td class="mono">' + (s.weeklyMessages || 0) + '</td><td>' + actions + '</td></tr>';
+    }).join('') || emptyRow(10, 'No staff members found.');
     const table = document.getElementById('staffTable');
     table.innerHTML =
-      '<thead><tr><th>Member</th><th>Rank</th><th>Solved</th><th>Claims</th><th>Unclaimed</th><th>Streak</th><th>Reviews</th><th>Messages (7d)</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
+      '<thead><tr><th>Member</th><th>Rank</th><th>Solved</th><th>Claims</th><th>Active</th><th>Unclaimed</th><th>Streak</th><th>Reviews</th><th>Messages (7d)</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
     table.querySelectorAll('button[data-calendar-id]').forEach(function (btn) {
       btn.addEventListener('click', function () { openStaffCalendar(btn.dataset.calendarId, btn.dataset.calendarName); });
     });
@@ -2811,15 +2818,64 @@
     });
     const rows = sorted.map(function (t) {
       const name = (t.isPriority ? '<span class="priority-flag" title="Priority ticket"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg></span>' : '') + escapeHtml(t.name);
-      return '<tr class="clickable-row ' + (t.isPriority ? 'priority-row' : '') + '" data-channel="' + t.id + '"><td>' + name + '</td><td class="mono">' + escapeHtml(t.category || '—') + '</td><td>' + (t.claimedBy ? '<span class="pill accepted">claimed</span>' : '<span class="pill pending">unclaimed</span>') + '</td><td class="mono">' + formatRelative(t.createdAt ? Date.parse(t.createdAt) : null) + '</td></tr>';
-    }).join('') || emptyRow(4, 'No open tickets.');
+      const claimedCell = t.claimedBy ? userLink(t.claimedBy, t.claimedByUsername || t.claimedBy) : '<span class="pill pending">unclaimed</span>';
+      return '<tr class="clickable-row ' + (t.isPriority ? 'priority-row' : '') + '" data-channel="' + t.id + '"><td>' + name + '</td><td class="mono">' + escapeHtml(t.category || '—') + '</td><td>' + claimedCell + '</td><td class="mono">' + formatRelative(t.createdAt ? Date.parse(t.createdAt) : null) + '</td><td>' + ticketActionButtons(t) + '</td></tr>';
+    }).join('') || emptyRow(5, 'No open tickets.');
     const ticketsTable = document.getElementById('ticketsTable');
     ticketsTable.innerHTML =
-      '<thead><tr><th>Channel</th><th>Category</th><th>Claim status</th><th>Created</th></tr></thead><tbody>' + rows + '</tbody>';
+      '<thead><tr><th>Channel</th><th>Category</th><th>Claimed by</th><th>Created</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
     ticketsTable.querySelectorAll('tr[data-channel]').forEach(function (row) {
       row.addEventListener('click', function (e) {
         if (e.target.closest('.user-link') || e.target.closest('button')) return;
         openLiveTicket(row.dataset.channel);
+      });
+    });
+    bindTicketActionButtons(ticketsTable, function () { loadTickets(); });
+  }
+  function ticketActionButtons(t) {
+    const canUnclaim = t.claimedBy === myUserId || canReviewApplications;
+    let html = '';
+    if (!t.claimedBy) html += '<button class="btn-small" data-ticket-claim="' + t.id + '">Claim</button> ';
+    else if (canUnclaim) html += '<button class="btn-small" data-ticket-unclaim="' + t.id + '">Unclaim</button> ';
+    if (canReviewApplications) html += '<button class="btn-small danger" data-ticket-close="' + t.id + '" data-ticket-close-name="' + escapeHtml(t.name || t.id) + '">Close</button>';
+    return html;
+  }
+  function bindTicketActionButtons(root, onDone) {
+    root.querySelectorAll('button[data-ticket-claim]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        callAdmin('tickets.claim', { channelId: btn.dataset.ticketClaim }).then(function (d) {
+          if (d && d.ok) { showToast('Claimed.', 'success'); onDone(); }
+          else if (d && d.error === 'claim_limit_reached') {
+            const names = (d.claimedChannelIds || []).map(function (id) {
+              const t = lastOpenTickets.find(function (x) { return x.id === id; });
+              return t ? t.name : id;
+            });
+            showToast('Claim limit reached (' + d.limit + ').' + (names.length ? ' Finish first: ' + names.join(', ') : ''), 'error');
+          }
+          else showToast('Failed to claim: ' + (d && d.error || 'unknown error'), 'error');
+        });
+      });
+    });
+    root.querySelectorAll('button[data-ticket-unclaim]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        callAdmin('tickets.unclaim', { channelId: btn.dataset.ticketUnclaim }).then(function (d) {
+          if (d && d.ok) { showToast('Unclaimed.', 'success'); onDone(); }
+          else showToast('Failed to unclaim: ' + (d && d.error || 'unknown error'), 'error');
+        });
+      });
+    });
+    root.querySelectorAll('button[data-ticket-close]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        const channelId = btn.dataset.ticketClose, name = btn.dataset.ticketCloseName;
+        askConfirm('Close this ticket?', 'Closes "' + name + '" immediately, no confirmation from the ticket owner is asked.', { reason: true }, function (reason) {
+          return callAdmin('tickets.close', { channelId: channelId, reason: reason || undefined }).then(function (d) {
+            if (d && d.ok) { showToast('Ticket closed.', 'success'); onDone(); }
+            else showToast('Failed to close: ' + (d && d.error || 'unknown error'), 'error');
+          });
+        });
       });
     });
   }
@@ -2986,9 +3042,11 @@
         (t.isPriority ? '<span class="pill priority">Priority</span>' : '') +
         '<span>Category: <strong>' + escapeHtml(t.category || '—') + '</strong></span>' +
         '<span>Created by <strong>' + userLink(t.createdBy, t.createdBy || '—') + '</strong></span>' +
-        (t.claimedBy ? '<span>Claimed by <strong>' + userLink(t.claimedBy, t.claimedBy) + '</strong></span>' : '<span>Unclaimed</span>');
+        (t.claimedBy ? '<span>Claimed by <strong>' + userLink(t.claimedBy, t.claimedBy) + '</strong></span>' : '<span>Unclaimed</span>') +
+        ticketActionButtons({ id: t.channelId, claimedBy: t.claimedBy, name: t.channelName });
       liveTicketMessages.innerHTML = renderTranscriptMessagesHtml(t.messages || []);
       liveTicketMessages.scrollTop = liveTicketMessages.scrollHeight;
+      bindTicketActionButtons(liveTicketMeta, function () { loadTickets(); openLiveTicket(channelId); });
     });
   }
   document.getElementById('liveTicketCloseBtn').addEventListener('click', function () { liveTicketModal.classList.remove('active'); });
