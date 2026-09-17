@@ -813,6 +813,21 @@
     const list = document.getElementById(containerId || 'rankupList');
     if (!rankups.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;">Everyone is either fully ranked up or awaiting manual review.</p>'; return; }
     list.innerHTML = rankups.map(function (r) {
+      if (r.maxRankReached) {
+        return (
+          '<div class="rankup-card">' +
+            '<div class="rankup-head">' +
+              '<img class="rankup-avatar" src="' + avatarUrl(r.id, r.avatar) + '"/>' +
+              '<span class="rankup-name">' + userLink(r.id, r.username) + '</span>' +
+              '<span class="rankup-path">' + escapeHtml(r.currentRank) + ' · Max rank reached</span>' +
+            '</div>' +
+            '<div class="rankup-progress">' +
+              '<div class="progress-row"><span class="progress-label" style="min-width:auto;">' + r.tickets.current + ' tickets solved</span></div>' +
+              '<div class="progress-row"><span class="progress-label" style="min-width:auto;">' + r.reps.current + ' reputation</span></div>' +
+            '</div>' +
+          '</div>'
+        );
+      }
       const ticketsPct = Math.min(100, Math.round((r.tickets.current / r.tickets.needed) * 100));
       const rows = [
         '<div class="progress-row"><span class="progress-check ' + (r.tickets.ok ? 'ok' : 'no') + '">' + (r.tickets.ok ? '✓' : '✕') + '</span>' +
