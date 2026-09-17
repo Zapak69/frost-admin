@@ -77,6 +77,7 @@
       <button type="button" class="nav-item" data-view="logs" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Action Logs</button>
       <button type="button" class="nav-item" data-view="statusPage" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Status Page</button>
       <button type="button" class="nav-item" data-view="liteBoosts" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Lite Boosts</button>
+      <button type="button" class="nav-item" data-view="partnerData" data-requires="owner" style="display:none;"><span class="nav-icon">◆</span>Partner Data</button>
       <div class="nav-group-label">Content &amp; Tickets</div>
       <button type="button" class="nav-item" data-view="reviews"><span class="nav-icon">◆</span>Reviews</button>
       <button type="button" class="nav-item" data-view="drops" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Publish Drop</button>
@@ -422,6 +423,37 @@
           <input type="number" class="text-input" id="liteBoostsInput" min="1" max="20" step="1" style="width:110px;"/>
           <button type="button" class="btn-primary" id="liteBoostsSaveBtn"><span class="btn-spinner"></span><span class="btn-label">Save</span></button>
           <button type="button" class="btn-primary" id="liteBoostsSendBtn"><span class="btn-spinner"></span><span class="btn-label">Send embeds</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" id="view-partnerData">
+      <div class="panel">
+        <div class="panel-head"><h2>Partners</h2><span class="panel-sub">Creator rows the bot uses for /partner login and the account popup. Edit a row and click Save, or add a new creator at the bottom. Media signups, staff grants and code changes from the site land here automatically.</span></div>
+        <div class="scamfilter-status" id="partnerDataMeta"></div>
+        <div class="table-wrap"><table class="data-table" id="partnerDataTable"></table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Whop claims</h2><span class="panel-sub">Which Whop customer each Discord account claimed Lite under. Written automatically on checkout; read-only here.</span></div>
+        <div class="table-wrap"><table class="data-table" id="whopClaimsTable"></table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Partner orders</h2><span class="panel-sub">First orders per Whop customer that used a creator code. Written automatically by the Whop webhook; read-only here.</span></div>
+        <div class="table-wrap"><table class="data-table" id="partnerOrdersTable"></table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Import from Google Sheets</h2><span class="panel-sub">One-time migration: download the sheet tab as CSV (File → Download → CSV), pick the matching dataset and paste the file contents. Header row is skipped; existing rows are updated, orders already imported are left alone.</span></div>
+        <div class="autoreply-form-actions">
+          <select class="text-input" id="partnerImportDataset" style="width:180px;">
+            <option value="partners">Partners</option>
+            <option value="whopClaims">WhopClaims</option>
+            <option value="partnerOrders">PartnerOrders</option>
+          </select>
+          <input type="file" id="partnerImportFile" accept=".csv,text/csv" class="text-input" style="width:260px;"/>
+        </div>
+        <textarea class="text-input" id="partnerImportCsv" rows="6" placeholder="…or paste CSV here" style="width:100%;margin-top:10px;"></textarea>
+        <div class="autoreply-form-actions">
+          <button type="button" class="btn-primary" id="partnerImportBtn"><span class="btn-spinner"></span><span class="btn-label">Import</span></button>
         </div>
       </div>
     </div>

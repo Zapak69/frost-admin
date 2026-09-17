@@ -428,7 +428,8 @@
     overview: 'Overview', members: 'Members', leaderboard: 'Leaderboards', staff: 'Staff Team', staffActivity: 'Activity',
     staffApps: 'Staff Applications', partnerLogs: 'Creators', partnerRankup: 'Partner Rankup Requests', reports: 'Bug Reports', scams: 'Scam Database',
     logs: 'Action Logs', excuses: 'Excuses', warns: 'Warns', reviews: 'Reviews', drops: 'Publish Drop', giveaway: 'Publish Giveaway', tickets: 'Tickets',
-    ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies', scamFilter: 'Scam Filter', statusPage: 'Status Page', liteBoosts: 'Lite Boosts'
+    ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies', scamFilter: 'Scam Filter', statusPage: 'Status Page', liteBoosts: 'Lite Boosts',
+    partnerData: 'Partner Data'
   };
   const VIEW_LOADERS = {
     overview: loadOverview, members: function () {}, leaderboard: loadLeaderboard, staff: loadStaff,
@@ -443,7 +444,8 @@
     autoreplies: function () { loadAutoreplies(); },
     scamFilter: function () { loadScamFilter(); },
     statusPage: function () { loadStatusPage(); },
-    liteBoosts: function () { loadLiteBoosts(); }
+    liteBoosts: function () { loadLiteBoosts(); },
+    partnerData: function () { loadPartnerData(); }
   };
   let currentView = 'overview';
 
@@ -493,6 +495,7 @@
   let canReviewApplications = false;
   let canPublishContent = false;
   let canKickStaff = false;
+  let isOwner = false;
   let myUserId = '';
   function updateNavGroupVisibility() {
     const children = Array.from(document.getElementById('sidebarNav').children);
@@ -510,6 +513,7 @@
   function applyRolePermissions() {
     document.querySelectorAll('[data-requires="highStaff"]').forEach(function (el) { el.style.display = canReviewApplications ? '' : 'none'; });
     document.querySelectorAll('[data-requires="management"]').forEach(function (el) { el.style.display = canPublishContent ? '' : 'none'; });
+    document.querySelectorAll('[data-requires="owner"]').forEach(function (el) { el.style.display = isOwner ? '' : 'none'; });
     updateNavGroupVisibility();
   }
   function renderStatGrid(containerId, cards) {
@@ -530,6 +534,7 @@
       canReviewApplications = !!d.canReviewApplications;
       canPublishContent = !!d.canPublishContent;
       canKickStaff = !!d.canKickStaff;
+      isOwner = !!d.isOwner;
       myUserId = (d.user && d.user.id) || '';
       applyRolePermissions();
       loadReputationLeaderboard(5);
@@ -2187,6 +2192,93 @@
       else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
     });
   });
+  let partnerDataTiers = ['media', 'partner', 'partner_plus'];
+  function partnerRowHtml(p) {
+    const isNew = !p.discordId;
+    const tierOptions = partnerDataTiers.map(function (t) { return '<option value="' + t + '"' + (p.tier === t ? ' selected' : '') + '>' + t + '</option>'; }).join('');
+    return '<tr data-discord-id="' + escapeHtml(p.discordId || '') + '"' + (isNew ? ' class="partner-new-row"' : '') + '>' +
+      '<td>' + (isNew ? '<input type="text" class="text-input pd-discordId" placeholder="Discord ID" style="width:170px;"/>' : userLink(p.discordId, p.username || p.discordId) + '<div class="muted">' + escapeHtml(p.discordId) + '</div>') + '</td>' +
+      '<td><input type="text" class="text-input pd-code" maxlength="32" value="' + escapeHtml(p.code || '') + '" style="width:120px;"/></td>' +
+      '<td><input type="number" class="text-input pd-percentage" min="0" max="100" step="0.5" value="' + escapeHtml(String(p.percentage != null ? p.percentage : '')) + '" style="width:80px;"/></td>' +
+      '<td><select class="text-input pd-tier">' + tierOptions + '</select></td>' +
+      '<td><input type="number" class="text-input pd-discountPercentage" min="0" max="100" step="0.5" value="' + escapeHtml(String(p.discountPercentage != null ? p.discountPercentage : '')) + '" style="width:80px;"/></td>' +
+      '<td><input type="text" class="text-input pd-socialLink" maxlength="300" value="' + escapeHtml(p.socialLink || '') + '" style="width:200px;"/></td>' +
+      '<td><input type="text" class="text-input pd-whopPromoId" maxlength="80" value="' + escapeHtml(p.whopPromoId || '') + '" style="width:150px;"/></td>' +
+      '<td>' + (isNew ? '—' : formatDateTime(p.createdAt)) + '</td>' +
+      '<td class="actions-cell"><button type="button" class="btn-small success pd-save">' + (isNew ? 'Add' : 'Save') + '</button>' +
+      (isNew ? '' : ' <button type="button" class="btn-small danger pd-delete">Delete</button>') + '</td></tr>';
+  }
+  function partnerRowPayload(row) {
+    const val = function (cls) { const el = row.querySelector('.' + cls); return el ? el.value.trim() : ''; };
+    return {
+      discordId: row.dataset.discordId || val('pd-discordId'),
+      code: val('pd-code'), percentage: val('pd-percentage'), tier: val('pd-tier'),
+      discountPercentage: val('pd-discountPercentage'), socialLink: val('pd-socialLink'), whopPromoId: val('pd-whopPromoId')
+    };
+  }
+  function renderPartnerData(d) {
+    partnerDataTiers = d.tiers || partnerDataTiers;
+    const partners = d.partners || [];
+    document.getElementById('partnerDataMeta').textContent = partners.length + ' creator' + (partners.length === 1 ? '' : 's') + ' · ' + (d.whopClaims || []).length + ' Whop claims · ' + (d.partnerOrders || []).length + ' orders';
+    document.getElementById('partnerDataTable').innerHTML =
+      '<thead><tr><th>Creator</th><th>Code</th><th>Commission %</th><th>Tier</th><th>Discount %</th><th>Social link</th><th>Whop promo id</th><th>Created</th><th></th></tr></thead><tbody>' +
+      partners.map(partnerRowHtml).join('') + partnerRowHtml({ tier: 'media' }) + '</tbody>';
+    document.getElementById('whopClaimsTable').innerHTML =
+      '<thead><tr><th>Whop user</th><th>Discord</th><th>Claimed</th><th>Membership</th><th>Name</th><th>Email</th></tr></thead><tbody>' +
+      (d.whopClaims || []).map(function (c) {
+        return '<tr><td>' + escapeHtml(c.whopUserId) + '</td><td>' + userLink(c.discordId, c.username || c.discordId) + '</td><td>' + formatDateTime(c.claimedAt) + '</td><td>' + escapeHtml(c.whopMembershipId || '—') + '</td><td>' + escapeHtml(c.name || '—') + '</td><td>' + escapeHtml(c.email || '—') + '</td></tr>';
+      }).join('') + '</tbody>';
+    document.getElementById('partnerOrdersTable').innerHTML =
+      '<thead><tr><th>When</th><th>Code</th><th>Whop user</th><th>Amount</th><th>Payment</th></tr></thead><tbody>' +
+      (d.partnerOrders || []).map(function (o) {
+        return '<tr><td>' + formatDateTime(o.timestamp) + '</td><td>' + escapeHtml(o.code) + '</td><td>' + escapeHtml(o.whopUserId || '—') + '</td><td>' + (o.amount ? o.amount.toFixed(2) + ' ' + escapeHtml(String(o.currency || '').toUpperCase()) : '—') + '</td><td>' + escapeHtml(o.paymentId || '—') + '</td></tr>';
+      }).join('') + '</tbody>';
+  }
+  function loadPartnerData() {
+    return callAdmin('partnerData.overview').then(function (d) {
+      if (d && d.ok) renderPartnerData(d);
+      else if (d && d.error) showToast('Could not load partner data: ' + d.error, 'error');
+    });
+  }
+  document.getElementById('partnerDataTable').addEventListener('click', function (e) {
+    const saveBtn = e.target.closest('.pd-save');
+    const deleteBtn = e.target.closest('.pd-delete');
+    const row = e.target.closest('tr');
+    if (!row) return;
+    if (saveBtn) {
+      const partner = partnerRowPayload(row);
+      if (!partner.discordId || !partner.code) { showToast('Discord ID and code are required.', 'error'); return; }
+      saveBtn.disabled = true;
+      callAdmin('partnerData.upsert', { partner: partner }).then(function (d) {
+        saveBtn.disabled = false;
+        if (d && d.ok) { showToast('Creator saved.', 'success'); loadPartnerData(); }
+        else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+      });
+    } else if (deleteBtn) {
+      askConfirm('Delete creator?', 'Removes ' + row.dataset.discordId + ' from the partner list. Their Discord role and Whop promo code are not touched.', {}, function () {
+        callAdmin('partnerData.delete', { discordId: row.dataset.discordId }).then(function (d) {
+          if (d && d.ok) { showToast('Creator removed.', 'success'); loadPartnerData(); }
+          else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+        });
+      });
+    }
+  });
+  document.getElementById('partnerImportFile').addEventListener('change', function () {
+    const file = this.files && this.files[0];
+    if (!file) return;
+    file.text().then(function (text) { document.getElementById('partnerImportCsv').value = text; });
+  });
+  document.getElementById('partnerImportBtn').addEventListener('click', function () {
+    const btn = document.getElementById('partnerImportBtn');
+    const csv = document.getElementById('partnerImportCsv').value;
+    if (!csv.trim()) { showToast('Paste or choose a CSV file first.', 'error'); return; }
+    setBtnLoading(btn, true);
+    callAdmin('partnerData.import', { dataset: document.getElementById('partnerImportDataset').value, csv: csv }).then(function (d) {
+      setBtnLoading(btn, false);
+      if (d && d.ok) { showToast('Imported ' + d.imported + ' row' + (d.imported === 1 ? '' : 's') + '.', 'success'); document.getElementById('partnerImportCsv').value = ''; loadPartnerData(); }
+      else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+    });
+  });
   function describeLiteBoostSync(sync) {
     return Object.keys(sync || {}).map(function (k) { return k + ' ' + String(sync[k]).replace(/_/g, ' '); }).join(', ') || 'nothing to do';
   }
@@ -3350,16 +3442,17 @@
         return;
       }
 
-      fetchJsonWithRetry(LITE_API_URL + '?action=adminAuth&code=' + encodeURIComponent(code), { cache: 'no-store' }, 4)
+      fetch('https://bot.frostclient.eu/launcher/discord-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code, redirectUri: DISCORD_REDIRECT_URI }),
+        cache: 'no-store'
+      })
+        .then(function (r) { return r.json(); })
         .then(function (data) {
-          if (!data.ok) { showGateError('Discord sign-in failed. Please try again.'); return; }
-          if (data.status === 'forbidden') { showGate('gateForbidden'); return; }
-          if (data.status === 'eligible' && data.ownerToken) {
-            saveToken(data.ownerToken);
-            showApp(data.user);
-            return;
-          }
-          showGateError('Something unexpected happened. Please try again.');
+          if (!data.ok || !data.gameToken) { showGateError('Discord sign-in failed. Please try again.'); return; }
+          saveToken(data.gameToken);
+          showApp(data.user);
         })
         .catch(function () { showGateError('Network error while contacting the server. Please try again.'); });
       return;
