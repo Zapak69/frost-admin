@@ -2220,6 +2220,7 @@
     partnerDataTiers = d.tiers || partnerDataTiers;
     const partners = d.partners || [];
     document.getElementById('partnerDataMeta').textContent = partners.length + ' creator' + (partners.length === 1 ? '' : 's') + ' · ' + (d.whopClaims || []).length + ' Whop claims · ' + (d.partnerOrders || []).length + ' orders';
+    document.getElementById('partnerSyncMeta').textContent = 'Last sync from Google Sheets: ' + formatDateTime(d.syncedAt) + (d.syncError ? ' · last attempt failed: ' + d.syncError : '');
     document.getElementById('partnerDataTable').innerHTML =
       '<thead><tr><th>Creator</th><th>Code</th><th>Commission %</th><th>Tier</th><th>Discount %</th><th>Social link</th><th>Whop promo id</th><th>Created</th><th></th></tr></thead><tbody>' +
       partners.map(partnerRowHtml).join('') + partnerRowHtml({ tier: 'media' }) + '</tbody>';
@@ -2263,20 +2264,13 @@
       });
     }
   });
-  document.getElementById('partnerImportFile').addEventListener('change', function () {
-    const file = this.files && this.files[0];
-    if (!file) return;
-    file.text().then(function (text) { document.getElementById('partnerImportCsv').value = text; });
-  });
-  document.getElementById('partnerImportBtn').addEventListener('click', function () {
-    const btn = document.getElementById('partnerImportBtn');
-    const csv = document.getElementById('partnerImportCsv').value;
-    if (!csv.trim()) { showToast('Paste or choose a CSV file first.', 'error'); return; }
+  document.getElementById('partnerSyncBtn').addEventListener('click', function () {
+    const btn = document.getElementById('partnerSyncBtn');
     setBtnLoading(btn, true);
-    callAdmin('partnerData.import', { dataset: document.getElementById('partnerImportDataset').value, csv: csv }).then(function (d) {
+    callAdmin('partnerData.sync').then(function (d) {
       setBtnLoading(btn, false);
-      if (d && d.ok) { showToast('Imported ' + d.imported + ' row' + (d.imported === 1 ? '' : 's') + '.', 'success'); document.getElementById('partnerImportCsv').value = ''; loadPartnerData(); }
-      else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+      if (d && d.ok) { showToast('Synced from Google Sheets.', 'success'); renderPartnerData(d); }
+      else showToast('Sync failed: ' + (d && (d.syncError || d.error) || 'unknown error'), 'error');
     });
   });
   function describeLiteBoostSync(sync) {

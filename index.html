@@ -442,18 +442,10 @@
         <div class="table-wrap"><table class="data-table" id="partnerOrdersTable"></table></div>
       </div>
       <div class="panel">
-        <div class="panel-head"><h2>Import from Google Sheets</h2><span class="panel-sub">One-time migration: download the sheet tab as CSV (File → Download → CSV), pick the matching dataset and paste the file contents. Header row is skipped; existing rows are updated, orders already imported are left alone.</span></div>
+        <div class="panel-head"><h2>Google Sheets sync</h2><span class="panel-sub">Google Sheets stays the source of truth. The bot pulls all three tabs every 10 minutes and on startup; every edit you save here is written to the sheet first and only then kept by the bot. Use Sync now after editing the sheet by hand.</span></div>
+        <div class="scamfilter-status" id="partnerSyncMeta"></div>
         <div class="autoreply-form-actions">
-          <select class="text-input" id="partnerImportDataset" style="width:180px;">
-            <option value="partners">Partners</option>
-            <option value="whopClaims">WhopClaims</option>
-            <option value="partnerOrders">PartnerOrders</option>
-          </select>
-          <input type="file" id="partnerImportFile" accept=".csv,text/csv" class="text-input" style="width:260px;"/>
-        </div>
-        <textarea class="text-input" id="partnerImportCsv" rows="6" placeholder="…or paste CSV here" style="width:100%;margin-top:10px;"></textarea>
-        <div class="autoreply-form-actions">
-          <button type="button" class="btn-primary" id="partnerImportBtn"><span class="btn-spinner"></span><span class="btn-label">Import</span></button>
+          <button type="button" class="btn-primary" id="partnerSyncBtn"><span class="btn-spinner"></span><span class="btn-label">Sync now</span></button>
         </div>
       </div>
     </div>
