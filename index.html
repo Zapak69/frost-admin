@@ -211,6 +211,30 @@
     </div>
 
     <div class="view" id="view-staff">
+      <div class="panel" data-requires="highStaff" style="display:none;">
+        <div class="panel-head"><h2>Ticket claim limits</h2><span class="panel-sub">How many tickets each rank can hold at once. Senior Staff and above are never limited. Pause the limits when the queue is overloaded — they come back on their own when the time runs out.</span></div>
+        <div class="scamfilter-status" id="claimLimitsStatus"></div>
+        <div class="autoreply-form">
+          <div class="form-field-row" id="claimLimitsFields"></div>
+          <div class="autoreply-options">
+            <label class="check-row"><input type="checkbox" id="claimLimitsEnabled"/><span>Claim limits enabled</span></label>
+          </div>
+          <div class="autoreply-form-actions">
+            <button type="button" class="btn-primary" id="claimLimitsSaveBtn"><span class="btn-spinner"></span><span class="btn-label">Save limits</span></button>
+            <span class="panel-sub">Pause for</span>
+            <select class="text-input" id="claimLimitsPauseHours" style="width:110px;">
+              <option value="1">1 hour</option>
+              <option value="6">6 hours</option>
+              <option value="12">12 hours</option>
+              <option value="24" selected>24 hours</option>
+              <option value="48">48 hours</option>
+              <option value="72">72 hours</option>
+            </select>
+            <button type="button" class="btn-small warn" id="claimLimitsPauseBtn">Pause limits</button>
+            <button type="button" class="btn-small success" id="claimLimitsResumeBtn" style="display:none;">Resume limits now</button>
+          </div>
+        </div>
+      </div>
       <div class="panel">
         <div class="panel-head">
           <h2>Current staff team</h2>
@@ -374,7 +398,8 @@
           <div class="autoreply-options">
             <label class="check-row"><input type="checkbox" id="scamFilterEnabled"/><span>Filter enabled</span></label>
             <label class="check-row"><input type="checkbox" id="scamFilterTimeout"/><span>Also time out the sender for 24 h</span></label>
-            <label class="check-row"><input type="checkbox" id="scamFilterDeleteAttachmentOnly"/><span>Delete messages that are only attachments with no text (below the count above, only if a filename matches the scam database)</span></label>
+            <label class="check-row"><input type="checkbox" id="scamFilterDeleteAttachmentOnly"/><span>Delete messages that are only attachments with no text once they reach the count above</span></label>
+            <label class="check-row"><input type="checkbox" id="scamFilterKnownFilename"/><span>Also delete attachment-only messages below that count when a filename matches the scam database (can hit single images)</span></label>
           </div>
           <div class="autoreply-form-actions">
             <button type="button" class="btn-primary" id="scamFilterSaveBtn"><span class="btn-spinner"></span><span class="btn-label">Save settings</span></button>

@@ -1576,7 +1576,58 @@
       renderStaffTable(lastStaffList);
     });
   });
+  function renderClaimLimits(d) {
+    document.getElementById('claimLimitsFields').innerHTML = (d.ranks || []).map(function (r) {
+      return '<div class="form-field"><label>' + escapeHtml(r.name) + '</label><input type="number" class="text-input claim-limit-input" data-rank="' + escapeHtml(r.key) + '" min="1" max="50" step="1" value="' + escapeHtml(String(d.limits[r.key] != null ? d.limits[r.key] : '')) + '"/></div>';
+    }).join('');
+    document.getElementById('claimLimitsEnabled').checked = d.enabled !== false;
+    const statusEl = document.getElementById('claimLimitsStatus');
+    let state, cls;
+    if (!d.enabled) { state = 'Off — nobody is limited.'; cls = 'off'; }
+    else if (d.pausedUntil) { state = 'Paused until ' + formatDateTime(d.pausedUntil) + ' (' + formatRelative(d.pausedUntil) + ')' + (d.pausedByName || d.pausedBy ? ' by ' + (d.pausedByName || d.pausedBy) : '') + ' — limits come back automatically.'; cls = 'paused'; }
+    else { state = 'Active — ' + (d.ranks || []).map(function (r) { return r.name + ' ' + d.limits[r.key]; }).join(' · '); cls = 'active'; }
+    statusEl.className = 'scamfilter-status ' + cls;
+    statusEl.textContent = state;
+    document.getElementById('claimLimitsResumeBtn').style.display = d.pausedUntil ? '' : 'none';
+    document.getElementById('claimLimitsPauseBtn').style.display = d.pausedUntil ? 'none' : '';
+  }
+  function claimLimitsPayload() {
+    const limits = {};
+    document.querySelectorAll('#claimLimitsFields .claim-limit-input').forEach(function (el) { limits[el.dataset.rank] = parseInt(el.value, 10); });
+    return { limits: limits, enabled: document.getElementById('claimLimitsEnabled').checked };
+  }
+  function loadClaimLimits() {
+    if (!canReviewApplications) return Promise.resolve();
+    return callAdmin('claimLimits.overview').then(function (d) {
+      if (d && d.ok) renderClaimLimits(d);
+      else if (d && d.error) showToast('Could not load claim limits: ' + d.error, 'error');
+    });
+  }
+  function submitClaimLimits(extra, okMessage, btn) {
+    if (btn) setBtnLoading(btn, true);
+    return callAdmin('claimLimits.update', Object.assign(claimLimitsPayload(), extra || {})).then(function (d) {
+      if (btn) setBtnLoading(btn, false);
+      if (d && d.ok) { showToast(okMessage, 'success'); renderClaimLimits(d); loadStaff(); }
+      else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+    });
+  }
+  document.getElementById('claimLimitsSaveBtn').addEventListener('click', function () {
+    const values = Object.values(claimLimitsPayload().limits);
+    if (values.some(function (v) { return !Number.isInteger(v) || v < 1 || v > 50; })) { showToast('Limits must be whole numbers between 1 and 50.', 'error'); return; }
+    submitClaimLimits({}, 'Claim limits saved.', document.getElementById('claimLimitsSaveBtn'));
+  });
+  document.getElementById('claimLimitsPauseBtn').addEventListener('click', function () {
+    const hours = parseInt(document.getElementById('claimLimitsPauseHours').value, 10);
+    askConfirm('Pause claim limits?', 'Every staff rank can claim without a limit for the next ' + hours + ' hour' + (hours === 1 ? '' : 's') + '.', { tone: 'primary', okLabel: 'Pause' }, function () {
+      submitClaimLimits({ pauseHours: hours }, 'Claim limits paused for ' + hours + ' h.');
+    });
+  });
+  document.getElementById('claimLimitsResumeBtn').addEventListener('click', function () {
+    submitClaimLimits({ resume: true }, 'Claim limits are active again.');
+  });
+
   function loadStaff() {
+    loadClaimLimits();
     return callAdmin('staff.list').then(function (d) {
       if (!d || !d.ok) return;
       lastStaffList = d.staff;
@@ -2046,6 +2097,7 @@
     document.getElementById('scamFilterTimeout').checked = !!s.timeoutOnDelete;
     document.getElementById('scamFilterDeleteAttachmentOnly').checked = s.deleteAttachmentOnly !== false;
     document.getElementById('scamFilterAttachmentOnlyMinCount').value = s.attachmentOnlyMinCount || 4;
+    document.getElementById('scamFilterKnownFilename').checked = !!s.attachmentOnlyKnownFilename;
     document.getElementById('scamFilterResumeBtn').style.display = d.paused ? '' : 'none';
     document.getElementById('scamFilterResumeAttachmentOnlyBtn').style.display = d.attachmentOnlyPaused ? '' : 'none';
     const badge = document.getElementById('badgeScamFilter');
@@ -2111,6 +2163,7 @@
       enabled: document.getElementById('scamFilterEnabled').checked,
       timeoutOnDelete: document.getElementById('scamFilterTimeout').checked,
       deleteAttachmentOnly: document.getElementById('scamFilterDeleteAttachmentOnly').checked,
+      attachmentOnlyKnownFilename: document.getElementById('scamFilterKnownFilename').checked,
       attachmentOnlyMinCount: Number(document.getElementById('scamFilterAttachmentOnlyMinCount').value),
       threshold: Number(document.getElementById('scamFilterThreshold').value) / 100,
       similarity: Number(document.getElementById('scamFilterSimilarity').value) / 100,
