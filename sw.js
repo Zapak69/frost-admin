@@ -1,6 +1,8 @@
 self.addEventListener('push', function (event) {
   let data = { title: 'Frost Admin', body: 'You have a new notification.' };
-  try { data = event.data.json(); } catch (e) {}
+  try {
+    data = event.data.json();
+  } catch (e) {}
   event.waitUntil(
     self.registration.showNotification(data.title || 'Frost Admin', {
       body: data.body || '',

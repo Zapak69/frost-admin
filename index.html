@@ -163,7 +163,9 @@
         </div>
         <div class="panel" id="myUnclaimedPanel" style="display:none;">
           <div class="panel-head"><h2><svg class="heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/></svg>Unclaimed replies</h2><span class="panel-sub">You replied in these tickets without claiming them — they won't count toward your rankup</span></div>
-          <div class="table-wrap"><table class="data-table" id="myUnclaimedTable"></table></div>
+          <div class="table-wrap">
+              <table class="data-table" id="myUnclaimedTable"></table>
+          </div>
         </div>
         <div class="stat-grid" id="myOverviewStats"></div>
         <div class="panel-row panel-row-cal">
@@ -194,17 +196,23 @@
       <div class="panel-row panel-row-3">
         <div class="panel">
           <div class="panel-head"><h2>Most active</h2><span class="panel-sub">By messages, this week</span></div>
-          <div class="table-wrap"><table class="data-table" id="mostActiveTable"></table></div>
+          <div class="table-wrap">
+              <table class="data-table" id="mostActiveTable"></table>
+          </div>
           <button type="button" class="btn-small lb-more-btn" data-lb="mostActive">Show more</button>
         </div>
         <div class="panel">
           <div class="panel-head"><h2>Playtime</h2><span class="panel-sub">This month, per-player</span></div>
-          <div class="table-wrap"><table class="data-table" id="playtimeTable"></table></div>
+          <div class="table-wrap">
+              <table class="data-table" id="playtimeTable"></table>
+          </div>
           <button type="button" class="btn-small lb-more-btn" data-lb="playtime">Show more</button>
         </div>
         <div class="panel">
           <div class="panel-head"><h2>Staff performance</h2><span class="panel-sub">All-time</span></div>
-          <div class="table-wrap"><table class="data-table" id="staffLeaderboardTable"></table></div>
+          <div class="table-wrap">
+              <table class="data-table" id="staffLeaderboardTable"></table>
+          </div>
           <button type="button" class="btn-small lb-more-btn" data-lb="staffLeaderboard">Show more</button>
         </div>
       </div>
@@ -244,7 +252,9 @@
           </div>
           <button type="button" class="btn-small sort-toggle-btn" id="staffSortToggle" data-dir="desc">Highest first <span class="sort-arrow">↓</span></button>
         </div>
-        <div class="table-wrap"><table class="data-table" id="staffTable"></table></div>
+        <div class="table-wrap">
+            <table class="data-table" id="staffTable"></table>
+        </div>
       </div>
     </div>
 
@@ -258,7 +268,9 @@
             <button type="button" class="filter-pill" data-filter="all">All staff</button>
           </div>
         </div>
-        <div class="table-wrap"><table class="data-table" id="staffActivityTable"></table></div>
+        <div class="table-wrap">
+            <table class="data-table" id="staffActivityTable"></table>
+        </div>
       </div>
     </div>
 
@@ -353,7 +365,9 @@
             <button type="button" class="filter-pill" data-type="attachment_only">Attachment-only</button>
           </div>
         </div>
-        <div class="table-wrap"><table class="data-table" id="scamsTable"></table></div>
+        <div class="table-wrap">
+            <table class="data-table" id="scamsTable"></table>
+        </div>
       </div>
     </div>
 
@@ -420,11 +434,15 @@
       </div>
       <div class="panel">
         <div class="panel-head"><h2>Recent deletions</h2><span class="panel-sub">Same review as the buttons in Discord. Wrong marks add the message to the safe list and can pause the filter.</span></div>
-        <div class="table-wrap"><table class="data-table" id="scamFilterRecentTable"></table></div>
+        <div class="table-wrap">
+            <table class="data-table" id="scamFilterRecentTable"></table>
+        </div>
       </div>
       <div class="panel">
         <div class="panel-head"><h2>Learned examples</h2><span class="panel-sub">Every scam report, manual removal and confirmed deletion with text is an example. Ignore one if it was a false report.</span></div>
-        <div class="table-wrap"><table class="data-table" id="scamFilterSamplesTable"></table></div>
+        <div class="table-wrap">
+            <table class="data-table" id="scamFilterSamplesTable"></table>
+        </div>
       </div>
     </div>
 
@@ -432,7 +450,9 @@
       <div class="panel">
         <div class="panel-head"><h2>Status page</h2><span class="panel-sub">Sets what frostclient.eu/status shows. Changes go live the moment you click Update — no more editing the JSON by hand.</span></div>
         <div class="scamfilter-status" id="statusPageMeta"></div>
-        <div class="table-wrap"><table class="data-table" id="statusPageTable"></table></div>
+        <div class="table-wrap">
+            <table class="data-table" id="statusPageTable"></table>
+        </div>
         <div class="autoreply-form-actions">
           <button type="button" class="btn-primary" id="statusPageSaveBtn"><span class="btn-spinner"></span><span class="btn-label">Update</span></button>
         </div>
@@ -456,15 +476,21 @@
       <div class="panel">
         <div class="panel-head"><h2>Partners</h2><span class="panel-sub">Creator rows the bot uses for /partner login and the account popup. Edit a row and click Save, or add a new creator at the bottom. Media signups, staff grants and code changes from the site land here automatically.</span></div>
         <div class="scamfilter-status" id="partnerDataMeta"></div>
-        <div class="table-wrap"><table class="data-table" id="partnerDataTable"></table></div>
+        <div class="table-wrap">
+            <table class="data-table" id="partnerDataTable"></table>
+        </div>
       </div>
       <div class="panel">
         <div class="panel-head"><h2>Whop claims</h2><span class="panel-sub">Which Whop customer each Discord account claimed Lite under. Written automatically on checkout; read-only here.</span></div>
-        <div class="table-wrap"><table class="data-table" id="whopClaimsTable"></table></div>
+        <div class="table-wrap">
+            <table class="data-table" id="whopClaimsTable"></table>
+        </div>
       </div>
       <div class="panel">
         <div class="panel-head"><h2>Partner orders</h2><span class="panel-sub">First orders per Whop customer that used a creator code. Written automatically by the Whop webhook; read-only here.</span></div>
-        <div class="table-wrap"><table class="data-table" id="partnerOrdersTable"></table></div>
+        <div class="table-wrap">
+            <table class="data-table" id="partnerOrdersTable"></table>
+        </div>
       </div>
       <div class="panel">
         <div class="panel-head"><h2>Google Sheets sync</h2><span class="panel-sub">Google Sheets stays the source of truth. The bot pulls all three tabs every 10 minutes and on startup; every edit you save here is written to the sheet first and only then kept by the bot. Use Sync now after editing the sheet by hand.</span></div>
@@ -478,7 +504,9 @@
     <div class="view" id="view-logs">
       <div class="panel">
         <div class="panel-head"><h2>Dashboard action log</h2><span class="panel-sub">Actions taken from this console, plus select automod actions</span></div>
-        <div class="table-wrap"><table class="data-table" id="logsTable"></table></div>
+        <div class="table-wrap">
+            <table class="data-table" id="logsTable"></table>
+        </div>
       </div>
     </div>
 
@@ -489,7 +517,9 @@
           <span class="panel-sub">History of excuses you've submitted</span>
           <button type="button" class="btn-small" id="writeExcuseBtn2" style="margin-left:auto;">Write an excuse</button>
         </div>
-        <div class="table-wrap"><table class="data-table" id="myExcusesTable"></table></div>
+        <div class="table-wrap">
+            <table class="data-table" id="myExcusesTable"></table>
+        </div>
       </div>
       <div id="excusesAllPanel" style="display:none;">
         <div class="panel">
@@ -502,12 +532,16 @@
     <div class="view" id="view-warns">
       <div class="panel">
         <div class="panel-head"><h2>Your warnings</h2><span class="panel-sub">Your full warning history</span></div>
-        <div class="table-wrap"><table class="data-table" id="myWarnsTable"></table></div>
+        <div class="table-wrap">
+            <table class="data-table" id="myWarnsTable"></table>
+        </div>
       </div>
       <div id="warnsAllPanel" style="display:none;">
         <div class="panel">
           <div class="panel-head"><h2>All warns</h2><span class="panel-sub">Full staff warning log</span></div>
-          <div class="table-wrap"><table class="data-table" id="warnsAllTable"></table></div>
+          <div class="table-wrap">
+              <table class="data-table" id="warnsAllTable"></table>
+          </div>
         </div>
       </div>
     </div>
@@ -518,7 +552,9 @@
         <div class="search-row">
           <input type="text" id="reviewsSearchInput" class="text-input" placeholder="Search by username..." autocomplete="off"/>
         </div>
-        <div class="table-wrap"><table class="data-table" id="reviewsTable"></table></div>
+        <div class="table-wrap">
+            <table class="data-table" id="reviewsTable"></table>
+        </div>
         <div class="table-footer" id="reviewsFooter"></div>
       </div>
     </div>
@@ -588,14 +624,18 @@
           <h2>Open tickets</h2>
           <button type="button" class="btn-small sort-toggle-btn" id="ticketsClaimSortToggle" data-dir="asc">Unclaimed first <span class="sort-arrow">↓</span></button>
         </div>
-        <div class="table-wrap"><table class="data-table" id="ticketsTable"></table></div>
+        <div class="table-wrap">
+            <table class="data-table" id="ticketsTable"></table>
+        </div>
       </div>
     </div>
 
     <div class="view" id="view-autoreplies">
       <div class="panel">
         <div class="panel-head"><h2>Built-in auto replies</h2><span class="panel-sub">Staff mark a wrong reply with the red button in Discord. A rule pauses itself once it has 5+ wrong marks and its precision drops under 60 %, or when a new message looks like the ones marked wrong. Mode overrides that.</span></div>
-        <div class="table-wrap"><table class="data-table" id="autoreplyBuiltinTable"></table></div>
+        <div class="table-wrap">
+            <table class="data-table" id="autoreplyBuiltinTable"></table>
+        </div>
       </div>
       <div class="panel">
         <div class="panel-head"><h2>Custom auto replies</h2><span class="panel-sub">Keyword-triggered replies, learning applies to them too. Use {user} to mention the member.</span><button type="button" class="btn-small" id="autoreplyNewBtn">+ New reply</button></div>
@@ -625,11 +665,15 @@
             <button type="button" class="btn-small" id="autoreplyCancelBtn">Cancel</button>
           </div>
         </div>
-        <div class="table-wrap"><table class="data-table" id="autoreplyCustomTable"></table></div>
+        <div class="table-wrap">
+            <table class="data-table" id="autoreplyCustomTable"></table>
+        </div>
       </div>
       <div class="panel">
         <div class="panel-head"><h2>Recent feedback</h2><span class="panel-sub">Latest marks from Discord: wrong reply from staff, solved from the ticket owner</span></div>
-        <div class="table-wrap"><table class="data-table" id="autoreplyFeedbackTable"></table></div>
+        <div class="table-wrap">
+            <table class="data-table" id="autoreplyFeedbackTable"></table>
+        </div>
       </div>
     </div>
 
@@ -647,7 +691,9 @@
         <div class="search-row">
           <input type="text" id="ticketArchiveSearchInput" class="text-input" placeholder="Search by username, ticket number or channel name..." autocomplete="off"/>
         </div>
-        <div class="table-wrap"><table class="data-table" id="ticketArchiveTable"></table></div>
+        <div class="table-wrap">
+            <table class="data-table" id="ticketArchiveTable"></table>
+        </div>
       </div>
     </div>
   </main>

@@ -8,22 +8,36 @@
   const APP_VERSION = '1';
 
   function loadToken() {
-    try { return localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { return ''; }
+    try {
+        return localStorage.getItem(TOKEN_KEY) || '';
+    } catch (e) {
+        return '';
+    }
   }
   function saveToken(t) {
-    try { localStorage.setItem(TOKEN_KEY, t); } catch (e) {}
+    try {
+        localStorage.setItem(TOKEN_KEY, t);
+    } catch (e) {}
   }
   function clearToken() {
-    try { localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+    try {
+        localStorage.removeItem(TOKEN_KEY);
+    } catch (e) {}
   }
 
   function fetchJsonWithRetry(url, options, retries) {
     return fetch(url, options)
-      .then(function (r) { return r.json(); })
+      .then(function (r) {
+          return r.json();
+      })
       .catch(function (err) {
         if (retries > 0) {
-          return new Promise(function (resolve) { setTimeout(resolve, 1000); })
-            .then(function () { return fetchJsonWithRetry(url, options, retries - 1); });
+          return new Promise(function (resolve) {
+              setTimeout(resolve, 1000);
+          })
+            .then(function () {
+                return fetchJsonWithRetry(url, options, retries - 1);
+            });
         }
         throw err;
       });
@@ -55,7 +69,9 @@
     if (!el.parentNode) return;
     el.style.transition = 'opacity 0.3s ease';
     el.style.opacity = '0';
-    setTimeout(function () { el.remove(); }, 300);
+    setTimeout(function () {
+        el.remove();
+    }, 300);
   }
   function showToast(message, type) {
     while (toastStack.children.length >= MAX_VISIBLE_TOASTS) {
@@ -65,7 +81,9 @@
     el.className = 'toast' + (type ? ' ' + type : '');
     el.textContent = message;
     toastStack.appendChild(el);
-    setTimeout(function () { removeToastEl(el); }, 3500);
+    setTimeout(function () {
+        removeToastEl(el);
+    }, 3500);
   }
   function setBtnLoading(btn, loading) {
     btn.disabled = loading;
@@ -103,7 +121,9 @@
     confirmCancelBtn.disabled = false;
     confirmAction = action || null;
     confirmModal.classList.add('active');
-    return new Promise(function (resolve) { confirmResolve = resolve; });
+    return new Promise(function (resolve) {
+        confirmResolve = resolve;
+    });
   }
   confirmReasonInput.addEventListener('input', function () {
     if (confirmReasonRequired) confirmOkBtn.disabled = !confirmReasonInput.value.trim();
@@ -125,13 +145,21 @@
       confirmOkBtn.disabled = true;
       confirmCancelBtn.disabled = true;
       confirmOkBtn.classList.add('is-loading');
-      Promise.resolve(confirmAction(reason)).then(function () { closeConfirm(true, reason); }, function () { closeConfirm(true, reason); });
+      Promise.resolve(confirmAction(reason)).then(function () {
+          closeConfirm(true, reason);
+      }, function () {
+          closeConfirm(true, reason);
+      });
       return;
     }
     closeConfirm(true, reason);
   });
-  confirmCancelBtn.addEventListener('click', function () { closeConfirm(false); });
-  confirmModal.addEventListener('click', function (e) { if (e.target === confirmModal && !confirmOkBtn.disabled) closeConfirm(false); });
+  confirmCancelBtn.addEventListener('click', function () {
+      closeConfirm(false);
+  });
+  confirmModal.addEventListener('click', function (e) {
+      if (e.target === confirmModal && !confirmOkBtn.disabled) closeConfirm(false);
+  });
 
   const NOTIF_TOAST_SECONDS = 6;
   const MAX_INDIVIDUAL_NOTIF_TOASTS = 3;
@@ -178,11 +206,17 @@
   function markViewNotifsRead(view) {
     const types = VIEW_NOTIF_TYPES[view];
     if (!types) return;
-    const hasUnread = notifCache.some(function (n) { return !n.read && types.indexOf(n.type) !== -1; });
+    const hasUnread = notifCache.some(function (n) {
+        return !n.read && types.indexOf(n.type) !== -1;
+    });
     if (!hasUnread) return;
-    notifCache.forEach(function (n) { if (types.indexOf(n.type) !== -1) n.read = true; });
+    notifCache.forEach(function (n) {
+        if (types.indexOf(n.type) !== -1) n.read = true;
+    });
     updateNavDots();
-    setNotifUnread(notifCache.filter(function (n) { return !n.read; }).length);
+    setNotifUnread(notifCache.filter(function (n) {
+        return !n.read;
+    }).length);
     callAdmin('notifications.markRead', { types: types });
   }
 
@@ -223,9 +257,14 @@
       el.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
       el.style.opacity = '0';
       el.style.transform = 'translateX(24px)';
-      setTimeout(function () { el.remove(); }, 250);
+      setTimeout(function () {
+          el.remove();
+      }, 250);
     }
-    el.addEventListener('click', function () { openNotifPanel(); removeToast(); });
+    el.addEventListener('click', function () {
+        openNotifPanel();
+        removeToast();
+    });
     notifToastStack.appendChild(el);
     setTimeout(removeToast, NOTIF_TOAST_SECONDS * 1000);
   }
@@ -267,10 +306,16 @@
           item.style.opacity = '0';
         });
         callAdmin('notifications.delete', { id: id });
-        notifCache = notifCache.filter(function (n) { return n.id !== id; });
+        notifCache = notifCache.filter(function (n) {
+            return n.id !== id;
+        });
         updateNavDots();
-        setNotifUnread(notifCache.filter(function (n) { return !n.read; }).length);
-        setTimeout(function () { item.remove(); }, 450);
+        setNotifUnread(notifCache.filter(function (n) {
+            return !n.read;
+        }).length);
+        setTimeout(function () {
+            item.remove();
+        }, 450);
       } else {
         inner.style.transform = 'translateX(0)';
       }
@@ -311,7 +356,9 @@
       if (d.unreadCount > 0) {
         callAdmin('notifications.markAllRead').then(function (r) {
           if (r && r.ok) {
-            notifCache.forEach(function (n) { n.read = true; });
+            notifCache.forEach(function (n) {
+                n.read = true;
+            });
             updateNavDots();
             setNotifUnread(0);
           }
@@ -327,19 +374,25 @@
     e.stopPropagation();
     if (notifPanelOpen) closeNotifPanel(); else openNotifPanel();
   });
-  notifPanel.addEventListener('click', function (e) { e.stopPropagation(); });
+  notifPanel.addEventListener('click', function (e) {
+      e.stopPropagation();
+  });
   document.addEventListener('click', function (e) {
     if (notifPanelOpen && !notifPanel.contains(e.target) && e.target !== notifBellBtn) closeNotifPanel();
   });
   document.addEventListener('click', function (e) {
     const day = e.target.closest('.activity-day[data-date]');
-    document.querySelectorAll('.activity-day.show-date').forEach(function (el) { if (el !== day) el.classList.remove('show-date'); });
+    document.querySelectorAll('.activity-day.show-date').forEach(function (el) {
+        if (el !== day) el.classList.remove('show-date');
+    });
     if (day) day.classList.toggle('show-date');
   });
   document.getElementById('notifMarkAllBtn').addEventListener('click', function () {
     callAdmin('notifications.markAllRead').then(function (d) {
       if (d && d.ok) {
-        notifCache.forEach(function (n) { n.read = true; });
+        notifCache.forEach(function (n) {
+            n.read = true;
+        });
         renderNotifList(notifCache);
         updateNavDots();
         setNotifUnread(0);
@@ -360,8 +413,12 @@
   function loadNotifications() {
     return callAdmin('notifications.list').then(function (d) {
       if (!d || !d.ok) return;
-      const fresh = d.notifications.filter(function (n) { return !n.read && !seenNotifToastIds.has(n.id); });
-      fresh.forEach(function (n) { seenNotifToastIds.add(n.id); });
+      const fresh = d.notifications.filter(function (n) {
+          return !n.read && !seenNotifToastIds.has(n.id);
+      });
+      fresh.forEach(function (n) {
+          seenNotifToastIds.add(n.id);
+      });
       if (!isMobileDevice() && fresh.length) {
         if (fresh.length > MAX_INDIVIDUAL_NOTIF_TOASTS) showAggregateNotifToast(fresh.length);
         else fresh.forEach(showNotifToast);
@@ -386,7 +443,11 @@
   function avatarUrl(id, avatar) {
     if (avatar) return 'https://cdn.discordapp.com/avatars/' + id + '/' + avatar + '.png?size=64';
     let idx = 0;
-    try { idx = Number((BigInt(id || '0') >> 22n) % 6n); } catch (e) { idx = 0; }
+    try {
+        idx = Number((BigInt(id || '0') >> 22n) % 6n);
+    } catch (e) {
+        idx = 0;
+    }
     return 'https://cdn.discordapp.com/embed/avatars/' + idx + '.png';
   }
   function reviewAvatarUrl(r) {
@@ -405,8 +466,12 @@
   }
   function formatDateTime(ms) {
     if (!ms) return '—';
-    try { return new Date(ms).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
-    catch (e) { return '—'; }
+    try {
+        return new Date(ms).toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+    catch (e) {
+        return '—';
+    }
   }
   function formatRelative(ms) {
     if (!ms) return '—';
@@ -433,19 +498,47 @@
   };
   const VIEW_LOADERS = {
     overview: loadOverview, members: function () {}, leaderboard: loadLeaderboard, staff: loadStaff,
-    staffActivity: function () { loadStaffActivity(currentStaffActivityFilter); },
-    staffApps: function () { loadRecruitment(); loadStaffApps(currentStaffAppsFilter); },
-    partnerLogs: function () { loadPartnerLogs(); loadBannedWords(); },
-    partnerRankup: function () { loadPartnerRankupRequests(currentPartnerRankupFilter); },
-    reports: function () { loadBugReports(currentReportsFilter); },
-    scams: function () { loadScams(currentScamsFilter); }, logs: loadLogs, excuses: loadExcuses, warns: loadWarns, reviews: loadReviews,
-    drops: function () { loadDropCapeOptions(); }, giveaway: function () {}, tickets: loadTickets,
-    ticketArchive: function () { loadTicketArchive(currentTicketArchiveFilter); },
-    autoreplies: function () { loadAutoreplies(); },
-    scamFilter: function () { loadScamFilter(); },
-    statusPage: function () { loadStatusPage(); },
-    liteBoosts: function () { loadLiteBoosts(); },
-    partnerData: function () { loadPartnerData(); }
+    staffActivity: function () {
+        loadStaffActivity(currentStaffActivityFilter);
+    },
+    staffApps: function () {
+        loadRecruitment();
+        loadStaffApps(currentStaffAppsFilter);
+    },
+    partnerLogs: function () {
+        loadPartnerLogs();
+        loadBannedWords();
+    },
+    partnerRankup: function () {
+        loadPartnerRankupRequests(currentPartnerRankupFilter);
+    },
+    reports: function () {
+        loadBugReports(currentReportsFilter);
+    },
+    scams: function () {
+        loadScams(currentScamsFilter);
+    }, logs: loadLogs, excuses: loadExcuses, warns: loadWarns, reviews: loadReviews,
+    drops: function () {
+        loadDropCapeOptions();
+    }, giveaway: function () {}, tickets: loadTickets,
+    ticketArchive: function () {
+        loadTicketArchive(currentTicketArchiveFilter);
+    },
+    autoreplies: function () {
+        loadAutoreplies();
+    },
+    scamFilter: function () {
+        loadScamFilter();
+    },
+    statusPage: function () {
+        loadStatusPage();
+    },
+    liteBoosts: function () {
+        loadLiteBoosts();
+    },
+    partnerData: function () {
+        loadPartnerData();
+    }
   };
   let currentView = 'overview';
 
@@ -464,19 +557,29 @@
   }
 
   document.querySelectorAll('.nav-item').forEach(function (btn) {
-    btn.addEventListener('click', function () { showView(btn.dataset.view); });
+    btn.addEventListener('click', function () {
+        showView(btn.dataset.view);
+    });
   });
   document.querySelectorAll('[data-goto]').forEach(function (btn) {
-    btn.addEventListener('click', function () { showView(btn.dataset.goto); });
+    btn.addEventListener('click', function () {
+        showView(btn.dataset.goto);
+    });
   });
-  document.getElementById('mobileMenuBtn').addEventListener('click', function () { sidebar.classList.toggle('open'); });
-  document.getElementById('sidebarToggle').addEventListener('click', function () { sidebar.classList.remove('open'); });
+  document.getElementById('mobileMenuBtn').addEventListener('click', function () {
+      sidebar.classList.toggle('open');
+  });
+  document.getElementById('sidebarToggle').addEventListener('click', function () {
+      sidebar.classList.remove('open');
+  });
 
   const refreshBtn = document.getElementById('refreshBtn');
   refreshBtn.addEventListener('click', function () {
     refreshBtn.classList.add('spinning');
     Promise.resolve((VIEW_LOADERS[currentView] || function () {})()).finally(function () {
-      setTimeout(function () { refreshBtn.classList.remove('spinning'); }, 300);
+      setTimeout(function () {
+          refreshBtn.classList.remove('spinning');
+      }, 300);
     });
   });
   function animateCount(el, endValue) {
@@ -505,15 +608,24 @@
       for (let j = i + 1; j < children.length; j++) {
         const sib = children[j];
         if (sib.classList.contains('nav-group-label')) break;
-        if (sib.style.display !== 'none') { hasVisibleItem = true; break; }
+        if (sib.style.display !== 'none') {
+            hasVisibleItem = true;
+            break;
+        }
       }
       el.style.display = hasVisibleItem ? '' : 'none';
     });
   }
   function applyRolePermissions() {
-    document.querySelectorAll('[data-requires="highStaff"]').forEach(function (el) { el.style.display = canReviewApplications ? '' : 'none'; });
-    document.querySelectorAll('[data-requires="management"]').forEach(function (el) { el.style.display = canPublishContent ? '' : 'none'; });
-    document.querySelectorAll('[data-requires="owner"]').forEach(function (el) { el.style.display = isOwner ? '' : 'none'; });
+    document.querySelectorAll('[data-requires="highStaff"]').forEach(function (el) {
+        el.style.display = canReviewApplications ? '' : 'none';
+    });
+    document.querySelectorAll('[data-requires="management"]').forEach(function (el) {
+        el.style.display = canPublishContent ? '' : 'none';
+    });
+    document.querySelectorAll('[data-requires="owner"]').forEach(function (el) {
+        el.style.display = isOwner ? '' : 'none';
+    });
     updateNavGroupVisibility();
   }
   function renderStatGrid(containerId, cards) {
@@ -556,7 +668,9 @@
         renderRankupPanel(d.myRankup ? [d.myRankup] : [], 'myRankupList');
         renderActivityCalendar('myActivityCalendar', d.myActivityCalendar || []);
         myActivityMap = {};
-        (d.myActivityCalendar || []).forEach(function (day) { myActivityMap[day.date] = !!day.active; });
+        (d.myActivityCalendar || []).forEach(function (day) {
+            myActivityMap[day.date] = !!day.active;
+        });
         myExcuseDaysMap = d.myExcuseDays || {};
         if (excuseCalMonth) renderExcuseCalendar();
 
@@ -585,7 +699,9 @@
           unclaimedPanel.style.display = '';
           document.getElementById('myUnclaimedTable').innerHTML =
             '<thead><tr><th>Ticket</th><th>When</th></tr></thead><tbody>' +
-            unclaimed.map(function (f) { return '<tr><td>' + escapeHtml(f.channelName) + '</td><td class="mono">' + formatRelative(f.timestamp) + '</td></tr>'; }).join('') +
+            unclaimed.map(function (f) {
+                return '<tr><td>' + escapeHtml(f.channelName) + '</td><td class="mono">' + formatRelative(f.timestamp) + '</td></tr>';
+            }).join('') +
             '</tbody>';
         } else {
           unclaimedPanel.style.display = 'none';
@@ -616,7 +732,9 @@
       setBadge('badgeStaffApps', d.pendingStaffApps);
       return Promise.all([
         loadGrowthChart(currentGrowthGranularity),
-        callAdmin('staff.rankups').then(function (rd) { if (rd && rd.ok) renderRankupPanel(rd.rankups || []); }),
+        callAdmin('staff.rankups').then(function (rd) {
+            if (rd && rd.ok) renderRankupPanel(rd.rankups || []);
+        }),
         loadActivityLeaderboard(5)
       ]);
     });
@@ -634,7 +752,9 @@
       '</div>';
     }).join('') || '<p style="color:var(--muted);font-size:13px;">No chat activity recorded this week yet.</p>';
     list.querySelectorAll('.lb-row[data-lb-id]').forEach(function (row) {
-      row.addEventListener('click', function () { openStaffCalendar(row.dataset.lbId, row.dataset.lbName); });
+      row.addEventListener('click', function () {
+          openStaffCalendar(row.dataset.lbId, row.dataset.lbName);
+      });
     });
   }
   function loadActivityLeaderboard(limit) {
@@ -687,9 +807,15 @@
     list.innerHTML = '<p style="color:var(--muted);font-size:13px;">Loading…</p>';
     reputationHistoryModal.classList.add('active');
     callAdmin('reputation.history', { userId: userId }).then(function (d) {
-      if (!d || !d.ok) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;">Could not load history.</p>'; return; }
+      if (!d || !d.ok) {
+          list.innerHTML = '<p style="color:var(--muted);font-size:13px;">Could not load history.</p>';
+          return;
+      }
       const history = d.history || [];
-      if (!history.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;">No reputation history yet.</p>'; return; }
+      if (!history.length) {
+          list.innerHTML = '<p style="color:var(--muted);font-size:13px;">No reputation history yet.</p>';
+          return;
+      }
       list.innerHTML = history.map(function (h) {
         const sign = h.type === 'remove' ? '−1' : '+1';
         const signClass = h.type === 'remove' ? 'denied' : 'accepted';
@@ -705,13 +831,19 @@
       }).join('');
     });
   }
-  document.getElementById('reputationHistoryCloseBtn').addEventListener('click', function () { reputationHistoryModal.classList.remove('active'); });
-  reputationHistoryModal.addEventListener('click', function (e) { if (e.target === reputationHistoryModal) reputationHistoryModal.classList.remove('active'); });
+  document.getElementById('reputationHistoryCloseBtn').addEventListener('click', function () {
+      reputationHistoryModal.classList.remove('active');
+  });
+  reputationHistoryModal.addEventListener('click', function (e) {
+      if (e.target === reputationHistoryModal) reputationHistoryModal.classList.remove('active');
+  });
 
   let currentGrowthGranularity = 'day';
   document.querySelectorAll('#growthGranularityFilter .filter-pill').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      document.querySelectorAll('#growthGranularityFilter .filter-pill').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('#growthGranularityFilter .filter-pill').forEach(function (b) {
+          b.classList.remove('active');
+      });
       btn.classList.add('active');
       currentGrowthGranularity = btn.dataset.granularity;
       loadGrowthChart(currentGrowthGranularity);
@@ -734,7 +866,9 @@
     const svg = document.getElementById('growthChart');
     const tooltip = document.getElementById('growthChartTooltip');
     svg.innerHTML = '';
-    const total = buckets.reduce(function (s, b) { return s + b.count; }, 0);
+    const total = buckets.reduce(function (s, b) {
+        return s + b.count;
+    }, 0);
     const wrap = svg.parentElement;
     const W = Math.max(1, Math.round(wrap.getBoundingClientRect().width));
     const H = 220;
@@ -748,11 +882,17 @@
     const PAD_L = 34, PAD_R = 8, PAD_T = 16, PAD_B = 26;
     const plotW = W - PAD_L - PAD_R;
     const plotH = H - PAD_T - PAD_B;
-    const maxVal = Math.max(1, Math.max.apply(null, buckets.map(function (b) { return b.count; })));
+    const maxVal = Math.max(1, Math.max.apply(null, buckets.map(function (b) {
+        return b.count;
+    })));
     const niceMax = Math.ceil(maxVal * 1.2) || 1;
     const xStep = buckets.length > 1 ? plotW / (buckets.length - 1) : 0;
-    function xPix(i) { return PAD_L + i * xStep; }
-    function yPix(v) { return PAD_T + plotH - (v / niceMax) * plotH; }
+    function xPix(i) {
+        return PAD_L + i * xStep;
+    }
+    function yPix(v) {
+        return PAD_T + plotH - (v / niceMax) * plotH;
+    }
 
     for (let i = 0; i <= 2; i++) {
       const v = Math.round((niceMax / 2) * i);
@@ -807,16 +947,27 @@
       crosshair.setAttribute('opacity', 0);
       tooltip.classList.remove('show');
     }
-    hitRect.addEventListener('mousemove', function (e) { updateHover(e.clientX); });
+    hitRect.addEventListener('mousemove', function (e) {
+        updateHover(e.clientX);
+    });
     hitRect.addEventListener('mouseleave', clearHover);
-    hitRect.addEventListener('touchstart', function (e) { if (e.touches[0]) updateHover(e.touches[0].clientX); }, { passive: true });
-    hitRect.addEventListener('touchmove', function (e) { if (e.touches[0]) updateHover(e.touches[0].clientX); }, { passive: true });
-    hitRect.addEventListener('touchend', function () { setTimeout(clearHover, 1500); }, { passive: true });
+    hitRect.addEventListener('touchstart', function (e) {
+        if (e.touches[0]) updateHover(e.touches[0].clientX);
+    }, { passive: true });
+    hitRect.addEventListener('touchmove', function (e) {
+        if (e.touches[0]) updateHover(e.touches[0].clientX);
+    }, { passive: true });
+    hitRect.addEventListener('touchend', function () {
+        setTimeout(clearHover, 1500);
+    }, { passive: true });
   }
 
   function renderRankupPanel(rankups, containerId) {
     const list = document.getElementById(containerId || 'rankupList');
-    if (!rankups.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;">Everyone is either fully ranked up or awaiting manual review.</p>'; return; }
+    if (!rankups.length) {
+        list.innerHTML = '<p style="color:var(--muted);font-size:13px;">Everyone is either fully ranked up or awaiting manual review.</p>';
+        return;
+    }
     list.innerHTML = rankups.map(function (r) {
       if (r.maxRankReached) {
         return (
@@ -867,8 +1018,13 @@
   function setBadge(id, count) {
     const el = document.getElementById(id);
     if (!el) return;
-    if (count > 0) { el.textContent = String(count); el.style.display = ''; }
-    else { el.style.display = 'none'; }
+    if (count > 0) {
+        el.textContent = String(count);
+        el.style.display = '';
+    }
+    else {
+        el.style.display = 'none';
+    }
   }
 
   const STREAK_FIRE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>';
@@ -903,7 +1059,9 @@
     const todayStr = new Date().toISOString().slice(0, 10);
     const joinedStr = opts.joinedDate ? new Date(opts.joinedDate).toISOString().slice(0, 10) : null;
     const kickedStr = opts.kickedDate ? new Date(opts.kickedDate).toISOString().slice(0, 10) : null;
-    const weekdayHtml = WEEKDAY_LABELS.map(function (w) { return '<div class="activity-cal-weekday">' + w + '</div>'; }).join('');
+    const weekdayHtml = WEEKDAY_LABELS.map(function (w) {
+        return '<div class="activity-cal-weekday">' + w + '</div>';
+    }).join('');
     let bodyHtml = '';
     if (days.length) {
       const parts = days[0].date.split('-');
@@ -929,7 +1087,9 @@
     document.getElementById(containerId).innerHTML = weekdayHtml + bodyHtml;
     if (opts.onExcuseClick) {
       document.querySelectorAll('#' + containerId + ' .activity-day.has-excuse').forEach(function (el) {
-        el.addEventListener('click', function () { opts.onExcuseClick(excuseDays[el.dataset.date]); });
+        el.addEventListener('click', function () {
+            opts.onExcuseClick(excuseDays[el.dataset.date]);
+        });
       });
     }
   }
@@ -975,8 +1135,14 @@
     const n = excuseSelectedDays.size;
     document.getElementById('excuseDaysSummary').textContent = n ? (n + ' day' + (n === 1 ? '' : 's') + ' selected.') : 'No days selected.';
   }
-  document.getElementById('excuseCalPrevBtn').addEventListener('click', function () { excuseCalMonth.setMonth(excuseCalMonth.getMonth() - 1); renderExcuseCalendar(); });
-  document.getElementById('excuseCalNextBtn').addEventListener('click', function () { excuseCalMonth.setMonth(excuseCalMonth.getMonth() + 1); renderExcuseCalendar(); });
+  document.getElementById('excuseCalPrevBtn').addEventListener('click', function () {
+      excuseCalMonth.setMonth(excuseCalMonth.getMonth() - 1);
+      renderExcuseCalendar();
+  });
+  document.getElementById('excuseCalNextBtn').addEventListener('click', function () {
+      excuseCalMonth.setMonth(excuseCalMonth.getMonth() + 1);
+      renderExcuseCalendar();
+  });
 
   function openExcuseModal() {
     document.getElementById('excuseReasonInput').value = '';
@@ -990,12 +1156,22 @@
   document.getElementById('writeExcuseBtn').addEventListener('click', openExcuseModal);
   const writeExcuseBtn2 = document.getElementById('writeExcuseBtn2');
   if (writeExcuseBtn2) writeExcuseBtn2.addEventListener('click', openExcuseModal);
-  document.getElementById('excuseCancelBtn').addEventListener('click', function () { excuseModal.classList.remove('active'); });
-  excuseModal.addEventListener('click', function (e) { if (e.target === excuseModal) excuseModal.classList.remove('active'); });
+  document.getElementById('excuseCancelBtn').addEventListener('click', function () {
+      excuseModal.classList.remove('active');
+  });
+  excuseModal.addEventListener('click', function (e) {
+      if (e.target === excuseModal) excuseModal.classList.remove('active');
+  });
   document.getElementById('excuseSubmitBtn').addEventListener('click', function () {
     const reason = document.getElementById('excuseReasonInput').value.trim();
-    if (!reason) { showToast('Please write a reason.', 'error'); return; }
-    if (!excuseSelectedDays.size) { showToast('Select at least one inactive day.', 'error'); return; }
+    if (!reason) {
+        showToast('Please write a reason.', 'error');
+        return;
+    }
+    if (!excuseSelectedDays.size) {
+        showToast('Select at least one inactive day.', 'error');
+        return;
+    }
     const btn = document.getElementById('excuseSubmitBtn');
     setBtnLoading(btn, true);
     callAdmin('staff.submitExcuse', { reason: reason, days: Array.from(excuseSelectedDays) }).then(function (d) {
@@ -1041,7 +1217,10 @@
         if (action === 'delete') {
           askConfirm('Delete excuse?', "Permanently removes " + (e.username || e.userId) + "'s excuse.", {}, function () {
             return callAdmin('staff.excuses.delete', { id: e.id }).then(function (d) {
-              if (d && d.ok) { showToast('Excuse deleted.', 'success'); loadExcuses(); }
+              if (d && d.ok) {
+                  showToast('Excuse deleted.', 'success');
+                  loadExcuses();
+              }
               else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
             });
           });
@@ -1049,7 +1228,10 @@
         }
         askConfirm(action === 'approve' ? 'Approve excuse?' : 'Reject excuse?', (e.username || e.userId) + "'s excuse.", {}, function () {
           return callAdmin('staff.excuses.decide', { id: e.id, decision: action }).then(function (d) {
-            if (d && d.ok) { showToast('Excuse ' + action + 'd.', 'success'); loadExcuses(); }
+            if (d && d.ok) {
+                showToast('Excuse ' + action + 'd.', 'success');
+                loadExcuses();
+            }
             else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
           });
         });
@@ -1110,7 +1292,10 @@
             const warnId = btn.dataset.warnDeleteId, targetId = btn.dataset.warnDeleteTarget;
             askConfirm('Delete this warning?', 'Permanently removes it from the record.', {}, function () {
               return callAdmin('staff.warns.delete', { id: warnId, targetId: targetId }).then(function (r) {
-                if (r && r.ok) { showToast('Warning deleted.', 'success'); loadWarns(); }
+                if (r && r.ok) {
+                    showToast('Warning deleted.', 'success');
+                    loadWarns();
+                }
                 else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
               });
             });
@@ -1130,19 +1315,33 @@
     if (!query) return;
     memberResults.innerHTML = '<p style="color:var(--muted);font-size:13px;">Searching…</p>';
     callAdmin('members.search', { query: query }).then(function (d) {
-      if (!d || !d.ok) { memberResults.innerHTML = '<p style="color:var(--danger);font-size:13px;">Search failed.</p>'; return; }
-      if (!d.members.length) { memberResults.innerHTML = '<p style="color:var(--muted);font-size:13px;">No members found.</p>'; return; }
-      memberResults.innerHTML = d.members.map(function (m) { return renderMemberCard(m); }).join('');
-      d.members.forEach(function (m) { wireMemberActions(m, document.getElementById('member-' + m.id), runMemberSearch); });
+      if (!d || !d.ok) {
+          memberResults.innerHTML = '<p style="color:var(--danger);font-size:13px;">Search failed.</p>';
+          return;
+      }
+      if (!d.members.length) {
+          memberResults.innerHTML = '<p style="color:var(--muted);font-size:13px;">No members found.</p>';
+          return;
+      }
+      memberResults.innerHTML = d.members.map(function (m) {
+          return renderMemberCard(m);
+      }).join('');
+      d.members.forEach(function (m) {
+          wireMemberActions(m, document.getElementById('member-' + m.id), runMemberSearch);
+      });
     });
   }
   memberSearchBtn.addEventListener('click', runMemberSearch);
-  memberSearchInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') runMemberSearch(); });
+  memberSearchInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') runMemberSearch();
+  });
 
   const TICKET_BAN_ROLE_ID = '1373379758150254653';
   function renderMemberCard(m, idPrefix) {
     idPrefix = idPrefix || 'member-';
-    const roles = (m.roles || []).map(function (r) { return '<span class="pill" style="background:rgba(255,255,255,0.06);color:' + (r.color && r.color !== '#000000' ? r.color : 'var(--muted)') + ';">' + escapeHtml(r.name) + '</span>'; }).join(' ');
+    const roles = (m.roles || []).map(function (r) {
+        return '<span class="pill" style="background:rgba(255,255,255,0.06);color:' + (r.color && r.color !== '#000000' ? r.color : 'var(--muted)') + ';">' + escapeHtml(r.name) + '</span>';
+    }).join(' ');
     const protectedTarget = (m.isStaff || m.isBot) && !canPublishContent;
     const modActions = protectedTarget
       ? '<span class="app-card-meta">' + (m.isBot ? 'Bots' : 'Staff members') + ' can only be managed by Management</span>'
@@ -1152,7 +1351,9 @@
           '<button class="btn-small danger" data-action="kick" data-id="' + m.id + '">Kick</button>' +
           (canReviewApplications ? '<button class="btn-small danger" data-action="ban" data-id="' + m.id + '">Ban</button>' : '')
         );
-    const hasTicketBan = (m.roles || []).some(function (r) { return r.id === TICKET_BAN_ROLE_ID; });
+    const hasTicketBan = (m.roles || []).some(function (r) {
+        return r.id === TICKET_BAN_ROLE_ID;
+    });
     const ticketBanBtn = !m.isBot
       ? (hasTicketBan
           ? '<button class="btn-small success" data-action="ticketUnban" data-id="' + m.id + '">Ticket Unban</button>'
@@ -1209,31 +1410,49 @@
             targetId: m.id, memberAction: action, reason: reason || undefined,
             durationMs: action === 'timeout' ? 24 * 60 * 60 * 1000 : undefined
           }).then(function (d) {
-            if (d && d.ok) { showToast('Done.', 'success'); (onDone || runMemberSearch)(); }
+            if (d && d.ok) {
+                showToast('Done.', 'success');
+                (onDone || runMemberSearch)();
+            }
             else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
           });
         });
       });
     });
     const liteBtn = card.querySelector('button[data-lite-id]');
-    if (liteBtn) liteBtn.addEventListener('click', function () { openLiteModal(liteBtn.dataset.liteId, liteBtn.dataset.liteName, onDone); });
+    if (liteBtn) liteBtn.addEventListener('click', function () {
+        openLiteModal(liteBtn.dataset.liteId, liteBtn.dataset.liteName, onDone);
+    });
     const grantMediaBtn = card.querySelector('button[data-grant-media-id]');
-    if (grantMediaBtn) grantMediaBtn.addEventListener('click', function () { openGrantMediaModal(grantMediaBtn.dataset.grantMediaId, grantMediaBtn.dataset.grantMediaName, onDone); });
+    if (grantMediaBtn) grantMediaBtn.addEventListener('click', function () {
+        openGrantMediaModal(grantMediaBtn.dataset.grantMediaId, grantMediaBtn.dataset.grantMediaName, onDone);
+    });
     const calendarBtn = card.querySelector('button[data-calendar-id]');
-    if (calendarBtn) calendarBtn.addEventListener('click', function () { openStaffCalendar(calendarBtn.dataset.calendarId, calendarBtn.dataset.calendarName); });
+    if (calendarBtn) calendarBtn.addEventListener('click', function () {
+        openStaffCalendar(calendarBtn.dataset.calendarId, calendarBtn.dataset.calendarName);
+    });
     const warnBtn = card.querySelector('button[data-warn-id]');
-    if (warnBtn) warnBtn.addEventListener('click', function () { openWarnModal(warnBtn.dataset.warnId, warnBtn.dataset.warnName); });
+    if (warnBtn) warnBtn.addEventListener('click', function () {
+        openWarnModal(warnBtn.dataset.warnId, warnBtn.dataset.warnName);
+    });
     const promoteBtn = card.querySelector('button[data-promote-id]');
-    if (promoteBtn) promoteBtn.addEventListener('click', function () { openPromoteModal(promoteBtn.dataset.promoteId, promoteBtn.dataset.promoteName, promoteBtn.dataset.promoteRank); });
+    if (promoteBtn) promoteBtn.addEventListener('click', function () {
+        openPromoteModal(promoteBtn.dataset.promoteId, promoteBtn.dataset.promoteName, promoteBtn.dataset.promoteRank);
+    });
     const changeCodeBtn = card.querySelector('button[data-change-code-id]');
-    if (changeCodeBtn) changeCodeBtn.addEventListener('click', function () { openChangeCodeModal(changeCodeBtn.dataset.changeCodeId, changeCodeBtn.dataset.changeCodeName); });
+    if (changeCodeBtn) changeCodeBtn.addEventListener('click', function () {
+        openChangeCodeModal(changeCodeBtn.dataset.changeCodeId, changeCodeBtn.dataset.changeCodeName);
+    });
     const deleteCreatorBtn = card.querySelector('button[data-delete-creator-id]');
     if (deleteCreatorBtn) {
       deleteCreatorBtn.addEventListener('click', function () {
         const targetId = deleteCreatorBtn.dataset.deleteCreatorId, name = deleteCreatorBtn.dataset.deleteCreatorName;
         askConfirm('Delete ' + name + ' as a creator?', 'Deletes their Whop discount code, removes their Media/Partner/Partner+ role, and removes them from the Partners sheet. This cannot be undone.', {}, function () {
           return callAdmin('staff.deleteCreator', { targetId: targetId }).then(function (d) {
-            if (d && d.ok) { showToast('Creator deleted.', 'success'); (onDone || runMemberSearch)(); }
+            if (d && d.ok) {
+                showToast('Creator deleted.', 'success');
+                (onDone || runMemberSearch)();
+            }
             else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
           });
         });
@@ -1258,15 +1477,21 @@
       }
       const m = d.members[0];
       memberModalBody.innerHTML = renderMemberCard(m, 'modal-member-');
-      wireMemberActions(m, document.getElementById('modal-member-' + m.id), function () { openMemberModal(userId); });
+      wireMemberActions(m, document.getElementById('modal-member-' + m.id), function () {
+          openMemberModal(userId);
+      });
     });
   }
   document.addEventListener('click', function (e) {
     const link = e.target.closest('.user-link');
     if (link && link.dataset.userId) openMemberModal(link.dataset.userId);
   });
-  document.getElementById('memberModalCloseBtn').addEventListener('click', function () { memberModal.classList.remove('active'); });
-  memberModal.addEventListener('click', function (e) { if (e.target === memberModal) memberModal.classList.remove('active'); });
+  document.getElementById('memberModalCloseBtn').addEventListener('click', function () {
+      memberModal.classList.remove('active');
+  });
+  memberModal.addEventListener('click', function (e) {
+      if (e.target === memberModal) memberModal.classList.remove('active');
+  });
 
   const globalSearchModal = document.getElementById('globalSearchModal');
   const globalSearchInput = document.getElementById('globalSearchInput');
@@ -1278,16 +1503,25 @@
     globalSearchModal.classList.add('active');
     globalSearchInput.value = '';
     globalSearchResults.innerHTML = GLOBAL_SEARCH_HINT;
-    setTimeout(function () { globalSearchInput.focus(); }, 50);
+    setTimeout(function () {
+        globalSearchInput.focus();
+    }, 50);
   }
-  function closeGlobalSearch() { globalSearchModal.classList.remove('active'); }
+  function closeGlobalSearch() {
+      globalSearchModal.classList.remove('active');
+  }
   document.getElementById('globalSearchBtn').addEventListener('click', openGlobalSearch);
-  globalSearchModal.addEventListener('click', function (e) { if (e.target === globalSearchModal) closeGlobalSearch(); });
+  globalSearchModal.addEventListener('click', function (e) {
+      if (e.target === globalSearchModal) closeGlobalSearch();
+  });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && globalSearchModal.classList.contains('active')) closeGlobalSearch();
   });
   function renderGlobalSearchResults(members, creators) {
-    if (!members.length && !creators.length) { globalSearchResults.innerHTML = '<p style="color:var(--muted);font-size:13px;">No matches.</p>'; return; }
+    if (!members.length && !creators.length) {
+        globalSearchResults.innerHTML = '<p style="color:var(--muted);font-size:13px;">No matches.</p>';
+        return;
+    }
     let html = '';
     if (members.length) {
       html += '<div class="global-search-group-label">Members</div>' + members.map(function (m) {
@@ -1310,7 +1544,10 @@
     }
     globalSearchResults.innerHTML = html;
     globalSearchResults.querySelectorAll('.global-search-row[data-user-id]').forEach(function (row) {
-      row.addEventListener('click', function () { closeGlobalSearch(); openMemberModal(row.dataset.userId); });
+      row.addEventListener('click', function () {
+          closeGlobalSearch();
+          openMemberModal(row.dataset.userId);
+      });
     });
   }
   function runGlobalSearch() {
@@ -1319,13 +1556,19 @@
     const mySeq = ++globalSearchSeq;
     callAdmin('search.global', { query: query }).then(function (d) {
       if (mySeq !== globalSearchSeq) return;
-      if (!d || !d.ok) { globalSearchResults.innerHTML = '<p style="color:var(--danger);font-size:13px;">Search failed.</p>'; return; }
+      if (!d || !d.ok) {
+          globalSearchResults.innerHTML = '<p style="color:var(--danger);font-size:13px;">Search failed.</p>';
+          return;
+      }
       renderGlobalSearchResults(d.members || [], d.creators || []);
     });
   }
   globalSearchInput.addEventListener('input', function () {
     clearTimeout(globalSearchTimer);
-    if (!globalSearchInput.value.trim()) { globalSearchResults.innerHTML = GLOBAL_SEARCH_HINT; return; }
+    if (!globalSearchInput.value.trim()) {
+        globalSearchResults.innerHTML = GLOBAL_SEARCH_HINT;
+        return;
+    }
     globalSearchResults.innerHTML = '<p style="color:var(--muted);font-size:13px;">Searching…</p>';
     globalSearchTimer = setTimeout(runGlobalSearch, 300);
   });
@@ -1343,7 +1586,11 @@
   function localDateKey(d) {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
-  function startOfToday() { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
+  function startOfToday() {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      return d;
+  }
 
   function renderLiteCalendar() {
     const today = startOfToday();
@@ -1373,7 +1620,10 @@
     });
   }
   function updateLiteSummary() {
-    if (!liteSelectedEnd) { liteSelectionSummary.textContent = 'No days selected.'; return; }
+    if (!liteSelectedEnd) {
+        liteSelectionSummary.textContent = 'No days selected.';
+        return;
+    }
     const today = startOfToday();
     const days = Math.round((liteSelectedEnd - today) / 86400000) + 1;
     liteSelectionSummary.textContent = days + ' day' + (days === 1 ? '' : 's') + ' selected (through ' + liteSelectedEnd.toLocaleDateString() + ').';
@@ -1398,10 +1648,17 @@
     updateLiteSummary();
     liteModal.classList.add('active');
   }
-  document.getElementById('liteModalCancelBtn').addEventListener('click', function () { liteModal.classList.remove('active'); });
-  liteModal.addEventListener('click', function (e) { if (e.target === liteModal) liteModal.classList.remove('active'); });
+  document.getElementById('liteModalCancelBtn').addEventListener('click', function () {
+      liteModal.classList.remove('active');
+  });
+  liteModal.addEventListener('click', function (e) {
+      if (e.target === liteModal) liteModal.classList.remove('active');
+  });
   document.getElementById('liteModalGrantBtn').addEventListener('click', function () {
-    if (!liteSelectedEnd || !liteTargetId) { showToast('Pick a day first.', 'error'); return; }
+    if (!liteSelectedEnd || !liteTargetId) {
+        showToast('Pick a day first.', 'error');
+        return;
+    }
     const days = Math.round((liteSelectedEnd - startOfToday()) / 86400000) + 1;
     const btn = document.getElementById('liteModalGrantBtn');
     setBtnLoading(btn, true);
@@ -1426,8 +1683,12 @@
     document.getElementById('grantMediaError').style.display = 'none';
     grantMediaModal.classList.add('active');
   }
-  document.getElementById('grantMediaCancelBtn').addEventListener('click', function () { grantMediaModal.classList.remove('active'); });
-  grantMediaModal.addEventListener('click', function (e) { if (e.target === grantMediaModal) grantMediaModal.classList.remove('active'); });
+  document.getElementById('grantMediaCancelBtn').addEventListener('click', function () {
+      grantMediaModal.classList.remove('active');
+  });
+  grantMediaModal.addEventListener('click', function (e) {
+      if (e.target === grantMediaModal) grantMediaModal.classList.remove('active');
+  });
   document.getElementById('grantMediaSubmitBtn').addEventListener('click', function () {
     const code = document.getElementById('grantMediaCodeInput').value.trim();
     const errEl = document.getElementById('grantMediaError');
@@ -1510,8 +1771,12 @@
   let staffSortDir = 'desc';
   let staffSortMode = 'activity';
   const STAFF_SORT_KEYS = {
-    activity: function (s) { return s.weeklyMessages || 0; },
-    rank: function (s) { return s.rankIndex != null ? s.rankIndex : -1; }
+    activity: function (s) {
+        return s.weeklyMessages || 0;
+    },
+    rank: function (s) {
+        return s.rankIndex != null ? s.rankIndex : -1;
+    }
   };
   function renderStaffTable(list) {
     const keyFn = STAFF_SORT_KEYS[staffSortMode] || STAFF_SORT_KEYS.activity;
@@ -1537,10 +1802,14 @@
     table.innerHTML =
       '<thead><tr><th>Member</th><th>Rank</th><th>Solved</th><th>Claims</th><th>Active</th><th>Unclaimed</th><th>Streak</th><th>Reviews</th><th>Messages (7d)</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
     table.querySelectorAll('button[data-calendar-id]').forEach(function (btn) {
-      btn.addEventListener('click', function () { openStaffCalendar(btn.dataset.calendarId, btn.dataset.calendarName); });
+      btn.addEventListener('click', function () {
+          openStaffCalendar(btn.dataset.calendarId, btn.dataset.calendarName);
+      });
     });
     table.querySelectorAll('button[data-promote-id]').forEach(function (btn) {
-      btn.addEventListener('click', function () { openPromoteModal(btn.dataset.promoteId, btn.dataset.promoteName, btn.dataset.promoteRank); });
+      btn.addEventListener('click', function () {
+          openPromoteModal(btn.dataset.promoteId, btn.dataset.promoteName, btn.dataset.promoteRank);
+      });
     });
     table.querySelectorAll('button[data-warn-id]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -1552,7 +1821,10 @@
         const id = btn.dataset.kickId, name = btn.dataset.kickName;
         askConfirm('Kick from staff team?', 'Removes the STAFF role and highest staff rank from ' + name + '.', { reason: true }, function (reason) {
           return callAdmin('members.action', { targetId: id, memberAction: 'kickStaff', reason: reason || undefined }).then(function (d) {
-            if (d && d.ok) { showToast('Kicked from staff team.', 'success'); loadStaff(); }
+            if (d && d.ok) {
+                showToast('Kicked from staff team.', 'success');
+                loadStaff();
+            }
             else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
           });
         });
@@ -1570,7 +1842,9 @@
   }
   document.querySelectorAll('#staffSortMode .filter-pill').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      document.querySelectorAll('#staffSortMode .filter-pill').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('#staffSortMode .filter-pill').forEach(function (b) {
+          b.classList.remove('active');
+      });
       btn.classList.add('active');
       staffSortMode = btn.dataset.sort;
       renderStaffTable(lastStaffList);
@@ -1583,9 +1857,20 @@
     document.getElementById('claimLimitsEnabled').checked = d.enabled !== false;
     const statusEl = document.getElementById('claimLimitsStatus');
     let state, cls;
-    if (!d.enabled) { state = 'Off — nobody is limited.'; cls = 'off'; }
-    else if (d.pausedUntil) { state = 'Paused until ' + formatDateTime(d.pausedUntil) + ' (' + formatRelative(d.pausedUntil) + ')' + (d.pausedByName || d.pausedBy ? ' by ' + (d.pausedByName || d.pausedBy) : '') + ' — limits come back automatically.'; cls = 'paused'; }
-    else { state = 'Active — ' + (d.ranks || []).map(function (r) { return r.name + ' ' + d.limits[r.key]; }).join(' · '); cls = 'active'; }
+    if (!d.enabled) {
+        state = 'Off — nobody is limited.';
+        cls = 'off';
+    }
+    else if (d.pausedUntil) {
+        state = 'Paused until ' + formatDateTime(d.pausedUntil) + ' (' + formatRelative(d.pausedUntil) + ')' + (d.pausedByName || d.pausedBy ? ' by ' + (d.pausedByName || d.pausedBy) : '') + ' — limits come back automatically.';
+        cls = 'paused';
+    }
+    else {
+        state = 'Active — ' + (d.ranks || []).map(function (r) {
+            return r.name + ' ' + d.limits[r.key];
+        }).join(' · ');
+        cls = 'active';
+    }
     statusEl.className = 'scamfilter-status ' + cls;
     statusEl.textContent = state;
     document.getElementById('claimLimitsResumeBtn').style.display = d.pausedUntil ? '' : 'none';
@@ -1593,7 +1878,9 @@
   }
   function claimLimitsPayload() {
     const limits = {};
-    document.querySelectorAll('#claimLimitsFields .claim-limit-input').forEach(function (el) { limits[el.dataset.rank] = parseInt(el.value, 10); });
+    document.querySelectorAll('#claimLimitsFields .claim-limit-input').forEach(function (el) {
+        limits[el.dataset.rank] = parseInt(el.value, 10);
+    });
     return { limits: limits, enabled: document.getElementById('claimLimitsEnabled').checked };
   }
   function loadClaimLimits() {
@@ -1607,13 +1894,22 @@
     if (btn) setBtnLoading(btn, true);
     return callAdmin('claimLimits.update', Object.assign(claimLimitsPayload(), extra || {})).then(function (d) {
       if (btn) setBtnLoading(btn, false);
-      if (d && d.ok) { showToast(okMessage, 'success'); renderClaimLimits(d); loadStaff(); }
+      if (d && d.ok) {
+          showToast(okMessage, 'success');
+          renderClaimLimits(d);
+          loadStaff();
+      }
       else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
     });
   }
   document.getElementById('claimLimitsSaveBtn').addEventListener('click', function () {
     const values = Object.values(claimLimitsPayload().limits);
-    if (values.some(function (v) { return !Number.isInteger(v) || v < 1 || v > 50; })) { showToast('Limits must be whole numbers between 1 and 50.', 'error'); return; }
+    if (values.some(function (v) {
+        return !Number.isInteger(v) || v < 1 || v > 50;
+    })) {
+        showToast('Limits must be whole numbers between 1 and 50.', 'error');
+        return;
+    }
     submitClaimLimits({}, 'Claim limits saved.', document.getElementById('claimLimitsSaveBtn'));
   });
   document.getElementById('claimLimitsPauseBtn').addEventListener('click', function () {
@@ -1644,7 +1940,9 @@
   let currentStaffActivityFilter = 'inactive';
   document.querySelectorAll('#staffActivityFilter .filter-pill').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      document.querySelectorAll('#staffActivityFilter .filter-pill').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('#staffActivityFilter .filter-pill').forEach(function (b) {
+          b.classList.remove('active');
+      });
       btn.classList.add('active');
       currentStaffActivityFilter = btn.dataset.filter;
       loadStaffActivity(currentStaffActivityFilter);
@@ -1652,7 +1950,9 @@
   });
   function renderStaffActivityTable(list, filter) {
     const rows = list
-      .filter(function (s) { return filter === 'all' || s.daysSinceLastActive >= 2; })
+      .filter(function (s) {
+          return filter === 'all' || s.daysSinceLastActive >= 2;
+      })
       .map(function (s) {
         const color = readableRankColor(s.rankColor);
         const rankPill = s.rank ? '<span class="pill" style="background:' + color + '1a;color:' + color + ';">' + escapeHtml(s.rank) + '</span>' : '—';
@@ -1669,10 +1969,14 @@
     table.innerHTML =
       '<thead><tr><th>Member</th><th>Rank</th><th>Inactive for</th><th>Excuse</th><th>Warns</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
     table.querySelectorAll('button[data-calendar-id]').forEach(function (btn) {
-      btn.addEventListener('click', function () { openStaffCalendar(btn.dataset.calendarId, btn.dataset.calendarName); });
+      btn.addEventListener('click', function () {
+          openStaffCalendar(btn.dataset.calendarId, btn.dataset.calendarName);
+      });
     });
     table.querySelectorAll('button[data-warn-id]').forEach(function (btn) {
-      btn.addEventListener('click', function () { openWarnModal(btn.dataset.warnId, btn.dataset.warnName); });
+      btn.addEventListener('click', function () {
+          openWarnModal(btn.dataset.warnId, btn.dataset.warnName);
+      });
     });
   }
   function loadStaffActivity(filter) {
@@ -1710,7 +2014,9 @@
       '</div>';
     }).join('');
     list.querySelectorAll('.calendar-excuse-item').forEach(function (el) {
-      el.addEventListener('click', function () { onItemClick(shown[parseInt(el.dataset.excuseIndex, 10)]); });
+      el.addEventListener('click', function () {
+          onItemClick(shown[parseInt(el.dataset.excuseIndex, 10)]);
+      });
     });
     if (moreBtn) moreBtn.style.display = excuses.length > EXCUSES_HISTORY_CAP ? '' : 'none';
   }
@@ -1744,7 +2050,9 @@
       renderActivityCalendar('calendarModalGrid', d.calendar || [], {
         excuseDays: d.excuseDays || {},
         joinedDate: d.joinedStaffAt, kickedDate: d.kickedAt,
-        onExcuseClick: function (excuse) { renderExcuseDetailBox('calendarModalExcuseDetail', excuse); }
+        onExcuseClick: function (excuse) {
+            renderExcuseDetailBox('calendarModalExcuseDetail', excuse);
+        }
       });
       renderExcusesHistoryList('calendarModalExcuses', 'calendarModalExcusesMoreBtn', d.excuses || [], function (excuse) {
         renderExcuseDetailBox('calendarModalExcuseDetail', excuse);
@@ -1757,8 +2065,12 @@
         : '';
     });
   }
-  document.getElementById('calendarModalCloseBtn').addEventListener('click', function () { calendarModal.classList.remove('active'); });
-  document.getElementById('calendarModalExcusesMoreBtn').addEventListener('click', function () { calendarModal.classList.remove('active'); });
+  document.getElementById('calendarModalCloseBtn').addEventListener('click', function () {
+      calendarModal.classList.remove('active');
+  });
+  document.getElementById('calendarModalExcusesMoreBtn').addEventListener('click', function () {
+      calendarModal.classList.remove('active');
+  });
 
   const fullActivityModal = document.getElementById('fullActivityModal');
   const FULL_ACTIVITY_DAYS = 90;
@@ -1786,7 +2098,9 @@
       renderActivityCalendar('fullActivityModalGrid', d.calendar || [], {
         excuseDays: d.excuseDays || {},
         joinedDate: d.joinedStaffAt, kickedDate: d.kickedAt,
-        onExcuseClick: function (excuse) { renderExcuseDetailBox('fullActivityModalExcuseDetail', excuse); }
+        onExcuseClick: function (excuse) {
+            renderExcuseDetailBox('fullActivityModalExcuseDetail', excuse);
+        }
       });
       const warnings = d.warnings || [];
       document.getElementById('fullActivityModalWarnings').innerHTML = warnings.length
@@ -1800,9 +2114,15 @@
     calendarModal.classList.remove('active');
     openFullActivityModal(currentCalendarTargetId, currentCalendarTargetName);
   });
-  document.getElementById('fullActivityModalCloseBtn').addEventListener('click', function () { fullActivityModal.classList.remove('active'); });
-  fullActivityModal.addEventListener('click', function (e) { if (e.target === fullActivityModal) fullActivityModal.classList.remove('active'); });
-  calendarModal.addEventListener('click', function (e) { if (e.target === calendarModal) calendarModal.classList.remove('active'); });
+  document.getElementById('fullActivityModalCloseBtn').addEventListener('click', function () {
+      fullActivityModal.classList.remove('active');
+  });
+  fullActivityModal.addEventListener('click', function (e) {
+      if (e.target === fullActivityModal) fullActivityModal.classList.remove('active');
+  });
+  calendarModal.addEventListener('click', function (e) {
+      if (e.target === calendarModal) calendarModal.classList.remove('active');
+  });
 
   const promoteModal = document.getElementById('promoteModal');
   let currentPromoteTargetId = null;
@@ -1813,11 +2133,18 @@
     document.getElementById('promoteReasonInput').value = '';
     promoteModal.classList.add('active');
   }
-  document.getElementById('promoteCancelBtn').addEventListener('click', function () { promoteModal.classList.remove('active'); });
-  promoteModal.addEventListener('click', function (e) { if (e.target === promoteModal) promoteModal.classList.remove('active'); });
+  document.getElementById('promoteCancelBtn').addEventListener('click', function () {
+      promoteModal.classList.remove('active');
+  });
+  promoteModal.addEventListener('click', function (e) {
+      if (e.target === promoteModal) promoteModal.classList.remove('active');
+  });
   document.getElementById('promoteSubmitBtn').addEventListener('click', function () {
     const reason = document.getElementById('promoteReasonInput').value.trim();
-    if (!reason || !currentPromoteTargetId) { showToast('Please write a reason.', 'error'); return; }
+    if (!reason || !currentPromoteTargetId) {
+        showToast('Please write a reason.', 'error');
+        return;
+    }
     const btn = document.getElementById('promoteSubmitBtn');
     setBtnLoading(btn, true);
     callAdmin('staff.promote', { targetId: currentPromoteTargetId, reason: reason }).then(function (d) {
@@ -1841,12 +2168,19 @@
     document.getElementById('warnDurationInput').value = '';
     warnModal.classList.add('active');
   }
-  document.getElementById('warnCancelBtn').addEventListener('click', function () { warnModal.classList.remove('active'); });
-  warnModal.addEventListener('click', function (e) { if (e.target === warnModal) warnModal.classList.remove('active'); });
+  document.getElementById('warnCancelBtn').addEventListener('click', function () {
+      warnModal.classList.remove('active');
+  });
+  warnModal.addEventListener('click', function (e) {
+      if (e.target === warnModal) warnModal.classList.remove('active');
+  });
   document.getElementById('warnSubmitBtn').addEventListener('click', function () {
     const reason = document.getElementById('warnReasonInput').value.trim();
     const duration = document.getElementById('warnDurationInput').value.trim();
-    if (!reason || !currentWarnTargetId) { showToast('Please write a reason.', 'error'); return; }
+    if (!reason || !currentWarnTargetId) {
+        showToast('Please write a reason.', 'error');
+        return;
+    }
     const btn = document.getElementById('warnSubmitBtn');
     setBtnLoading(btn, true);
     callAdmin('staff.warn', { targetId: currentWarnTargetId, reason: reason, duration: duration }).then(function (d) {
@@ -1867,7 +2201,9 @@
   let currentStaffAppsRole = '';
   document.querySelectorAll('#staffAppsFilter .filter-pill').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      document.querySelectorAll('#staffAppsFilter .filter-pill').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('#staffAppsFilter .filter-pill').forEach(function (b) {
+          b.classList.remove('active');
+      });
       btn.classList.add('active');
       currentStaffAppsFilter = btn.dataset.status;
       loadStaffApps(currentStaffAppsFilter);
@@ -1875,7 +2211,9 @@
   });
   document.querySelectorAll('#staffAppsRoleFilter .filter-pill').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      document.querySelectorAll('#staffAppsRoleFilter .filter-pill').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('#staffAppsRoleFilter .filter-pill').forEach(function (b) {
+          b.classList.remove('active');
+      });
       btn.classList.add('active');
       currentStaffAppsRole = btn.dataset.role;
       loadStaffApps(currentStaffAppsFilter);
@@ -1885,7 +2223,10 @@
     return callAdmin('staffApplications.list', { status: status, role: currentStaffAppsRole }).then(function (d) {
       if (!d || !d.ok) return;
       const list = document.getElementById('staffAppsList');
-      if (!d.applications.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;">No applications here.</p>'; return; }
+      if (!d.applications.length) {
+          list.innerHTML = '<p style="color:var(--muted);font-size:13px;">No applications here.</p>';
+          return;
+      }
       const roles = d.roles || {};
       list.innerHTML = d.applications.map(function (a) {
         const roleInfo = roles[a.role || 'staff'] || {};
@@ -1949,8 +2290,14 @@
       sel.addEventListener('change', function () {
         sel.disabled = true;
         callAdmin('autoreply.setOverride', { key: sel.dataset.key, mode: sel.value }).then(function (d) {
-          if (d && d.ok) { showToast('Auto reply mode saved.', 'success'); loadAutoreplies(); }
-          else { showToast('Failed: ' + (d && d.error || 'unknown error'), 'error'); sel.disabled = false; }
+          if (d && d.ok) {
+              showToast('Auto reply mode saved.', 'success');
+              loadAutoreplies();
+          }
+          else {
+              showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+              sel.disabled = false;
+          }
         });
       });
     });
@@ -1972,7 +2319,9 @@
         const flags = [r.requireAll ? 'all keywords' : 'any keyword', r.ticketOnly ? 'tickets only' : 'everywhere', r.plain ? 'plain' : 'embed'].join(' · ');
         return '<tr data-rule-id="' + escapeHtml(r.id) + '"' + (r.enabled ? '' : ' style="opacity:0.55;"') + '>' +
           '<td><strong>' + escapeHtml(r.name) + '</strong><div class="autoreply-desc">' + escapeHtml(flags) + (r.enabled ? '' : ' · disabled') + '</div></td>' +
-          '<td>' + (r.keywords || []).map(function (k) { return '<span class="pill report">' + escapeHtml(k) + '</span>'; }).join(' ') + '</td>' +
+          '<td>' + (r.keywords || []).map(function (k) {
+              return '<span class="pill report">' + escapeHtml(k) + '</span>';
+          }).join(' ') + '</td>' +
           '<td class="autoreply-reply">' + escapeHtml(String(r.reply || '').slice(0, 140)) + (String(r.reply || '').length > 140 ? '…' : '') + '</td>' +
           '<td class="mono">' + r.good + ' / ' + r.bad + '</td><td>' + autoreplyStatePill(r) + '</td><td>' + autoreplyModeSelect('custom:' + r.id, r.override) + '</td>' +
           '<td><button type="button" class="btn-small" data-autoreply-edit="' + escapeHtml(r.id) + '">Edit</button> <button type="button" class="btn-small danger" data-autoreply-delete="' + escapeHtml(r.id) + '">Delete</button></td></tr>';
@@ -1980,16 +2329,23 @@
     bindAutoreplyModes(customTable);
     customTable.querySelectorAll('[data-autoreply-edit]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        const rule = autoreplyCustomRules.find(function (r) { return r.id === btn.dataset.autoreplyEdit; });
+        const rule = autoreplyCustomRules.find(function (r) {
+            return r.id === btn.dataset.autoreplyEdit;
+        });
         if (rule) openAutoreplyForm(rule);
       });
     });
     customTable.querySelectorAll('[data-autoreply-delete]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        const rule = autoreplyCustomRules.find(function (r) { return r.id === btn.dataset.autoreplyDelete; });
+        const rule = autoreplyCustomRules.find(function (r) {
+            return r.id === btn.dataset.autoreplyDelete;
+        });
         askConfirm('Delete this auto reply?', (rule ? '"' + rule.name + '"' : 'This reply') + ' will stop triggering immediately.', {}, function () {
           return callAdmin('autoreply.deleteCustom', { id: btn.dataset.autoreplyDelete }).then(function (r) {
-            if (r && r.ok) { showToast('Auto reply deleted.', 'success'); loadAutoreplies(); }
+            if (r && r.ok) {
+                showToast('Auto reply deleted.', 'success');
+                loadAutoreplies();
+            }
             else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
           });
         });
@@ -2029,29 +2385,42 @@
     autoreplyEditingId = null;
     document.getElementById('autoreplyForm').style.display = 'none';
   }
-  document.getElementById('autoreplyNewBtn').addEventListener('click', function () { openAutoreplyForm(null); });
+  document.getElementById('autoreplyNewBtn').addEventListener('click', function () {
+      openAutoreplyForm(null);
+  });
   document.getElementById('autoreplyCancelBtn').addEventListener('click', closeAutoreplyForm);
   document.getElementById('autoreplySaveBtn').addEventListener('click', function () {
     const btn = document.getElementById('autoreplySaveBtn');
     const payload = {
       id: autoreplyEditingId,
       name: document.getElementById('autoreplyName').value.trim(),
-      keywords: document.getElementById('autoreplyKeywords').value.split(',').map(function (k) { return k.trim(); }).filter(Boolean),
+      keywords: document.getElementById('autoreplyKeywords').value.split(',').map(function (k) {
+          return k.trim();
+      }).filter(Boolean),
       reply: document.getElementById('autoreplyReply').value.trim(),
       requireAll: document.getElementById('autoreplyRequireAll').checked,
       ticketOnly: document.getElementById('autoreplyTicketOnly').checked,
       plain: document.getElementById('autoreplyPlain').checked,
       enabled: document.getElementById('autoreplyEnabled').checked
     };
-    if (!payload.name || !payload.keywords.length || !payload.reply) { showToast('Name, at least one keyword and a reply are required.', 'error'); return; }
+    if (!payload.name || !payload.keywords.length || !payload.reply) {
+        showToast('Name, at least one keyword and a reply are required.', 'error');
+        return;
+    }
     setBtnLoading(btn, true);
     callAdmin('autoreply.saveCustom', payload).then(function (d) {
       setBtnLoading(btn, false);
-      if (d && d.ok) { showToast('Auto reply saved.', 'success'); closeAutoreplyForm(); loadAutoreplies(); }
+      if (d && d.ok) {
+          showToast('Auto reply saved.', 'success');
+          closeAutoreplyForm();
+          loadAutoreplies();
+      }
       else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
     });
   });
-  function scamFilterPct(v) { return v == null ? '—' : Math.round(v * 100) + ' %'; }
+  function scamFilterPct(v) {
+      return v == null ? '—' : Math.round(v * 100) + ' %';
+  }
   function scamFilterReasonText(score) {
     if (!score) return '—';
     if (score.reason === 'similar_to_report') return scamFilterPct(score.similarity) + ' similar to a report';
@@ -2081,10 +2450,22 @@
       return '<div class="stat-card"><div class="num ' + (c[2] || '') + '">' + c[0] + '</div><div class="label">' + c[1] + '</div></div>';
     }).join('');
     let state, cls;
-    if (!s.enabled) { state = 'Off — nothing is deleted automatically.'; cls = 'off'; }
-    else if (d.paused) { state = 'Paused since ' + formatRelative(d.paused.at) + ' (' + escapeHtml(d.paused.reason || 'too many wrong deletions') + '). Resume it once you have reviewed the recent deletions.'; cls = 'paused'; }
-    else if ((st.samples || 0) < (s.minSamples || 0)) { state = 'Learning — copies of reported scams are deleted right away, probability-based deletion starts at ' + s.minSamples + ' learned examples (' + (st.samples || 0) + ' so far).'; cls = 'learning'; }
-    else { state = 'Active — deleting messages that look like the learned scams.'; cls = 'active'; }
+    if (!s.enabled) {
+        state = 'Off — nothing is deleted automatically.';
+        cls = 'off';
+    }
+    else if (d.paused) {
+        state = 'Paused since ' + formatRelative(d.paused.at) + ' (' + escapeHtml(d.paused.reason || 'too many wrong deletions') + '). Resume it once you have reviewed the recent deletions.';
+        cls = 'paused';
+    }
+    else if ((st.samples || 0) < (s.minSamples || 0)) {
+        state = 'Learning — copies of reported scams are deleted right away, probability-based deletion starts at ' + s.minSamples + ' learned examples (' + (st.samples || 0) + ' so far).';
+        cls = 'learning';
+    }
+    else {
+        state = 'Active — deleting messages that look like the learned scams.';
+        cls = 'active';
+    }
     const statusEl = document.getElementById('scamFilterStatus');
     statusEl.className = 'scamfilter-status ' + cls;
     statusEl.textContent = state;
@@ -2101,7 +2482,10 @@
     document.getElementById('scamFilterResumeBtn').style.display = d.paused ? '' : 'none';
     document.getElementById('scamFilterResumeAttachmentOnlyBtn').style.display = d.attachmentOnlyPaused ? '' : 'none';
     const badge = document.getElementById('badgeScamFilter');
-    if (badge) { badge.textContent = st.pendingReview || 0; badge.style.display = st.pendingReview > 0 ? '' : 'none'; }
+    if (badge) {
+        badge.textContent = st.pendingReview || 0;
+        badge.style.display = st.pendingReview > 0 ? '' : 'none';
+    }
 
     const recentTable = document.getElementById('scamFilterRecentTable');
     recentTable.innerHTML = '<thead><tr><th>When</th><th>User</th><th>Message</th><th>Why</th><th>Review</th><th></th></tr></thead><tbody>' +
@@ -2122,7 +2506,10 @@
         const label = btn.dataset.scamfilterReview;
         const run = function () {
           return callAdmin('scamfilter.review', { id: btn.dataset.id, label: label }).then(function (r) {
-            if (r && r.ok) { showToast(label === 'wrong' ? 'Marked as wrong deletion — the filter learned from it.' + (r.paused ? ' The filter paused itself.' : '') : 'Confirmed as scam.', 'success'); loadScamFilter(); }
+            if (r && r.ok) {
+                showToast(label === 'wrong' ? 'Marked as wrong deletion — the filter learned from it.' + (r.paused ? ' The filter paused itself.' : '') : 'Confirmed as scam.', 'success');
+                loadScamFilter();
+            }
             else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
           });
         };
@@ -2146,7 +2533,10 @@
     samplesTable.querySelectorAll('button[data-scamfilter-ignore]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         callAdmin('scamfilter.ignoreSample', { id: btn.dataset.id, ignored: btn.dataset.scamfilterIgnore === '1' }).then(function (r) {
-          if (r && r.ok) { showToast(btn.dataset.scamfilterIgnore === '1' ? 'Example ignored.' : 'Example is used again.', 'success'); loadScamFilter(); }
+          if (r && r.ok) {
+              showToast(btn.dataset.scamfilterIgnore === '1' ? 'Example ignored.' : 'Example is used again.', 'success');
+              loadScamFilter();
+          }
           else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
         });
       });
@@ -2177,29 +2567,44 @@
     setBtnLoading(btn, true);
     callAdmin('scamfilter.saveSettings', { settings: scamFilterSettingsPayload() }).then(function (d) {
       setBtnLoading(btn, false);
-      if (d && d.ok) { showToast('Scam filter settings saved.', 'success'); loadScamFilter(); }
+      if (d && d.ok) {
+          showToast('Scam filter settings saved.', 'success');
+          loadScamFilter();
+      }
       else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
     });
   });
   document.getElementById('scamFilterResumeBtn').addEventListener('click', function () {
     callAdmin('scamfilter.saveSettings', { settings: scamFilterSettingsPayload(), resume: true }).then(function (d) {
-      if (d && d.ok) { showToast('Scam filter resumed.', 'success'); loadScamFilter(); }
+      if (d && d.ok) {
+          showToast('Scam filter resumed.', 'success');
+          loadScamFilter();
+      }
       else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
     });
   });
   document.getElementById('scamFilterResumeAttachmentOnlyBtn').addEventListener('click', function () {
     callAdmin('scamfilter.saveSettings', { settings: scamFilterSettingsPayload(), resumeAttachmentOnly: true }).then(function (d) {
-      if (d && d.ok) { showToast('Attachment-only rule resumed.', 'success'); loadScamFilter(); }
+      if (d && d.ok) {
+          showToast('Attachment-only rule resumed.', 'success');
+          loadScamFilter();
+      }
       else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
     });
   });
   document.getElementById('scamFilterTestBtn').addEventListener('click', function () {
     const text = document.getElementById('scamFilterTestText').value.trim();
     const out = document.getElementById('scamFilterTestResult');
-    if (!text) { out.textContent = 'Paste a message first.'; return; }
+    if (!text) {
+        out.textContent = 'Paste a message first.';
+        return;
+    }
     out.textContent = 'Scoring…';
     callAdmin('scamfilter.test', { text: text }).then(function (d) {
-      if (!d || !d.ok) { out.textContent = 'Failed: ' + (d && d.error || 'unknown error'); return; }
+      if (!d || !d.ok) {
+          out.textContent = 'Failed: ' + (d && d.error || 'unknown error');
+          return;
+      }
       const r = d.decision;
       const verdict = r.action === 'delete' ? 'Would delete' : 'Would keep';
       out.innerHTML = '<span class="pill ' + (r.action === 'delete' ? 'denied' : 'accepted') + '">' + verdict + '</span> ' +
@@ -2241,14 +2646,19 @@
     setBtnLoading(btn, true);
     callAdmin('status.update', { services: statusPageServicesPayload() }).then(function (d) {
       setBtnLoading(btn, false);
-      if (d && d.ok) { showToast('Status page updated.', 'success'); renderStatusPage(d); }
+      if (d && d.ok) {
+          showToast('Status page updated.', 'success');
+          renderStatusPage(d);
+      }
       else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
     });
   });
   let partnerDataTiers = ['media', 'partner', 'partner_plus'];
   function partnerRowHtml(p) {
     const isNew = !p.discordId;
-    const tierOptions = partnerDataTiers.map(function (t) { return '<option value="' + t + '"' + (p.tier === t ? ' selected' : '') + '>' + t + '</option>'; }).join('');
+    const tierOptions = partnerDataTiers.map(function (t) {
+        return '<option value="' + t + '"' + (p.tier === t ? ' selected' : '') + '>' + t + '</option>';
+    }).join('');
     return '<tr data-discord-id="' + escapeHtml(p.discordId || '') + '"' + (isNew ? ' class="partner-new-row"' : '') + '>' +
       '<td>' + (isNew ? '<input type="text" class="text-input pd-discordId" placeholder="Discord ID" style="width:170px;"/>' : userLink(p.discordId, p.username || p.discordId) + '<div class="muted">' + escapeHtml(p.discordId) + '</div>') + '</td>' +
       '<td><input type="text" class="text-input pd-code" maxlength="32" value="' + escapeHtml(p.code || '') + '" style="width:120px;"/></td>' +
@@ -2262,7 +2672,10 @@
       (isNew ? '' : ' <button type="button" class="btn-small danger pd-delete">Delete</button>') + '</td></tr>';
   }
   function partnerRowPayload(row) {
-    const val = function (cls) { const el = row.querySelector('.' + cls); return el ? el.value.trim() : ''; };
+    const val = function (cls) {
+        const el = row.querySelector('.' + cls);
+        return el ? el.value.trim() : '';
+    };
     return {
       discordId: row.dataset.discordId || val('pd-discordId'),
       code: val('pd-code'), percentage: val('pd-percentage'), tier: val('pd-tier'),
@@ -2301,17 +2714,26 @@
     if (!row) return;
     if (saveBtn) {
       const partner = partnerRowPayload(row);
-      if (!partner.discordId || !partner.code) { showToast('Discord ID and code are required.', 'error'); return; }
+      if (!partner.discordId || !partner.code) {
+          showToast('Discord ID and code are required.', 'error');
+          return;
+      }
       saveBtn.disabled = true;
       callAdmin('partnerData.upsert', { partner: partner }).then(function (d) {
         saveBtn.disabled = false;
-        if (d && d.ok) { showToast('Creator saved.', 'success'); loadPartnerData(); }
+        if (d && d.ok) {
+            showToast('Creator saved.', 'success');
+            loadPartnerData();
+        }
         else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
       });
     } else if (deleteBtn) {
       askConfirm('Delete creator?', 'Removes ' + row.dataset.discordId + ' from the partner list. Their Discord role and Whop promo code are not touched.', {}, function () {
         callAdmin('partnerData.delete', { discordId: row.dataset.discordId }).then(function (d) {
-          if (d && d.ok) { showToast('Creator removed.', 'success'); loadPartnerData(); }
+          if (d && d.ok) {
+              showToast('Creator removed.', 'success');
+              loadPartnerData();
+          }
           else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
         });
       });
@@ -2322,12 +2744,17 @@
     setBtnLoading(btn, true);
     callAdmin('partnerData.sync').then(function (d) {
       setBtnLoading(btn, false);
-      if (d && d.ok) { showToast('Synced from Google Sheets.', 'success'); renderPartnerData(d); }
+      if (d && d.ok) {
+          showToast('Synced from Google Sheets.', 'success');
+          renderPartnerData(d);
+      }
       else showToast('Sync failed: ' + (d && (d.syncError || d.error) || 'unknown error'), 'error');
     });
   });
   function describeLiteBoostSync(sync) {
-    return Object.keys(sync || {}).map(function (k) { return k + ' ' + String(sync[k]).replace(/_/g, ' '); }).join(', ') || 'nothing to do';
+    return Object.keys(sync || {}).map(function (k) {
+        return k + ' ' + String(sync[k]).replace(/_/g, ' ');
+    }).join(', ') || 'nothing to do';
   }
   function renderLiteBoosts(d) {
     document.getElementById('liteBoostsInput').value = d.boosts;
@@ -2345,11 +2772,17 @@
   document.getElementById('liteBoostsSaveBtn').addEventListener('click', function () {
     const btn = document.getElementById('liteBoostsSaveBtn');
     const boosts = parseInt(document.getElementById('liteBoostsInput').value, 10);
-    if (!(boosts >= 1 && boosts <= 20)) { showToast('Enter a number between 1 and 20.', 'error'); return; }
+    if (!(boosts >= 1 && boosts <= 20)) {
+        showToast('Enter a number between 1 and 20.', 'error');
+        return;
+    }
     setBtnLoading(btn, true);
     callAdmin('liteBoosts.update', { boosts: boosts }).then(function (d) {
       setBtnLoading(btn, false);
-      if (d && d.ok) { showToast('Saved. Embeds: ' + describeLiteBoostSync(d.sync), 'success'); renderLiteBoosts(d); }
+      if (d && d.ok) {
+          showToast('Saved. Embeds: ' + describeLiteBoostSync(d.sync), 'success');
+          renderLiteBoosts(d);
+      }
       else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
     });
   });
@@ -2358,7 +2791,10 @@
     setBtnLoading(btn, true);
     callAdmin('liteBoosts.sendEmbeds', {}).then(function (d) {
       setBtnLoading(btn, false);
-      if (d && d.ok) { showToast('Embeds: ' + describeLiteBoostSync(d.sync), 'success'); renderLiteBoosts(d); }
+      if (d && d.ok) {
+          showToast('Embeds: ' + describeLiteBoostSync(d.sync), 'success');
+          renderLiteBoosts(d);
+      }
       else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
     });
   });
@@ -2404,7 +2840,11 @@
         if (decision === 'ban') {
           askConfirm('Ban from staff applications?', (a.username || a.discordId) + " won't be able to apply again, and their staff page will show this reason instead of the recruitment form. A reason is required.", { reason: true, requireReason: true, okLabel: 'Ban' }, function (reason) {
             return callAdmin('staffApplications.ban', { discordId: a.discordId, reason: reason }).then(function (d) {
-              if (d && d.ok) { showToast('Banned from staff applications.', 'success'); loadStaffApps(currentStaffAppsFilter); loadOverview(); }
+              if (d && d.ok) {
+                  showToast('Banned from staff applications.', 'success');
+                  loadStaffApps(currentStaffAppsFilter);
+                  loadOverview();
+              }
               else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
             });
           });
@@ -2413,7 +2853,11 @@
         const opts = decision === 'deny' ? { reason: true, okLabel: 'Deny' } : { tone: 'primary', okLabel: 'Accept' };
         askConfirm(decision === 'accept' ? 'Accept application?' : 'Deny application?', (a.username || a.discordId) + "'s staff application." + (decision === 'deny' ? ' You can add a reason — the applicant will see it.' : ''), opts, function (reason) {
           return callAdmin('staffApplications.decide', { discordId: a.discordId, decision: decision, reason: reason || undefined }).then(function (d) {
-            if (d && d.ok) { showToast('Application ' + decision + 'ed.', 'success'); loadStaffApps(currentStaffAppsFilter); loadOverview(); }
+            if (d && d.ok) {
+                showToast('Application ' + decision + 'ed.', 'success');
+                loadStaffApps(currentStaffAppsFilter);
+                loadOverview();
+            }
             else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
           });
         });
@@ -2423,7 +2867,9 @@
   let currentReportsFilter = '';
   document.querySelectorAll('#reportsFilter .filter-pill').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      document.querySelectorAll('#reportsFilter .filter-pill').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('#reportsFilter .filter-pill').forEach(function (b) {
+          b.classList.remove('active');
+      });
       btn.classList.add('active');
       currentReportsFilter = btn.dataset.category;
       loadBugReports(currentReportsFilter);
@@ -2433,7 +2879,10 @@
     return callAdmin('bugReports.list', { category: category }).then(function (d) {
       if (!d || !d.ok) return;
       const list = document.getElementById('reportsList');
-      if (!d.reports.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;">No bug reports here.</p>'; return; }
+      if (!d.reports.length) {
+          list.innerHTML = '<p style="color:var(--muted);font-size:13px;">No bug reports here.</p>';
+          return;
+      }
       list.innerHTML = d.reports.map(renderReportCard).join('');
     });
   }
@@ -2446,7 +2895,9 @@
       ['Description', r.description],
       ['Mods', r.isModded ? (r.modList || 'Yes') : 'No (vanilla instance)'],
       ['Attached link', r.linkUrl]
-    ].filter(function (p) { return p[1]; }).map(function (p) {
+    ].filter(function (p) {
+        return p[1];
+    }).map(function (p) {
       return '<div><div class="app-card-q">' + escapeHtml(p[0]) + '</div><div class="app-card-a">' + escapeHtml(p[1]) + '</div></div>';
     }).join('');
     const files = [r.buglogFileName].concat(r.attachmentFileNames || []).filter(Boolean);
@@ -2480,7 +2931,10 @@
       return (l.username || '').toLowerCase().indexOf(query) !== -1 || String(l.discordId || '').indexOf(query) !== -1 || (l.code || '').toLowerCase().indexOf(query) !== -1;
     });
     const list = document.getElementById('partnerLogsList');
-    if (!filtered.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;">' + (lastPartnerLogs.length ? 'No matches.' : 'No signups logged yet.') + '</p>'; return; }
+    if (!filtered.length) {
+        list.innerHTML = '<p style="color:var(--muted);font-size:13px;">' + (lastPartnerLogs.length ? 'No matches.' : 'No signups logged yet.') + '</p>';
+        return;
+    }
     list.innerHTML = filtered.map(renderPartnerLogCard).join('');
     filtered.forEach(wirePartnerLogActions);
   }
@@ -2493,7 +2947,9 @@
       ['Previous code' + ((l.previousCodes || []).length > 1 ? 's' : ''), (l.previousCodes || []).length ? l.previousCodes.join(', ') : null],
       ['Promoting at', l.socialLink],
       ['Granted by', l.grantedBy ? ('Staff (' + l.grantedBy + ')') : null]
-    ].filter(function (p) { return p[1]; }).map(function (p) {
+    ].filter(function (p) {
+        return p[1];
+    }).map(function (p) {
       return '<div><div class="app-card-q">' + escapeHtml(p[0]) + '</div><div class="app-card-a">' + escapeHtml(p[1]) + '</div></div>';
     }).join('');
     return (
@@ -2516,14 +2972,19 @@
     const card = document.getElementById('creator-' + logId);
     if (!card) return;
     const changeBtn = card.querySelector('button[data-change-code-id]');
-    if (changeBtn) changeBtn.addEventListener('click', function () { openChangeCodeModal(changeBtn.dataset.changeCodeId, changeBtn.dataset.changeCodeName); });
+    if (changeBtn) changeBtn.addEventListener('click', function () {
+        openChangeCodeModal(changeBtn.dataset.changeCodeId, changeBtn.dataset.changeCodeName);
+    });
     const deleteBtn = card.querySelector('button[data-delete-creator-id]');
     if (deleteBtn) {
       deleteBtn.addEventListener('click', function () {
         const targetId = deleteBtn.dataset.deleteCreatorId, name = deleteBtn.dataset.deleteCreatorName;
         askConfirm('Delete ' + name + ' as a creator?', 'Deletes their Whop discount code, removes their Media/Partner/Partner+ role, and removes them from the Partners sheet. This cannot be undone.', {}, function () {
           return callAdmin('staff.deleteCreator', { targetId: targetId }).then(function (d) {
-            if (d && d.ok) { showToast('Creator deleted.', 'success'); loadPartnerLogs(); }
+            if (d && d.ok) {
+                showToast('Creator deleted.', 'success');
+                loadPartnerLogs();
+            }
             else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
           });
         });
@@ -2551,8 +3012,14 @@
     const raw = changeCodeInput.value.trim();
     clearTimeout(changeCodeCheckTimer);
     const mySeq = ++changeCodeCheckSeq;
-    if (!raw) { setChangeCodeStatus(null, ''); return; }
-    if (raw.length < 3) { setChangeCodeStatus('taken', 'At least 3 characters.'); return; }
+    if (!raw) {
+        setChangeCodeStatus(null, '');
+        return;
+    }
+    if (raw.length < 3) {
+        setChangeCodeStatus('taken', 'At least 3 characters.');
+        return;
+    }
     setChangeCodeStatus('checking', 'Checking…');
     changeCodeCheckTimer = setTimeout(function () {
       callAdmin('staff.codeCheck', { code: raw, excludeDiscordId: changeCodeTargetId || '' }).then(function (d) {
@@ -2569,8 +3036,12 @@
       });
     }, 450);
   });
-  document.getElementById('changeCodeCancelBtn').addEventListener('click', function () { changeCodeModal.classList.remove('active'); });
-  changeCodeModal.addEventListener('click', function (e) { if (e.target === changeCodeModal) changeCodeModal.classList.remove('active'); });
+  document.getElementById('changeCodeCancelBtn').addEventListener('click', function () {
+      changeCodeModal.classList.remove('active');
+  });
+  changeCodeModal.addEventListener('click', function (e) {
+      if (e.target === changeCodeModal) changeCodeModal.classList.remove('active');
+  });
   document.getElementById('changeCodeSubmitBtn').addEventListener('click', function () {
     const code = changeCodeInput.value.trim();
     const errEl = document.getElementById('changeCodeError');
@@ -2606,7 +3077,10 @@
   }
   function renderBannedWordsList() {
     const list = document.getElementById('bannedWordsList');
-    if (!lastBannedWords.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;">No blocked words yet.</p>'; return; }
+    if (!lastBannedWords.length) {
+        list.innerHTML = '<p style="color:var(--muted);font-size:13px;">No blocked words yet.</p>';
+        return;
+    }
     list.innerHTML = lastBannedWords.map(function (w) {
       return '<span class="banned-word-chip">' +
         '<span class="banned-word-text" data-edit-word="' + escapeHtml(w) + '" title="Click to rename">' + escapeHtml(w) + '</span>' +
@@ -2622,7 +3096,9 @@
       btn.addEventListener('click', function () {
         const word = btn.dataset.deleteWord;
         const previous = lastBannedWords;
-        lastBannedWords = lastBannedWords.filter(function (w) { return w !== word; });
+        lastBannedWords = lastBannedWords.filter(function (w) {
+            return w !== word;
+        });
         renderBannedWordsList();
         callAdmin('bannedWords.delete', { word: word }).then(function (d) {
           if (!d || !d.ok) {
@@ -2640,7 +3116,9 @@
         if (!newWord || !newWord.trim() || newWord.trim().toLowerCase() === oldWord.toLowerCase()) return;
         const trimmed = newWord.trim();
         const previous = lastBannedWords;
-        lastBannedWords = lastBannedWords.map(function (w) { return w === oldWord ? trimmed : w; });
+        lastBannedWords = lastBannedWords.map(function (w) {
+            return w === oldWord ? trimmed : w;
+        });
         renderBannedWordsList();
         callAdmin('bannedWords.update', { oldWord: oldWord, newWord: trimmed }).then(function (d) {
           if (!d || !d.ok) {
@@ -2658,7 +3136,9 @@
       const input = document.getElementById('bannedWordInput');
       const word = input.value.trim();
       if (!word) return;
-      if (lastBannedWords.some(function (w) { return w.toLowerCase() === word.toLowerCase(); })) {
+      if (lastBannedWords.some(function (w) {
+          return w.toLowerCase() === word.toLowerCase();
+      })) {
         showToast('That word is already blocked.', 'error');
         return;
       }
@@ -2678,12 +3158,16 @@
         }
       });
     });
-    document.getElementById('bannedWordInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') bannedWordAddBtn.click(); });
+    document.getElementById('bannedWordInput').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') bannedWordAddBtn.click();
+    });
   }
   let currentPartnerRankupFilter = 'pending';
   document.querySelectorAll('#partnerRankupFilter .filter-pill').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      document.querySelectorAll('#partnerRankupFilter .filter-pill').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('#partnerRankupFilter .filter-pill').forEach(function (b) {
+          b.classList.remove('active');
+      });
       btn.classList.add('active');
       currentPartnerRankupFilter = btn.dataset.status;
       loadPartnerRankupRequests(currentPartnerRankupFilter);
@@ -2694,7 +3178,10 @@
     return callAdmin('partnerRankupRequests.list', { status: status }).then(function (d) {
       if (!d || !d.ok) return;
       const list = document.getElementById('partnerRankupList');
-      if (!d.requests.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px;">No rankup requests here.</p>'; return; }
+      if (!d.requests.length) {
+          list.innerHTML = '<p style="color:var(--muted);font-size:13px;">No rankup requests here.</p>';
+          return;
+      }
       list.innerHTML = d.requests.map(renderRankupRequestCard).join('');
       d.requests.forEach(wireRankupRequestActions);
     });
@@ -2704,7 +3191,9 @@
       ['Current tier', TIER_LABELS[r.currentTier] || r.currentTier],
       ['Requesting', TIER_LABELS[r.requestedTier] || r.requestedTier],
       ['Total orders', r.totalOrders], ['Followers', r.followers], ['Profile link', r.profileLink]
-    ].filter(function (p) { return p[1] || p[1] === 0; }).map(function (p) {
+    ].filter(function (p) {
+        return p[1] || p[1] === 0;
+    }).map(function (p) {
       return '<div><div class="app-card-q">' + escapeHtml(String(p[0])) + '</div><div class="app-card-a">' + escapeHtml(String(p[1])) + '</div></div>';
     }).join('');
     return (
@@ -2729,7 +3218,11 @@
         const note = decision === 'accept' ? ' Their Discord role will be swapped immediately.' : '';
         askConfirm(decision === 'accept' ? 'Accept rankup request?' : 'Deny rankup request?', (r.username || r.discordId) + "'s request to rank up to " + (TIER_LABELS[r.requestedTier] || r.requestedTier) + '.' + note, {}, function () {
           return callAdmin('partnerRankupRequests.decide', { discordId: r.discordId, decision: decision }).then(function (d) {
-            if (d && d.ok) { showToast('Rankup request ' + decision + 'ed.', 'success'); loadPartnerRankupRequests(currentPartnerRankupFilter); loadOverview(); }
+            if (d && d.ok) {
+                showToast('Rankup request ' + decision + 'ed.', 'success');
+                loadPartnerRankupRequests(currentPartnerRankupFilter);
+                loadOverview();
+            }
             else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
           });
         });
@@ -2739,7 +3232,10 @@
     if (markSyncedBtn) {
       markSyncedBtn.addEventListener('click', function () {
         callAdmin('partnerRankupRequests.markSheetSynced', { discordId: r.discordId }).then(function (d) {
-          if (d && d.ok) { showToast('Marked as updated.', 'success'); loadPartnerRankupRequests(currentPartnerRankupFilter); }
+          if (d && d.ok) {
+              showToast('Marked as updated.', 'success');
+              loadPartnerRankupRequests(currentPartnerRankupFilter);
+          }
           else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
         });
       });
@@ -2748,7 +3244,9 @@
   let currentScamsFilter = '';
   document.querySelectorAll('#scamsFilter .filter-pill').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      document.querySelectorAll('#scamsFilter .filter-pill').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('#scamsFilter .filter-pill').forEach(function (b) {
+          b.classList.remove('active');
+      });
       btn.classList.add('active');
       currentScamsFilter = btn.dataset.type;
       loadScams(currentScamsFilter);
@@ -2791,7 +3289,10 @@
           const entryId = btn.dataset.scamDeleteId;
           askConfirm('Delete this scam report?', 'Permanently removes it from the database.', {}, function () {
             return callAdmin('scams.delete', { id: entryId }).then(function (r) {
-              if (r && r.ok) { showToast('Scam report deleted.', 'success'); loadScams(currentScamsFilter); }
+              if (r && r.ok) {
+                  showToast('Scam report deleted.', 'success');
+                  loadScams(currentScamsFilter);
+              }
               else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
             });
           });
@@ -2804,7 +3305,10 @@
           const entryId = btn.dataset.id;
           const run = function () {
             return callAdmin('scamfilter.review', { id: entryId, label: label }).then(function (r) {
-              if (r && r.ok) { showToast(label === 'wrong' ? 'Marked as wrong deletion — the rule learned from it.' + (r.paused ? ' It paused itself.' : '') : 'Confirmed as scam.', 'success'); loadScams(currentScamsFilter); }
+              if (r && r.ok) {
+                  showToast(label === 'wrong' ? 'Marked as wrong deletion — the rule learned from it.' + (r.paused ? ' It paused itself.' : '') : 'Confirmed as scam.', 'success');
+                  loadScams(currentScamsFilter);
+              }
               else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
             });
           };
@@ -2827,7 +3331,9 @@
       '<span>' + formatDateTime(entry.timestamp) + '</span>' +
       (entry.messageLink ? '<span><a href="' + escapeHtml(entry.messageLink) + '" target="_blank" style="color:var(--accent);">Original link</a></span>' : '');
 
-    const attachments = entry.attachments || (entry.attachmentNames || []).map(function (n) { return { name: n, url: null }; });
+    const attachments = entry.attachments || (entry.attachmentNames || []).map(function (n) {
+        return { name: n, url: null };
+    });
     const attachmentsHtml = attachments.map(function (a) {
       if (a.url && (IMAGE_EXT_RE.test(a.url) || (a.contentType || '').indexOf('image/') === 0)) {
         return '<a href="' + escapeHtml(a.url) + '" target="_blank"><img src="' + escapeHtml(a.url) + '" class="scam-attachment-img" alt="' + escapeHtml(a.name) + '"/></a>';
@@ -2843,8 +3349,12 @@
       (entry.actionTaken ? '<div class="app-card-details" style="margin-top:14px;"><span>Action taken: <strong>' + escapeHtml(entry.actionTaken) + '</strong></span></div>' : '');
     scamDetailModal.classList.add('active');
   }
-  document.getElementById('scamDetailCloseBtn').addEventListener('click', function () { scamDetailModal.classList.remove('active'); });
-  scamDetailModal.addEventListener('click', function (e) { if (e.target === scamDetailModal) scamDetailModal.classList.remove('active'); });
+  document.getElementById('scamDetailCloseBtn').addEventListener('click', function () {
+      scamDetailModal.classList.remove('active');
+  });
+  scamDetailModal.addEventListener('click', function (e) {
+      if (e.target === scamDetailModal) scamDetailModal.classList.remove('active');
+  });
   function loadLogs() {
     return callAdmin('logs.list', { limit: 200 }).then(function (d) {
       if (!d || !d.ok) return;
@@ -2870,10 +3380,14 @@
   function filterReviews(reviews) {
     const query = (document.getElementById('reviewsSearchInput').value || '').trim().toLowerCase();
     if (!query) return reviews;
-    return reviews.filter(function (r) { return (r.username || '').toLowerCase().indexOf(query) !== -1; });
+    return reviews.filter(function (r) {
+        return (r.username || '').toLowerCase().indexOf(query) !== -1;
+    });
   }
   const reviewsSearchInput = document.getElementById('reviewsSearchInput');
-  if (reviewsSearchInput) reviewsSearchInput.addEventListener('input', function () { renderReviews(filterReviews(lastReviews), REVIEWS_PAGE_SIZE); });
+  if (reviewsSearchInput) reviewsSearchInput.addEventListener('input', function () {
+      renderReviews(filterReviews(lastReviews), REVIEWS_PAGE_SIZE);
+  });
   function renderReviews(reviews, limit) {
     const shown = limit ? reviews.slice(0, limit) : reviews;
     const rows = shown.map(function (r) {
@@ -2889,7 +3403,10 @@
         const discordId = btn.dataset.remove;
         askConfirm('Remove review?', 'This deletes the Discord message and the export entry.', {}, function () {
           return callAdmin('reviews.remove', { discordId: discordId }).then(function (d2) {
-            if (d2 && d2.ok) { showToast('Review removed.', 'success'); loadReviews(); }
+            if (d2 && d2.ok) {
+                showToast('Review removed.', 'success');
+                loadReviews();
+            }
             else showToast('Failed: ' + (d2 && d2.error || 'unknown error'), 'error');
           });
         });
@@ -2898,10 +3415,14 @@
     const footer = document.getElementById('reviewsFooter');
     if (limit && reviews.length > limit) {
       footer.innerHTML = '<button type="button" class="view-all-btn" id="reviewsViewAllBtn">View all ' + reviews.length + ' reviews</button>';
-      document.getElementById('reviewsViewAllBtn').addEventListener('click', function () { renderReviews(reviews, null); });
+      document.getElementById('reviewsViewAllBtn').addEventListener('click', function () {
+          renderReviews(reviews, null);
+      });
     } else if (!limit && reviews.length > REVIEWS_PAGE_SIZE) {
       footer.innerHTML = '<button type="button" class="view-all-btn" id="reviewsCollapseBtn">Show fewer</button>';
-      document.getElementById('reviewsCollapseBtn').addEventListener('click', function () { renderReviews(reviews, REVIEWS_PAGE_SIZE); });
+      document.getElementById('reviewsCollapseBtn').addEventListener('click', function () {
+          renderReviews(reviews, REVIEWS_PAGE_SIZE);
+      });
     } else {
       footer.innerHTML = '';
     }
@@ -2913,17 +3434,23 @@
     const select = document.getElementById('dropTarget');
     if (!select) return;
     fetch('https://bot.frostclient.eu/launcher/capes/capes.json', { cache: 'no-store' })
-      .then(function (r) { return r.json(); })
+      .then(function (r) {
+          return r.json();
+      })
       .then(function (list) {
         if (!Array.isArray(list)) return;
-        list.filter(function (c) { return c.store && c.store.checkout; }).forEach(function (c) {
+        list.filter(function (c) {
+            return c.store && c.store.checkout;
+        }).forEach(function (c) {
           const opt = document.createElement('option');
           opt.value = c.id;
           opt.textContent = c.name + ' cape';
           select.appendChild(opt);
         });
       })
-      .catch(function () { dropCapeOptionsLoaded = false; });
+      .catch(function () {
+          dropCapeOptionsLoaded = false;
+      });
   }
   document.getElementById('dropSubmitBtn').addEventListener('click', function () {
     const btn = this;
@@ -2932,13 +3459,18 @@
     const code = document.getElementById('dropCode').value.trim();
     const description = document.getElementById('dropDescription').value.trim();
     const redeemTarget = document.getElementById('dropTarget').value;
-    if (!name || (!link && !code)) { showToast('Name and a link or code are required.', 'error'); return; }
+    if (!name || (!link && !code)) {
+        showToast('Name and a link or code are required.', 'error');
+        return;
+    }
     setBtnLoading(btn, true);
     callAdmin('drops.publish', { name: name, link: link, code: code, description: description, redeemTarget: redeemTarget }).then(function (d) {
       setBtnLoading(btn, false);
       if (d && d.ok) {
         showToast('Drop published!', 'success');
-        ['dropName', 'dropLink', 'dropCode', 'dropDescription'].forEach(function (id) { document.getElementById(id).value = ''; });
+        ['dropName', 'dropLink', 'dropCode', 'dropDescription'].forEach(function (id) {
+            document.getElementById(id).value = '';
+        });
         document.getElementById('dropTarget').value = '';
       } else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
     });
@@ -2950,13 +3482,18 @@
     const winners = document.getElementById('gwWinners').value.trim();
     const duration = document.getElementById('gwDuration').value.trim();
     const channelId = document.getElementById('gwChannelId').value.trim();
-    if (!title || !channelId) { showToast('Title and channel ID are required.', 'error'); return; }
+    if (!title || !channelId) {
+        showToast('Title and channel ID are required.', 'error');
+        return;
+    }
     setBtnLoading(btn, true);
     callAdmin('giveaway.publish', { title: title, description: description, winners: winners, duration: duration, channelId: channelId }).then(function (d) {
       setBtnLoading(btn, false);
       if (d && d.ok) {
         showToast('Giveaway published!', 'success');
-        ['gwTitle', 'gwDescription', 'gwWinners', 'gwDuration', 'gwChannelId'].forEach(function (id) { document.getElementById(id).value = ''; });
+        ['gwTitle', 'gwDescription', 'gwWinners', 'gwDuration', 'gwChannelId'].forEach(function (id) {
+            document.getElementById(id).value = '';
+        });
       } else showToast('Failed: ' + (d && d.error === 'invalid_input' ? 'Check winners count and duration format.' : (d && d.error || 'unknown error')), 'error');
     });
   });
@@ -2984,7 +3521,9 @@
         openLiveTicket(row.dataset.channel);
       });
     });
-    bindTicketActionButtons(ticketsTable, function () { loadTickets(); });
+    bindTicketActionButtons(ticketsTable, function () {
+        loadTickets();
+    });
   }
   function ticketActionButtons(t) {
     const canUnclaim = t.claimedBy === myUserId || canReviewApplications;
@@ -2999,10 +3538,15 @@
       btn.addEventListener('click', function (e) {
         e.stopPropagation();
         callAdmin('tickets.claim', { channelId: btn.dataset.ticketClaim }).then(function (d) {
-          if (d && d.ok) { showToast('Claimed.', 'success'); onDone(); }
+          if (d && d.ok) {
+              showToast('Claimed.', 'success');
+              onDone();
+          }
           else if (d && d.error === 'claim_limit_reached') {
             const names = (d.claimedChannelIds || []).map(function (id) {
-              const t = lastOpenTickets.find(function (x) { return x.id === id; });
+              const t = lastOpenTickets.find(function (x) {
+                  return x.id === id;
+              });
               return t ? t.name : id;
             });
             showToast('Claim limit reached (' + d.limit + ').' + (names.length ? ' Finish first: ' + names.join(', ') : ''), 'error');
@@ -3015,7 +3559,10 @@
       btn.addEventListener('click', function (e) {
         e.stopPropagation();
         callAdmin('tickets.unclaim', { channelId: btn.dataset.ticketUnclaim }).then(function (d) {
-          if (d && d.ok) { showToast('Unclaimed.', 'success'); onDone(); }
+          if (d && d.ok) {
+              showToast('Unclaimed.', 'success');
+              onDone();
+          }
           else showToast('Failed to unclaim: ' + (d && d.error || 'unknown error'), 'error');
         });
       });
@@ -3026,7 +3573,10 @@
         const channelId = btn.dataset.ticketClose, name = btn.dataset.ticketCloseName;
         askConfirm('Close this ticket?', 'Closes "' + name + '" immediately, no confirmation from the ticket owner is asked.', { reason: true }, function (reason) {
           return callAdmin('tickets.close', { channelId: channelId, reason: reason || undefined }).then(function (d) {
-            if (d && d.ok) { showToast('Ticket closed.', 'success'); onDone(); }
+            if (d && d.ok) {
+                showToast('Ticket closed.', 'success');
+                onDone();
+            }
             else showToast('Failed to close: ' + (d && d.error || 'unknown error'), 'error');
           });
         });
@@ -3055,7 +3605,9 @@
   let currentTicketArchiveFilter = '';
   document.querySelectorAll('#ticketArchiveFilter .filter-pill').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      document.querySelectorAll('#ticketArchiveFilter .filter-pill').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('#ticketArchiveFilter .filter-pill').forEach(function (b) {
+          b.classList.remove('active');
+      });
       btn.classList.add('active');
       currentTicketArchiveFilter = btn.dataset.status;
       loadTicketArchive(currentTicketArchiveFilter);
@@ -3100,7 +3652,9 @@
       table.innerHTML =
         '<thead><tr><th>Ticket</th><th>Category</th><th>Created by</th><th>Created</th><th>Claimed by</th><th>Closed by</th><th>Status</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
       table.querySelectorAll('button[data-transcript]').forEach(function (btn) {
-        btn.addEventListener('click', function () { openTranscript(btn.dataset.transcript); });
+        btn.addEventListener('click', function () {
+            openTranscript(btn.dataset.transcript);
+        });
       });
       table.querySelectorAll('button[data-archive-delete]').forEach(function (btn) {
         btn.addEventListener('click', function (e) {
@@ -3108,7 +3662,10 @@
           const channelId = btn.dataset.archiveDelete;
           askConfirm('Delete this archived ticket?', 'Permanently removes the transcript and record.', {}, function () {
             return callAdmin('ticketArchive.delete', { channelId: channelId }).then(function (r) {
-              if (r && r.ok) { showToast('Ticket deleted.', 'success'); loadTicketArchive(currentTicketArchiveFilter); }
+              if (r && r.ok) {
+                  showToast('Ticket deleted.', 'success');
+                  loadTicketArchive(currentTicketArchiveFilter);
+              }
               else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
             });
           });
@@ -3120,7 +3677,10 @@
           const channelId = btn.dataset.archiveRecover;
           askConfirm('Recover this ticket?', 'Creates a new ticket channel in the same category, re-adds the original owner and replays the archived messages via webhook.', { tone: 'primary', okLabel: 'Recover' }, function () {
             return callAdmin('ticketArchive.recover', { channelId: channelId }).then(function (r) {
-              if (r && r.ok) { showToast('Ticket recovered as #' + (r.channelName || 'ticket') + '.', 'success'); loadTicketArchive(currentTicketArchiveFilter); }
+              if (r && r.ok) {
+                  showToast('Ticket recovered as #' + (r.channelName || 'ticket') + '.', 'success');
+                  loadTicketArchive(currentTicketArchiveFilter);
+              }
               else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
             });
           });
@@ -3165,7 +3725,10 @@
     transcriptMessages.innerHTML = '';
     transcriptModal.classList.add('active');
     callAdmin('ticketArchive.get', { channelId: channelId }).then(function (d) {
-      if (!d || !d.ok) { transcriptTitle.textContent = 'Failed to load transcript'; return; }
+      if (!d || !d.ok) {
+          transcriptTitle.textContent = 'Failed to load transcript';
+          return;
+      }
       const t = d.ticket;
       transcriptTitle.innerHTML = (t.isPriority ? '<span class="priority-flag" title="Priority ticket"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg></span>' : '') + escapeHtml(t.channelName || t.channelId);
       transcriptMeta.innerHTML =
@@ -3176,8 +3739,12 @@
       transcriptMessages.innerHTML = renderTranscriptMessagesHtml(t.messages || []);
     });
   }
-  document.getElementById('transcriptCloseBtn').addEventListener('click', function () { transcriptModal.classList.remove('active'); });
-  transcriptModal.addEventListener('click', function (e) { if (e.target === transcriptModal) transcriptModal.classList.remove('active'); });
+  document.getElementById('transcriptCloseBtn').addEventListener('click', function () {
+      transcriptModal.classList.remove('active');
+  });
+  transcriptModal.addEventListener('click', function (e) {
+      if (e.target === transcriptModal) transcriptModal.classList.remove('active');
+  });
 
   const liveTicketModal = document.getElementById('liveTicketModal');
   const liveTicketTitle = document.getElementById('liveTicketTitle');
@@ -3189,7 +3756,10 @@
     liveTicketMessages.innerHTML = '';
     liveTicketModal.classList.add('active');
     callAdmin('tickets.get', { channelId: channelId }).then(function (d) {
-      if (!d || !d.ok) { liveTicketTitle.textContent = 'Failed to load ticket'; return; }
+      if (!d || !d.ok) {
+          liveTicketTitle.textContent = 'Failed to load ticket';
+          return;
+      }
       const t = d.ticket;
       liveTicketTitle.innerHTML = (t.isPriority ? '<span class="priority-flag" title="Priority ticket"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg></span>' : '') + escapeHtml(t.channelName || t.channelId);
       liveTicketMeta.innerHTML =
@@ -3200,13 +3770,22 @@
         ticketActionButtons({ id: t.channelId, claimedBy: t.claimedBy, name: t.channelName });
       liveTicketMessages.innerHTML = renderTranscriptMessagesHtml(t.messages || []);
       liveTicketMessages.scrollTop = liveTicketMessages.scrollHeight;
-      bindTicketActionButtons(liveTicketMeta, function () { loadTickets(); openLiveTicket(channelId); });
+      bindTicketActionButtons(liveTicketMeta, function () {
+          loadTickets();
+          openLiveTicket(channelId);
+      });
     });
   }
-  document.getElementById('liveTicketCloseBtn').addEventListener('click', function () { liveTicketModal.classList.remove('active'); });
-  liveTicketModal.addEventListener('click', function (e) { if (e.target === liveTicketModal) liveTicketModal.classList.remove('active'); });
+  document.getElementById('liveTicketCloseBtn').addEventListener('click', function () {
+      liveTicketModal.classList.remove('active');
+  });
+  liveTicketModal.addEventListener('click', function (e) {
+      if (e.target === liveTicketModal) liveTicketModal.classList.remove('active');
+  });
   function showGate(id) {
-    document.querySelectorAll('.gate-screen').forEach(function (el) { el.classList.toggle('active', el.id === id); });
+    document.querySelectorAll('.gate-screen').forEach(function (el) {
+        el.classList.toggle('active', el.id === id);
+    });
     document.getElementById('appShell').classList.remove('active');
   }
   function urlBase64ToUint8Array(base64String) {
@@ -3228,7 +3807,9 @@
   const ADD_HOME_SCREEN_DISMISSED_KEY = 'frostAdminAddHomeScreenDismissed';
   function maybeShowAddHomeScreenPrompt() {
     if (!isMobileDevice() || isStandaloneMode()) return;
-    try { if (localStorage.getItem(ADD_HOME_SCREEN_DISMISSED_KEY)) return; } catch (e) {}
+    try {
+        if (localStorage.getItem(ADD_HOME_SCREEN_DISMISSED_KEY)) return;
+    } catch (e) {}
     const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
     const isAndroid = /Android/i.test(navigator.userAgent);
     const steps = isIOS
@@ -3237,30 +3818,40 @@
         ? ['Tap the ⋮ menu in your browser.', 'Tap "Add to Home screen" (or "Install app").', 'Confirm by tapping "Add" / "Install".']
         : ['Open your browser\'s menu.', 'Look for "Add to Home Screen" or "Install app".', 'Confirm the install.'];
     const list = document.getElementById('homeScreenSteps');
-    list.innerHTML = steps.map(function (s) { return '<li><span>' + escapeHtml(s) + '</span></li>'; }).join('');
+    list.innerHTML = steps.map(function (s) {
+        return '<li><span>' + escapeHtml(s) + '</span></li>';
+    }).join('');
     document.getElementById('addHomeScreenModal').classList.add('active');
   }
   document.getElementById('addHomeScreenGotItBtn').addEventListener('click', function () {
     document.getElementById('addHomeScreenModal').classList.remove('active');
-    try { localStorage.setItem(ADD_HOME_SCREEN_DISMISSED_KEY, '1'); } catch (e) {}
+    try {
+        localStorage.setItem(ADD_HOME_SCREEN_DISMISSED_KEY, '1');
+    } catch (e) {}
   });
   document.getElementById('addHomeScreenModal').addEventListener('click', function (e) {
     if (e.target === document.getElementById('addHomeScreenModal')) {
       e.currentTarget.classList.remove('active');
-      try { localStorage.setItem(ADD_HOME_SCREEN_DISMISSED_KEY, '1'); } catch (err) {}
+      try {
+          localStorage.setItem(ADD_HOME_SCREEN_DISMISSED_KEY, '1');
+      } catch (err) {}
     }
   });
 
   function checkForAppUpdate() {
     if (!isMobileDevice() || !isStandaloneMode()) return;
-    fetch('version.json', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+    fetch('version.json', { cache: 'no-store' }).then(function (r) {
+        return r.json();
+    }).then(function (d) {
       if (!d || !d.version || d.version === APP_VERSION) return;
       const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
       const steps = isIOS
         ? ['Long-press the Frost Admin icon on your Home Screen.', 'Tap "Remove App" → "Delete App".', 'Open Safari, go to admin.frostclient.eu, and add it to your Home Screen again.']
         : ['Long-press the Frost Admin icon on your Home Screen.', 'Tap "Remove" / "Uninstall".', 'Open your browser, go to admin.frostclient.eu, and add it to your Home Screen again.'];
       const list = document.getElementById('appUpdateSteps');
-      list.innerHTML = steps.map(function (s) { return '<li><span>' + escapeHtml(s) + '</span></li>'; }).join('');
+      list.innerHTML = steps.map(function (s) {
+          return '<li><span>' + escapeHtml(s) + '</span></li>';
+      }).join('');
       document.getElementById('appUpdateModal').classList.add('active');
     }).catch(function () {});
   }
@@ -3307,7 +3898,9 @@
     return registration.pushManager.getSubscription().then(function (sub) {
       if (!sub) return;
       const endpoint = sub.endpoint;
-      return sub.unsubscribe().then(function () { callAdmin('push.unsubscribe', { endpoint: endpoint }); });
+      return sub.unsubscribe().then(function () {
+          callAdmin('push.unsubscribe', { endpoint: endpoint });
+      });
     });
   }
 
@@ -3327,7 +3920,9 @@
 
   function saveSettingsTypePreferences() {
     const prefs = {};
-    document.querySelectorAll('.settings-type-toggle').forEach(function (el) { prefs[el.dataset.type] = el.checked; });
+    document.querySelectorAll('.settings-type-toggle').forEach(function (el) {
+        prefs[el.dataset.type] = el.checked;
+    });
     callAdmin('push.setPreferences', { preferences: prefs });
   }
 
@@ -3413,12 +4008,17 @@
 
   const PENDING_ACTION_KEY = 'frostAdminPendingAction';
   function showApp(user) {
-    document.querySelectorAll('.gate-screen').forEach(function (el) { el.classList.remove('active'); });
+    document.querySelectorAll('.gate-screen').forEach(function (el) {
+        el.classList.remove('active');
+    });
     document.getElementById('appShell').classList.add('active');
     document.getElementById('userAvatar').src = avatarUrl(user.id, user.avatar);
     document.getElementById('userName').textContent = user.name || user.username || 'Owner';
     let pendingAction = '';
-    try { pendingAction = sessionStorage.getItem(PENDING_ACTION_KEY) || ''; sessionStorage.removeItem(PENDING_ACTION_KEY); } catch (e) {}
+    try {
+        pendingAction = sessionStorage.getItem(PENDING_ACTION_KEY) || '';
+        sessionStorage.removeItem(PENDING_ACTION_KEY);
+    } catch (e) {}
     if (pendingAction === 'writeExcuse') {
       showView('excuses');
       openExcuseModal();
@@ -3438,7 +4038,9 @@
     try {
       const buf = new Uint8Array(16);
       crypto.getRandomValues(buf);
-      csrfState = Array.from(buf).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+      csrfState = Array.from(buf).map(function (b) {
+          return b.toString(16).padStart(2, '0');
+      }).join('');
       sessionStorage.setItem(OAUTH_STATE_KEY, csrfState);
     } catch (e) {}
     const url = 'https://discord.com/oauth2/authorize'
@@ -3455,8 +4057,13 @@
   }
 
   document.getElementById('loginBtn').addEventListener('click', startLogin);
-  document.getElementById('forbiddenBackBtn').addEventListener('click', function () { clearToken(); startLogin(); });
-  document.getElementById('errorRetryBtn').addEventListener('click', function () { window.location.reload(); });
+  document.getElementById('forbiddenBackBtn').addEventListener('click', function () {
+      clearToken();
+      startLogin();
+  });
+  document.getElementById('errorRetryBtn').addEventListener('click', function () {
+      window.location.reload();
+  });
   document.getElementById('logoutBtn').addEventListener('click', function () {
     clearToken();
     showGate('gateLogin');
@@ -3466,7 +4073,9 @@
     const params = new URLSearchParams(window.location.search);
 
     if (params.has('writeExcuse')) {
-      try { sessionStorage.setItem(PENDING_ACTION_KEY, 'writeExcuse'); } catch (e) {}
+      try {
+          sessionStorage.setItem(PENDING_ACTION_KEY, 'writeExcuse');
+      } catch (e) {}
       const cleanUrl = new URL(window.location.href);
       cleanUrl.searchParams.delete('writeExcuse');
       window.history.replaceState(null, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
@@ -3476,8 +4085,12 @@
       const code = params.get('code');
       const returnedState = params.get('state') || '';
       let storedState = '';
-      try { storedState = sessionStorage.getItem(OAUTH_STATE_KEY) || ''; } catch (e) {}
-      try { sessionStorage.removeItem(OAUTH_STATE_KEY); } catch (e) {}
+      try {
+          storedState = sessionStorage.getItem(OAUTH_STATE_KEY) || '';
+      } catch (e) {}
+      try {
+          sessionStorage.removeItem(OAUTH_STATE_KEY);
+      } catch (e) {}
 
       const cleanUrl = new URL(window.location.href);
       cleanUrl.searchParams.delete('code');
@@ -3495,13 +4108,20 @@
         body: JSON.stringify({ code: code, redirectUri: DISCORD_REDIRECT_URI }),
         cache: 'no-store'
       })
-        .then(function (r) { return r.json(); })
+        .then(function (r) {
+            return r.json();
+        })
         .then(function (data) {
-          if (!data.ok || !data.gameToken) { showGateError('Discord sign-in failed. Please try again.'); return; }
+          if (!data.ok || !data.gameToken) {
+              showGateError('Discord sign-in failed. Please try again.');
+              return;
+          }
           saveToken(data.gameToken);
           showApp(data.user);
         })
-        .catch(function () { showGateError('Network error while contacting the server. Please try again.'); });
+        .catch(function () {
+            showGateError('Network error while contacting the server. Please try again.');
+        });
       return;
     }
 
@@ -3516,7 +4136,10 @@
     }
 
     const token = loadToken();
-    if (!token) { showGate('gateLogin'); return; }
+    if (!token) {
+        showGate('gateLogin');
+        return;
+    }
 
     callAdmin('overview').then(function (d) {
       if (d && d.ok) {
@@ -3526,7 +4149,9 @@
       } else {
         showGate('gateLogin');
       }
-    }).catch(function () { showGate('gateLogin'); });
+    }).catch(function () {
+        showGate('gateLogin');
+    });
   })();
   (function () {
     const canvas = document.getElementById('snowCanvas');
@@ -3554,7 +4179,10 @@
         ctx.fillStyle = 'rgba(168,230,248,' + p.opacity + ')';
         ctx.fill();
         p.y += p.speed; p.x += p.drift;
-        if (p.y > H + 10) { p.y = -10; p.x = Math.random() * W; }
+        if (p.y > H + 10) {
+            p.y = -10;
+            p.x = Math.random() * W;
+        }
         if (p.x > W + 10) p.x = -10;
         if (p.x < -10) p.x = W + 10;
       }
@@ -3567,7 +4195,9 @@
       cursorGlow.style.transform = 'translate(' + (e.clientX - HALF) + 'px,' + (e.clientY - HALF) + 'px)';
       cursorGlow.style.opacity = '1';
     });
-    document.addEventListener('mouseleave', function () { cursorGlow.style.opacity = '0'; });
+    document.addEventListener('mouseleave', function () {
+        cursorGlow.style.opacity = '0';
+    });
   })();
 
   window.addEventListener('scroll', function () {
