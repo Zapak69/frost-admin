@@ -492,7 +492,7 @@
   const VIEW_TITLES = {
     overview: 'Overview', members: 'Members', leaderboard: 'Leaderboards', staff: 'Staff Team', staffActivity: 'Activity',
     staffApps: 'Staff Applications', partnerLogs: 'Creators', partnerRankup: 'Partner Rankup Requests', reports: 'Bug Reports', scams: 'Scam Database',
-    logs: 'Action Logs', excuses: 'Excuses', warns: 'Warns', reviews: 'Reviews', drops: 'Publish Drop', giveaway: 'Publish Giveaway', tickets: 'Tickets',
+    logs: 'Action Logs', excuses: 'Excuses', warns: 'Warns', reviews: 'Reviews', drops: 'Publish Drop', capeGift: 'Cape Gift', giveaway: 'Publish Giveaway', tickets: 'Tickets',
     ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies', scamFilter: 'Scam Filter', statusPage: 'Status Page', liteBoosts: 'Lite Boosts',
     partnerData: 'Partner Data'
   };
@@ -518,6 +518,9 @@
     scams: function () {
         loadScams(currentScamsFilter);
     }, logs: loadLogs, excuses: loadExcuses, warns: loadWarns, reviews: loadReviews,
+    capeGift: function () {
+        loadCapeGiftPage();
+    },
     drops: function () {
         loadDropCapeOptions();
     }, giveaway: function () {}, tickets: loadTickets,
@@ -3473,6 +3476,179 @@
         });
         document.getElementById('dropTarget').value = '';
       } else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+    });
+  });
+  const CAPE_GIFT_CAPES_BASE = 'https://bot.frostclient.eu/launcher/capes/';
+  const CAPE_GIFT_STATUS_PILL = { active: 'accepted', full: 'pending', expired: 'withdrawn', revoked: 'denied' };
+  let capeGiftCatalog = null;
+  function capeGiftDefaultExpiry() {
+    const d = new Date(Date.now() + 7 * 86400000);
+    d.setSeconds(0, 0);
+    const pad = function (n) {
+        return String(n).padStart(2, '0');
+    };
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+  function updateCapeGiftThumb() {
+    const thumb = document.getElementById('capeGiftThumb');
+    const id = document.getElementById('capeGiftCape').value;
+    const cape = (capeGiftCatalog || []).find(function (c) {
+        return c.id === id;
+    });
+    if (!cape) {
+      thumb.hidden = true;
+      return;
+    }
+    thumb.src = CAPE_GIFT_CAPES_BASE + encodeURIComponent(cape.file);
+    thumb.hidden = false;
+  }
+  function loadCapeGiftCatalog() {
+    if (capeGiftCatalog) return Promise.resolve(capeGiftCatalog);
+    const select = document.getElementById('capeGiftCape');
+    return fetch(CAPE_GIFT_CAPES_BASE + 'capes.json', { cache: 'no-store' })
+      .then(function (r) {
+          return r.json();
+      })
+      .then(function (list) {
+        capeGiftCatalog = Array.isArray(list) ? list.filter(function (c) {
+            return c.id !== 'default';
+        }) : [];
+        select.innerHTML = '';
+        capeGiftCatalog.slice().sort(function (a, b) {
+            return String(a.name || a.id).localeCompare(String(b.name || b.id));
+        }).forEach(function (c) {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = (c.name || c.id) + (c.tag === 'hidden' ? ' (hidden)' : '');
+          select.appendChild(opt);
+        });
+        updateCapeGiftThumb();
+        return capeGiftCatalog;
+      })
+      .catch(function () {
+        select.innerHTML = '<option value="">Could not load capes</option>';
+        capeGiftCatalog = null;
+      });
+  }
+  function renderCapeGifts(gifts) {
+    const table = document.getElementById('capeGiftTable');
+    let html = '<thead><tr><th>Cape</th><th>Claims</th><th>Available until</th><th>Status</th><th>Link</th><th></th></tr></thead><tbody>';
+    if (!gifts.length) {
+      html += emptyRow(6, 'No cape gifts yet.');
+    } else {
+      gifts.forEach(function (g) {
+        const claims = g.claims + ' / ' + (g.maxClaims == null ? '∞' : g.maxClaims);
+        const canRevoke = g.status === 'active' || g.status === 'full';
+        html += '<tr>'
+          + '<td>' + escapeHtml(g.capeName) + '</td>'
+          + '<td>' + escapeHtml(claims) + '</td>'
+          + '<td>' + escapeHtml(formatDateTime(g.expiresAt)) + '</td>'
+          + '<td><span class="pill ' + (CAPE_GIFT_STATUS_PILL[g.status] || '') + '">' + escapeHtml(g.status) + '</span></td>'
+          + '<td><button type="button" class="btn-small" data-cape-gift-copy="' + escapeHtml(g.url) + '">Copy link</button></td>'
+          + '<td>' + (canRevoke ? '<button type="button" class="btn-small danger" data-cape-gift-revoke="' + escapeHtml(g.code) + '">Disable</button>' : '') + '</td>'
+          + '</tr>';
+      });
+    }
+    table.innerHTML = html + '</tbody>';
+  }
+  function loadCapeGiftList() {
+    return callAdmin('capeGift.list', {}).then(function (d) {
+      if (d && d.ok) renderCapeGifts(d.gifts || []);
+      else document.getElementById('capeGiftTable').innerHTML = '<tbody>' + emptyRow(6, 'Could not load cape gifts.') + '</tbody>';
+    });
+  }
+  function loadCapeGiftPage() {
+    const expires = document.getElementById('capeGiftExpires');
+    if (!expires.value) expires.value = capeGiftDefaultExpiry();
+    return Promise.all([loadCapeGiftCatalog(), loadCapeGiftList()]);
+  }
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
+    return new Promise(function (resolve, reject) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        resolve();
+      } catch (e) {
+        reject(e);
+      }
+      ta.remove();
+    });
+  }
+  document.getElementById('capeGiftCape').addEventListener('change', updateCapeGiftThumb);
+  document.getElementById('capeGiftUnlimited').addEventListener('change', function () {
+      document.getElementById('capeGiftMax').disabled = this.checked;
+  });
+  document.getElementById('capeGiftSubmitBtn').addEventListener('click', function () {
+    const btn = this;
+    const capeId = document.getElementById('capeGiftCape').value;
+    const unlimited = document.getElementById('capeGiftUnlimited').checked;
+    const maxClaims = Number(document.getElementById('capeGiftMax').value);
+    const expiresRaw = document.getElementById('capeGiftExpires').value;
+    const expires = expiresRaw ? new Date(expiresRaw) : null;
+    if (!capeId) {
+        showToast('Pick a cape first.', 'error');
+        return;
+    }
+    if (!unlimited && (!Number.isInteger(maxClaims) || maxClaims < 1)) {
+        showToast('Max claims must be a whole number of at least 1.', 'error');
+        return;
+    }
+    if (!expires || isNaN(expires.getTime()) || expires.getTime() <= Date.now()) {
+        showToast('Pick an end date in the future.', 'error');
+        return;
+    }
+    setBtnLoading(btn, true);
+    callAdmin('capeGift.create', {
+      capeId: capeId,
+      unlimited: unlimited,
+      maxClaims: unlimited ? null : maxClaims,
+      expiresAt: expires.toISOString(),
+      description: document.getElementById('capeGiftDescription').value.trim()
+    }).then(function (d) {
+      setBtnLoading(btn, false);
+      if (d && d.ok) {
+        document.getElementById('capeGiftLink').value = d.gift.url;
+        document.getElementById('capeGiftResult').hidden = false;
+        copyText(d.gift.url).then(function () {
+            showToast('Gift link created and copied.', 'success');
+        }).catch(function () {
+            showToast('Gift link created.', 'success');
+        });
+        loadCapeGiftList();
+      } else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+    });
+  });
+  document.getElementById('capeGiftCopyBtn').addEventListener('click', function () {
+    copyText(document.getElementById('capeGiftLink').value).then(function () {
+        showToast('Link copied.', 'success');
+    }).catch(function () {
+        showToast('Could not copy the link.', 'error');
+    });
+  });
+  document.getElementById('capeGiftTable').addEventListener('click', function (e) {
+    const copyBtn = e.target.closest('[data-cape-gift-copy]');
+    if (copyBtn) {
+      copyText(copyBtn.getAttribute('data-cape-gift-copy')).then(function () {
+          showToast('Link copied.', 'success');
+      }).catch(function () {
+          showToast('Could not copy the link.', 'error');
+      });
+      return;
+    }
+    const revokeBtn = e.target.closest('[data-cape-gift-revoke]');
+    if (!revokeBtn) return;
+    const code = revokeBtn.getAttribute('data-cape-gift-revoke');
+    askConfirm('Disable gift link?', 'Nobody else will be able to claim it. Capes already claimed stay with their owners.', { okLabel: 'Disable' }, function () {
+      return callAdmin('capeGift.revoke', { code: code }).then(function (d) {
+        if (d && d.ok) {
+          showToast('Gift disabled.', 'success');
+          loadCapeGiftList();
+        } else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+      });
     });
   });
   document.getElementById('gwSubmitBtn').addEventListener('click', function () {

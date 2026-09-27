@@ -2198,3 +2198,35 @@ textarea.text-input {
 .panel-head .btn-small {
   margin-left: auto;
 }
+.cape-gift-pick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.cape-gift-pick .text-input {
+  flex: 1;
+  min-width: 0;
+}
+.cape-gift-thumb {
+  width: 64px;
+  height: 32px;
+  object-fit: cover;
+  object-position: left top;
+  image-rendering: pixelated;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+.cape-gift-result {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+.cape-gift-result .text-input {
+  flex: 1;
+  min-width: 0;
+}
+.cape-gift-result[hidden],
+.cape-gift-thumb[hidden] {
+  display: none;
+}
