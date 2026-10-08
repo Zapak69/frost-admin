@@ -493,7 +493,7 @@
     overview: 'Overview', members: 'Members', leaderboard: 'Leaderboards', staff: 'Staff Team', staffActivity: 'Activity',
     staffApps: 'Staff Applications', partnerLogs: 'Creators', partnerRankup: 'Partner Rankup Requests', reports: 'Bug Reports', scams: 'Scam Database',
     logs: 'Action Logs', excuses: 'Excuses', warns: 'Warns', reviews: 'Reviews', drops: 'Publish Drop', capeGift: 'Cape Gift', giveaway: 'Publish Giveaway', tickets: 'Tickets',
-    ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies', scamFilter: 'Scam Filter', statusPage: 'Status Page', liteBoosts: 'Lite Boosts',
+    ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies', scamFilter: 'Scam Filter', statusPage: 'Status Page', liteBoosts: 'Lite Boosts', linkFilter: 'Link Filter',
     partnerData: 'Partner Data'
   };
   const VIEW_LOADERS = {
@@ -538,6 +538,9 @@
     },
     liteBoosts: function () {
         loadLiteBoosts();
+    },
+    linkFilter: function () {
+        loadLinkFilter();
     },
     partnerData: function () {
         loadPartnerData();
@@ -2799,6 +2802,93 @@
           renderLiteBoosts(d);
       }
       else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
+    });
+  });
+  let linkFilterChannels = [];
+  let linkFilterDefaults = [];
+  const LINK_FILTER_ERRORS = {
+    invalid_channel: 'Pick a channel for every rule.',
+    duplicate_channel: 'Each channel can only have one rule.',
+    too_many_rules: 'Too many channels (max 50).',
+    too_many_domains: 'Too many domains in one channel (max 200).'
+  };
+  function linkFilterChannelOptions(selected) {
+    let html = '<option value="">Choose a channel…</option>';
+    let found = !selected;
+    linkFilterChannels.forEach(function (c) {
+      if (c.id === selected) found = true;
+      html += '<option value="' + escapeHtml(c.id) + '"' + (c.id === selected ? ' selected' : '') + '>#' + escapeHtml(c.name) + (c.parent ? ' · ' + escapeHtml(c.parent) : '') + '</option>';
+    });
+    if (!found) html += '<option value="' + escapeHtml(selected) + '" selected>Unknown channel (' + escapeHtml(selected) + ')</option>';
+    return html;
+  }
+  function addLinkFilterRule(rule) {
+    const r = rule || { channelId: '', domains: [], alert: true, enabled: true };
+    const card = document.createElement('div');
+    card.className = 'autoreply-form linkfilter-rule';
+    card.innerHTML =
+      '<div class="form-field-row">' +
+        '<div class="form-field"><label>Channel</label><select class="text-input lf-channel">' + linkFilterChannelOptions(r.channelId) + '</select></div>' +
+        '<div class="form-field"><label>Blocked domains <span class="optional-tag">(one per line, e.g. youtube.com)</span></label>' +
+          '<textarea class="text-input lf-domains" rows="4" placeholder="youtube.com&#10;tiktok.com">' + escapeHtml((r.domains || []).join('\n')) + '</textarea></div>' +
+      '</div>' +
+      '<div class="autoreply-options">' +
+        '<label class="check-row"><input type="checkbox" class="lf-enabled"' + (r.enabled !== false ? ' checked' : '') + '/><span>Filter on</span></label>' +
+        '<label class="check-row"><input type="checkbox" class="lf-alert"' + (r.alert !== false ? ' checked' : '') + '/><span>Post an alert in the channel</span></label>' +
+        '<button type="button" class="btn-small danger lf-remove">Remove</button>' +
+      '</div>';
+    card.querySelector('.lf-remove').addEventListener('click', function () {
+        card.remove();
+    });
+    document.getElementById('linkFilterRules').appendChild(card);
+  }
+  function renderLinkFilter(d) {
+    linkFilterChannels = d.channels || [];
+    linkFilterDefaults = d.defaultReplies || [];
+    const list = document.getElementById('linkFilterRules');
+    list.innerHTML = '';
+    (d.rules || []).forEach(addLinkFilterRule);
+    document.getElementById('linkFilterReplies').value = (d.replies || []).join('\n');
+    const active = (d.rules || []).filter(function (r) { return r.enabled && r.domains.length; }).length;
+    document.getElementById('linkFilterMeta').textContent = (d.rules || []).length
+      ? active + ' of ' + d.rules.length + ' channel' + (d.rules.length === 1 ? '' : 's') + ' actively filtered'
+      : 'No channels filtered yet. Add one below.';
+  }
+  function loadLinkFilter() {
+    return callAdmin('linkFilter.overview', {}).then(function (d) {
+      if (d && d.ok) renderLinkFilter(d);
+      else if (d && d.error) showToast('Could not load the link filter: ' + d.error, 'error');
+    });
+  }
+  document.getElementById('linkFilterAddBtn').addEventListener('click', function () {
+    addLinkFilterRule(null);
+  });
+  document.getElementById('linkFilterResetRepliesBtn').addEventListener('click', function () {
+    document.getElementById('linkFilterReplies').value = linkFilterDefaults.join('\n');
+  });
+  document.getElementById('linkFilterSaveBtn').addEventListener('click', function () {
+    const btn = document.getElementById('linkFilterSaveBtn');
+    const rules = Array.prototype.map.call(document.querySelectorAll('#linkFilterRules .linkfilter-rule'), function (card) {
+      return {
+        channelId: card.querySelector('.lf-channel').value,
+        domains: card.querySelector('.lf-domains').value.split(/[\n,]+/).map(function (s) { return s.trim(); }).filter(Boolean),
+        enabled: card.querySelector('.lf-enabled').checked,
+        alert: card.querySelector('.lf-alert').checked
+      };
+    });
+    if (rules.some(function (r) { return !r.channelId; })) {
+        showToast(LINK_FILTER_ERRORS.invalid_channel, 'error');
+        return;
+    }
+    const replies = document.getElementById('linkFilterReplies').value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+    setBtnLoading(btn, true);
+    callAdmin('linkFilter.save', { rules: rules, replies: replies }).then(function (d) {
+      setBtnLoading(btn, false);
+      if (d && d.ok) {
+          showToast('Link filter saved.', 'success');
+          renderLinkFilter(d);
+      }
+      else showToast(LINK_FILTER_ERRORS[d && d.error] || ('Failed: ' + (d && d.error || 'unknown error')), 'error');
     });
   });
   function renderStaffAppCard(a, labels, roleLabel) {

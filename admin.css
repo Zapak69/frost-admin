@@ -2230,3 +2230,16 @@ textarea.text-input {
 .cape-gift-thumb[hidden] {
   display: none;
 }
+
+.linkfilter-rule .form-field-row {
+  align-items: flex-start;
+}
+.linkfilter-rule .autoreply-options {
+  align-items: center;
+}
+.linkfilter-rule .lf-remove {
+  margin-left: auto;
+}
+.linkfilter-replies {
+  min-height: 150px;
+}
