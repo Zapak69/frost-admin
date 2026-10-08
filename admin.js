@@ -2804,8 +2804,18 @@
       else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
     });
   });
+  const LINK_FILTER_FALLBACK_REPLIES = [
+    "{user}, links to **{domain}** are not allowed in {channel}.",
+    "{user}, your message was removed because **{domain}** links are blocked here.",
+    "Heads up {user} — **{domain}** is on the blocked list for {channel}, so your message was deleted.",
+    "{user}, please don't post **{domain}** links in this channel.",
+    "{user}, **{domain}** isn't allowed here. Your message has been removed.",
+    "Sorry {user}, sharing **{domain}** links isn't permitted in {channel}.",
+    "{user}, that link to **{domain}** was taken down — this domain is blocked in {channel}.",
+    "Not allowed here, {user}: **{domain}** links get removed automatically in {channel}."
+  ];
   let linkFilterChannels = [];
-  let linkFilterDefaults = [];
+  let linkFilterDefaults = LINK_FILTER_FALLBACK_REPLIES.slice();
   const LINK_FILTER_ERRORS = {
     invalid_channel: 'Pick a channel for every rule.',
     duplicate_channel: 'Each channel can only have one rule.',
@@ -2844,11 +2854,11 @@
   }
   function renderLinkFilter(d) {
     linkFilterChannels = d.channels || [];
-    linkFilterDefaults = d.defaultReplies || [];
+    linkFilterDefaults = d.defaultReplies && d.defaultReplies.length ? d.defaultReplies : LINK_FILTER_FALLBACK_REPLIES.slice();
     const list = document.getElementById('linkFilterRules');
     list.innerHTML = '';
     (d.rules || []).forEach(addLinkFilterRule);
-    document.getElementById('linkFilterReplies').value = (d.replies || []).join('\n');
+    document.getElementById('linkFilterReplies').value = (d.replies && d.replies.length ? d.replies : linkFilterDefaults).join('\n');
     const active = (d.rules || []).filter(function (r) { return r.enabled && r.domains.length; }).length;
     document.getElementById('linkFilterMeta').textContent = (d.rules || []).length
       ? active + ' of ' + d.rules.length + ' channel' + (d.rules.length === 1 ? '' : 's') + ' actively filtered'
@@ -2857,7 +2867,11 @@
   function loadLinkFilter() {
     return callAdmin('linkFilter.overview', {}).then(function (d) {
       if (d && d.ok) renderLinkFilter(d);
-      else if (d && d.error) showToast('Could not load the link filter: ' + d.error, 'error');
+      else {
+          const repliesEl = document.getElementById('linkFilterReplies');
+          if (!repliesEl.value.trim()) repliesEl.value = LINK_FILTER_FALLBACK_REPLIES.join('\n');
+          if (d && d.error) showToast('Could not load the link filter: ' + d.error, 'error');
+      }
     });
   }
   document.getElementById('linkFilterAddBtn').addEventListener('click', function () {
