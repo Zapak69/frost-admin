@@ -493,7 +493,7 @@
     overview: 'Overview', members: 'Members', leaderboard: 'Leaderboards', staff: 'Staff Team', staffActivity: 'Activity',
     staffApps: 'Staff Applications', partnerLogs: 'Creators', partnerRankup: 'Partner Rankup Requests', reports: 'Bug Reports', scams: 'Scam Database',
     logs: 'Action Logs', excuses: 'Excuses', warns: 'Warns', reviews: 'Reviews', drops: 'Publish Drop', capeGift: 'Cape Gift', giveaway: 'Publish Giveaway', tickets: 'Tickets',
-    ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies', scamFilter: 'Scam Filter', statusPage: 'Status Page', liteBoosts: 'Lite Boosts', linkFilter: 'Link Filter',
+    ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies', scamFilter: 'Scam Filter', statusPage: 'Status Page', liteBoosts: 'Lite Boosts', linkFilter: 'Link Filter', partnerPage: 'Partner Page',
     partnerData: 'Partner Data'
   };
   const VIEW_LOADERS = {
@@ -538,6 +538,9 @@
     },
     liteBoosts: function () {
         loadLiteBoosts();
+    },
+    partnerPage: function () {
+        return loadPartnerPage();
     },
     linkFilter: function () {
         loadLinkFilter();
@@ -4349,6 +4352,207 @@
     showGate('gateLogin');
   });
 
+  const PARTNER_LINK_LABELS = { website: 'Website', discord: 'Discord', youtube: 'YouTube', tiktok: 'TikTok', twitch: 'Twitch', kick: 'Kick', x: 'X', instagram: 'Instagram', store: 'Store' };
+  const PARTNER_PAGE_ERRORS = { missing_name: 'Fill in the name.', bad_link: 'One of the links is not a valid URL.', bad_server_ip: 'The server IP can only contain letters, numbers, dots, dashes and a port.', bad_image: 'That image could not be used.', image_too_large: 'The image is larger than 3 MB.', too_many: 'The page already has the maximum number of partners.' };
+  let partnerPageEntries = [];
+  let partnerPageEditing = null;
+  let partnerPageImage = '';
+  let partnerPageDiscordId = null;
+  function partnerPageReset() {
+    partnerPageEditing = null;
+    partnerPageImage = '';
+    partnerPageDiscordId = null;
+    document.getElementById('ppType').value = 'creator';
+    document.getElementById('ppName').value = '';
+    document.getElementById('ppDescription').value = '';
+    document.getElementById('ppServerIp').value = '';
+    document.getElementById('ppFeatured').checked = false;
+    document.getElementById('ppImageFile').value = '';
+    document.querySelectorAll('.pp-link').forEach(function (el) {
+        el.value = '';
+    });
+    partnerPageSyncForm();
+  }
+  function partnerPageImageUrl(image) {
+    if (!image) return '';
+    return image.indexOf('https://') === 0 ? image : 'https://bot.frostclient.eu/site/partners/img/' + image;
+  }
+  function partnerPageSyncForm() {
+    const isServer = document.getElementById('ppType').value === 'server';
+    document.getElementById('ppServerIpField').hidden = !isServer;
+    const preview = document.getElementById('ppImagePreview');
+    preview.hidden = !partnerPageImage;
+    if (partnerPageImage) preview.src = partnerPageImageUrl(partnerPageImage);
+    document.getElementById('ppImageClear').hidden = !partnerPageImage;
+    document.getElementById('partnerPageFormTitle').textContent = partnerPageEditing ? 'Edit ' + partnerPageEditing.name : 'Add a partner';
+    document.querySelector('#ppSaveBtn .btn-label').textContent = partnerPageEditing ? 'Save changes' : 'Add partner';
+    document.getElementById('ppCancelBtn').hidden = !partnerPageEditing;
+  }
+  function partnerPageFill(entry) {
+    partnerPageReset();
+    partnerPageEditing = entry && entry.id ? entry : null;
+    partnerPageImage = (entry && entry.image) || '';
+    partnerPageDiscordId = (entry && entry.discordId) || null;
+    document.getElementById('ppType').value = (entry && entry.type) || 'creator';
+    document.getElementById('ppName').value = (entry && entry.name) || '';
+    document.getElementById('ppDescription').value = (entry && entry.description) || '';
+    document.getElementById('ppServerIp').value = (entry && entry.serverIp) || '';
+    document.getElementById('ppFeatured').checked = !!(entry && entry.featured);
+    document.querySelectorAll('.pp-link').forEach(function (el) {
+        el.value = (entry && entry.links && entry.links[el.dataset.key]) || '';
+    });
+    partnerPageSyncForm();
+    document.getElementById('partnerPageFormPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function partnerPageGuessLinkKey(url) {
+    const u = String(url || '').toLowerCase();
+    if (u.indexOf('youtube.com') !== -1 || u.indexOf('youtu.be') !== -1) return 'youtube';
+    if (u.indexOf('tiktok.com') !== -1) return 'tiktok';
+    if (u.indexOf('twitch.tv') !== -1) return 'twitch';
+    if (u.indexOf('kick.com') !== -1) return 'kick';
+    if (u.indexOf('instagram.com') !== -1) return 'instagram';
+    if (u.indexOf('x.com') !== -1 || u.indexOf('twitter.com') !== -1) return 'x';
+    if (u.indexOf('discord.gg') !== -1 || u.indexOf('discord.com') !== -1) return 'discord';
+    return 'website';
+  }
+  function renderPartnerPage(d) {
+    partnerPageEntries = d.entries || [];
+    const list = document.getElementById('partnerPageList');
+    const creators = partnerPageEntries.filter(function (e) { return e.type === 'creator'; }).length;
+    document.getElementById('partnerPageMeta').textContent = partnerPageEntries.length ? partnerPageEntries.length + ' on the page · ' + creators + ' creators · ' + (partnerPageEntries.length - creators) + ' servers · ' + partnerPageEntries.filter(function (e) { return e.featured; }).length + ' on the homepage' : 'No partners on the page yet. Add one below.';
+    list.innerHTML = partnerPageEntries.map(function (e, i) {
+      const links = Object.keys(e.links || {}).map(function (k) { return PARTNER_LINK_LABELS[k] || k; }).join(' · ');
+      return '<div class="partner-page-row" data-id="' + escapeHtml(e.id) + '">' +
+        (e.imageUrl ? '<img class="partner-page-thumb" src="' + escapeHtml(e.imageUrl) + '" alt="" onerror="this.removeAttribute(\'src\')"/>' : '<div class="partner-page-thumb partner-page-thumb--empty">' + escapeHtml(e.name.charAt(0).toUpperCase()) + '</div>') +
+        '<div class="partner-page-info"><div class="partner-page-name">' + escapeHtml(e.name) + ' <span class="pill">' + (e.type === 'server' ? 'Server' : 'Creator') + '</span>' + (e.featured ? ' <span class="pill accepted">Homepage</span>' : '') + '</div>' +
+        '<div class="partner-page-sub">' + escapeHtml(e.type === 'server' && e.serverIp ? e.serverIp + (links ? ' · ' + links : '') : links || 'No links') + '</div></div>' +
+        '<div class="partner-page-actions">' +
+          '<button type="button" class="btn-small" data-pp-move="-1"' + (i === 0 ? ' disabled' : '') + ' aria-label="Move up">↑</button>' +
+          '<button type="button" class="btn-small" data-pp-move="1"' + (i === partnerPageEntries.length - 1 ? ' disabled' : '') + ' aria-label="Move down">↓</button>' +
+          '<button type="button" class="btn-small" data-pp-edit>Edit</button>' +
+          '<button type="button" class="btn-small danger" data-pp-delete>Delete</button>' +
+        '</div></div>';
+    }).join('');
+    list.querySelectorAll('.partner-page-row').forEach(function (row) {
+      const entry = partnerPageEntries.find(function (e) { return e.id === row.dataset.id; });
+      row.querySelector('[data-pp-edit]').addEventListener('click', function () {
+          partnerPageFill(entry);
+      });
+      row.querySelector('[data-pp-delete]').addEventListener('click', function () {
+        askConfirm('Remove ' + entry.name + '?', 'They disappear from the partner page and the homepage right away.', {}, function () {
+          return callAdmin('partnerShowcase.delete', { id: entry.id }).then(function (r) {
+            if (r && r.ok) {
+                showToast('Partner removed.', 'success');
+                if (partnerPageEditing && partnerPageEditing.id === entry.id) partnerPageReset();
+                loadPartnerPage();
+            }
+            else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
+          });
+        });
+      });
+      row.querySelectorAll('[data-pp-move]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          const ids = partnerPageEntries.map(function (e) { return e.id; });
+          const from = ids.indexOf(entry.id);
+          const to = from + Number(btn.dataset.ppMove);
+          if (to < 0 || to >= ids.length) return;
+          ids.splice(to, 0, ids.splice(from, 1)[0]);
+          callAdmin('partnerShowcase.reorder', { ids: ids }).then(function (r) {
+            if (r && r.ok) loadPartnerPage();
+            else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
+          });
+        });
+      });
+    });
+    const candidates = d.candidates || [];
+    const box = document.getElementById('partnerPageCandidates');
+    box.innerHTML = candidates.length ? candidates.map(function (c, i) {
+      return '<div class="partner-page-row">' +
+        (c.avatar ? '<img class="partner-page-thumb" src="' + escapeHtml(c.avatar) + '" alt="" onerror="this.removeAttribute(\'src\')"/>' : '<div class="partner-page-thumb partner-page-thumb--empty">' + escapeHtml(c.name.charAt(0).toUpperCase()) + '</div>') +
+        '<div class="partner-page-info"><div class="partner-page-name">' + escapeHtml(c.name) + '</div><div class="partner-page-sub">' + escapeHtml(c.socialLink || 'No link from signup') + '</div></div>' +
+        '<div class="partner-page-actions"><button type="button" class="btn-small" data-pp-add="' + i + '">Add</button></div></div>';
+    }).join('') : '<p style="color:var(--muted);font-size:13px;">Every creator is already on the page.</p>';
+    box.querySelectorAll('[data-pp-add]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const c = candidates[Number(btn.dataset.ppAdd)];
+        const links = {};
+        if (c.socialLink) links[partnerPageGuessLinkKey(c.socialLink)] = c.socialLink;
+        partnerPageFill({ type: 'creator', name: c.name, image: c.avatar || '', links: links, discordId: c.discordId });
+      });
+    });
+  }
+  function loadPartnerPage() {
+    if (!canPublishContent) return Promise.resolve();
+    return callAdmin('partnerShowcase.list').then(function (d) {
+      if (d && d.ok) renderPartnerPage(d);
+      else if (d && d.error) showToast('Could not load partners: ' + d.error, 'error');
+    });
+  }
+  document.getElementById('ppType').addEventListener('change', partnerPageSyncForm);
+  document.getElementById('ppCancelBtn').addEventListener('click', partnerPageReset);
+  document.getElementById('ppImageClear').addEventListener('click', function () {
+    partnerPageImage = '';
+    document.getElementById('ppImageFile').value = '';
+    partnerPageSyncForm();
+  });
+  document.getElementById('ppImageFile').addEventListener('change', function () {
+    const input = this;
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+        showToast(PARTNER_PAGE_ERRORS.image_too_large, 'error');
+        input.value = '';
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = function () {
+      fetch('https://bot.frostclient.eu/admin/partner-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: loadToken(), dataUrl: reader.result })
+      }).then(function (r) {
+          return r.json();
+      }).then(function (r) {
+        if (r && r.ok) {
+            partnerPageImage = r.image;
+            partnerPageSyncForm();
+            showToast('Image uploaded.', 'success');
+        } else showToast(PARTNER_PAGE_ERRORS[r && r.error] || 'Upload failed.', 'error');
+      }).catch(function () {
+          showToast('Upload failed. Check your connection.', 'error');
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+  document.getElementById('ppSaveBtn').addEventListener('click', function () {
+    const btn = this;
+    const links = {};
+    document.querySelectorAll('.pp-link').forEach(function (el) {
+      if (el.value.trim()) links[el.dataset.key] = el.value.trim();
+    });
+    const entry = {
+      id: partnerPageEditing ? partnerPageEditing.id : undefined,
+      type: document.getElementById('ppType').value,
+      name: document.getElementById('ppName').value,
+      description: document.getElementById('ppDescription').value,
+      serverIp: document.getElementById('ppServerIp').value,
+      featured: document.getElementById('ppFeatured').checked,
+      image: partnerPageImage,
+      links: links,
+      discordId: partnerPageDiscordId,
+      order: partnerPageEditing ? partnerPageEditing.order : undefined
+    };
+    setBtnLoading(btn, true);
+    callAdmin('partnerShowcase.save', { entry: entry }).then(function (r) {
+      setBtnLoading(btn, false);
+      if (r && r.ok) {
+          showToast(partnerPageEditing ? 'Partner updated.' : 'Partner added.', 'success');
+          partnerPageReset();
+          loadPartnerPage();
+      }
+      else showToast(PARTNER_PAGE_ERRORS[r && r.error] || ('Failed: ' + (r && r.error || 'unknown error')), 'error');
+    });
+  });
   (function init() {
     const params = new URLSearchParams(window.location.search);
 

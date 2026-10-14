@@ -14,7 +14,7 @@
 <meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="admin.css?v=20261008">
+<link rel="stylesheet" href="admin.css?v=20261014">
 </head>
 <body>
 <canvas id="snowCanvas"></canvas>
@@ -83,6 +83,7 @@
       <button type="button" class="nav-item" data-view="reviews"><span class="nav-icon">◆</span>Reviews</button>
       <button type="button" class="nav-item" data-view="drops" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Publish Drop</button>
       <button type="button" class="nav-item" data-view="capeGift" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Cape Gift</button>
+      <button type="button" class="nav-item" data-view="partnerPage" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Partner Page</button>
       <button type="button" class="nav-item" data-view="giveaway" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Publish Giveaway</button>
       <button type="button" class="nav-item" data-view="tickets"><span class="nav-icon">◆</span>Tickets</button>
       <button type="button" class="nav-item" data-view="ticketArchive"><span class="nav-icon">◆</span>Ticket Archive</button>
@@ -611,6 +612,68 @@
       </div>
     </div>
 
+    <div class="view" id="view-partnerPage">
+      <div class="panel">
+        <div class="panel-head"><h2>Partners on the website</h2><span class="panel-sub">Everything here shows up on frostclient.eu/partners right away. Partners with "Show on the homepage" also appear in the homepage strip. Use the arrows to change the order.</span></div>
+        <div class="scamfilter-status" id="partnerPageMeta"></div>
+        <div class="partner-page-list" id="partnerPageList"></div>
+      </div>
+      <div class="panel" id="partnerPageFormPanel">
+        <div class="panel-head"><h2 id="partnerPageFormTitle">Add a partner</h2><span class="panel-sub">Creators and partner servers. Links are optional; only filled ones are shown.</span></div>
+        <div class="form-field-row">
+          <div class="form-field">
+            <label>Type</label>
+            <select id="ppType" class="text-input"><option value="creator">Creator</option><option value="server">Server</option></select>
+          </div>
+          <div class="form-field">
+            <label>Name</label>
+            <input type="text" id="ppName" class="text-input" maxlength="60" placeholder="Channel or server name"/>
+          </div>
+        </div>
+        <div class="form-field">
+          <label>Description <span class="optional-tag">(optional, up to 300 characters)</span></label>
+          <textarea id="ppDescription" class="text-input" maxlength="300" rows="3"></textarea>
+        </div>
+        <div class="form-field">
+          <label>Image <span class="optional-tag">(PNG, JPG, WEBP or GIF, max 3 MB, square works best)</span></label>
+          <div class="partner-page-image-row">
+            <img id="ppImagePreview" class="partner-page-thumb" alt="" hidden/>
+            <input type="file" id="ppImageFile" accept="image/png,image/jpeg,image/webp,image/gif"/>
+            <button type="button" class="btn-small" id="ppImageClear" hidden>Remove image</button>
+          </div>
+        </div>
+        <div class="form-field" id="ppServerIpField" hidden>
+          <label>Server IP</label>
+          <input type="text" id="ppServerIp" class="text-input" maxlength="80" placeholder="play.example.net"/>
+        </div>
+        <div class="form-field-row">
+          <div class="form-field"><label>Website</label><input type="text" class="text-input pp-link" data-key="website" placeholder="https://"/></div>
+          <div class="form-field"><label>Discord</label><input type="text" class="text-input pp-link" data-key="discord" placeholder="https://discord.gg/..."/></div>
+        </div>
+        <div class="form-field-row">
+          <div class="form-field"><label>YouTube</label><input type="text" class="text-input pp-link" data-key="youtube" placeholder="https://youtube.com/@..."/></div>
+          <div class="form-field"><label>TikTok</label><input type="text" class="text-input pp-link" data-key="tiktok" placeholder="https://tiktok.com/@..."/></div>
+        </div>
+        <div class="form-field-row">
+          <div class="form-field"><label>Twitch</label><input type="text" class="text-input pp-link" data-key="twitch" placeholder="https://twitch.tv/..."/></div>
+          <div class="form-field"><label>Kick</label><input type="text" class="text-input pp-link" data-key="kick" placeholder="https://kick.com/..."/></div>
+        </div>
+        <div class="form-field-row">
+          <div class="form-field"><label>X</label><input type="text" class="text-input pp-link" data-key="x" placeholder="https://x.com/..."/></div>
+          <div class="form-field"><label>Instagram</label><input type="text" class="text-input pp-link" data-key="instagram" placeholder="https://instagram.com/..."/></div>
+        </div>
+        <label class="check-row"><input type="checkbox" id="ppFeatured"/><span>Show on the homepage</span></label>
+        <div class="autoreply-form-actions">
+          <button type="button" class="btn-primary" id="ppSaveBtn"><span class="btn-spinner"></span><span class="btn-label">Add partner</span></button>
+          <button type="button" class="btn-small" id="ppCancelBtn" hidden>Cancel editing</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Add a creator</h2><span class="panel-sub">Creators from the Discord server and creator signups who aren't on the page yet. Add fills the form above with their name, avatar and link.</span></div>
+        <div class="partner-page-candidates" id="partnerPageCandidates"></div>
+      </div>
+    </div>
+
     <div class="view" id="view-capeGift">
       <div class="panel panel-narrow">
         <div class="panel-head"><h2>Create a cape gift</h2><span class="panel-sub">Generates a store link anyone signed in with Discord can use to claim the cape</span></div>
@@ -1057,6 +1120,6 @@
   </div>
 </div>
 
-<script src="admin.js?v=20261008"></script>
+<script src="admin.js?v=20261014"></script>
 </body>
 </html>
