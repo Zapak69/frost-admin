@@ -4353,7 +4353,7 @@
   });
 
   const PARTNER_LINK_LABELS = { website: 'Website', discord: 'Discord', youtube: 'YouTube', tiktok: 'TikTok', twitch: 'Twitch', kick: 'Kick', x: 'X', instagram: 'Instagram', store: 'Store' };
-  const PARTNER_PAGE_ERRORS = { missing_name: 'Fill in the name.', bad_link: 'One of the links is not a valid URL.', bad_server_ip: 'The server IP can only contain letters, numbers, dots, dashes and a port.', bad_image: 'That image could not be used.', image_too_large: 'The image is larger than 3 MB.', too_many: 'The page already has the maximum number of partners.' };
+  const PARTNER_PAGE_ERRORS = { missing_name: 'Fill in the name.', bad_link: 'One of the links is not a valid URL.', missing_server_ip: 'Fill in the server IP so players can join from the partner page.', bad_server_ip: 'The server IP can only contain letters, numbers, dots, dashes and a port.', bad_image: 'That image could not be used.', image_too_large: 'The image is larger than 3 MB.', too_many: 'The page already has the maximum number of partners.' };
   let partnerPageEntries = [];
   let partnerPageEditing = null;
   let partnerPageImage = '';
