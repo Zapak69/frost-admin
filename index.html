@@ -82,7 +82,7 @@
       <div class="nav-group-label">Content &amp; Tickets</div>
       <button type="button" class="nav-item" data-view="reviews"><span class="nav-icon">◆</span>Reviews</button>
       <button type="button" class="nav-item" data-view="drops" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Publish Drop</button>
-      <button type="button" class="nav-item" data-view="capeGift" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Cape Gift</button>
+      <button type="button" class="nav-item" data-view="capeGift" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Cloak Gift</button>
       <button type="button" class="nav-item" data-view="partnerPage" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Partner Page</button>
       <button type="button" class="nav-item" data-view="giveaway" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Publish Giveaway</button>
       <button type="button" class="nav-item" data-view="tickets"><span class="nav-icon">◆</span>Tickets</button>
@@ -295,8 +295,8 @@
             <button type="button" class="filter-pill" data-role="video">Video &amp; Social</button>
             <button type="button" class="filter-pill" data-role="graphic">Graphic</button>
             <button type="button" class="filter-pill" data-role="visualizer">Visualizer</button>
-            <button type="button" class="filter-pill" data-role="cape_designer">Cape Design</button>
-            <button type="button" class="filter-pill" data-role="cape_animator">Cape Anim</button>
+            <button type="button" class="filter-pill" data-role="cape_designer">Cloak Design</button>
+            <button type="button" class="filter-pill" data-role="cape_animator">Cloak Anim</button>
             <button type="button" class="filter-pill" data-role="server_partnership">Server Partnership</button>
           </div>
         </div>
@@ -676,12 +676,12 @@
 
     <div class="view" id="view-capeGift">
       <div class="panel panel-narrow">
-        <div class="panel-head"><h2>Create a cape gift</h2><span class="panel-sub">Generates a store link anyone signed in with Discord can use to claim the cape</span></div>
+        <div class="panel-head"><h2>Create a cloak gift</h2><span class="panel-sub">Generates a store link anyone signed in with Discord can use to claim the cloak</span></div>
         <div class="form-field">
-          <label>Cape</label>
+          <label>Cloak</label>
           <div class="cape-gift-pick">
             <img class="cape-gift-thumb" id="capeGiftThumb" alt="" hidden/>
-            <select id="capeGiftCape" class="text-input"><option value="">Loading capes…</option></select>
+            <select id="capeGiftCape" class="text-input"><option value="">Loading cloaks…</option></select>
           </div>
         </div>
         <div class="form-field-row">
@@ -697,7 +697,7 @@
         <label class="check-row"><input type="checkbox" id="capeGiftUnlimited"/><span>Unlimited claims</span></label>
         <div class="form-field">
           <label>Description <span class="optional-tag">(optional, shown on the gift page)</span></label>
-          <textarea id="capeGiftDescription" class="text-input" maxlength="500" placeholder="Defaults to the cape's store description"></textarea>
+          <textarea id="capeGiftDescription" class="text-input" maxlength="500" placeholder="Defaults to the cloak's store description"></textarea>
         </div>
         <button type="button" class="btn-primary" id="capeGiftSubmitBtn"><span class="btn-spinner"></span><span class="btn-label">Generate gift link</span></button>
         <div class="cape-gift-result" id="capeGiftResult" hidden>
@@ -706,7 +706,7 @@
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head"><h2>Cape gifts</h2><span class="panel-sub">Claims, expiry and status of every generated gift link</span></div>
+        <div class="panel-head"><h2>Cloak gifts</h2><span class="panel-sub">Claims, expiry and status of every generated gift link</span></div>
         <div class="table-wrap">
           <table class="data-table" id="capeGiftTable"></table>
         </div>

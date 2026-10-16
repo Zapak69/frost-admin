@@ -492,7 +492,7 @@
   const VIEW_TITLES = {
     overview: 'Overview', members: 'Members', leaderboard: 'Leaderboards', staff: 'Staff Team', staffActivity: 'Activity',
     staffApps: 'Staff Applications', partnerLogs: 'Creators', partnerRankup: 'Partner Rankup Requests', reports: 'Bug Reports', scams: 'Scam Database',
-    logs: 'Action Logs', excuses: 'Excuses', warns: 'Warns', reviews: 'Reviews', drops: 'Publish Drop', capeGift: 'Cape Gift', giveaway: 'Publish Giveaway', tickets: 'Tickets',
+    logs: 'Action Logs', excuses: 'Excuses', warns: 'Warns', reviews: 'Reviews', drops: 'Publish Drop', capeGift: 'Cloak Gift', giveaway: 'Publish Giveaway', tickets: 'Tickets',
     ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies', scamFilter: 'Scam Filter', statusPage: 'Status Page', liteBoosts: 'Lite Boosts', linkFilter: 'Link Filter', partnerPage: 'Partner Page',
     partnerData: 'Partner Data'
   };
@@ -3554,7 +3554,7 @@
         }).forEach(function (c) {
           const opt = document.createElement('option');
           opt.value = c.id;
-          opt.textContent = c.name + ' cape';
+          opt.textContent = c.name + ' cloak';
           select.appendChild(opt);
         });
       })
@@ -3633,15 +3633,15 @@
         return capeGiftCatalog;
       })
       .catch(function () {
-        select.innerHTML = '<option value="">Could not load capes</option>';
+        select.innerHTML = '<option value="">Could not load cloaks</option>';
         capeGiftCatalog = null;
       });
   }
   function renderCapeGifts(gifts) {
     const table = document.getElementById('capeGiftTable');
-    let html = '<thead><tr><th>Cape</th><th>Claims</th><th>Available until</th><th>Status</th><th>Link</th><th></th></tr></thead><tbody>';
+    let html = '<thead><tr><th>Cloak</th><th>Claims</th><th>Available until</th><th>Status</th><th>Link</th><th></th></tr></thead><tbody>';
     if (!gifts.length) {
-      html += emptyRow(6, 'No cape gifts yet.');
+      html += emptyRow(6, 'No cloak gifts yet.');
     } else {
       gifts.forEach(function (g) {
         const claims = g.claims + ' / ' + (g.maxClaims == null ? '∞' : g.maxClaims);
@@ -3661,7 +3661,7 @@
   function loadCapeGiftList() {
     return callAdmin('capeGift.list', {}).then(function (d) {
       if (d && d.ok) renderCapeGifts(d.gifts || []);
-      else document.getElementById('capeGiftTable').innerHTML = '<tbody>' + emptyRow(6, 'Could not load cape gifts.') + '</tbody>';
+      else document.getElementById('capeGiftTable').innerHTML = '<tbody>' + emptyRow(6, 'Could not load cloak gifts.') + '</tbody>';
     });
   }
   function loadCapeGiftPage() {
@@ -3697,7 +3697,7 @@
     const expiresRaw = document.getElementById('capeGiftExpires').value;
     const expires = expiresRaw ? new Date(expiresRaw) : null;
     if (!capeId) {
-        showToast('Pick a cape first.', 'error');
+        showToast('Pick a cloak first.', 'error');
         return;
     }
     if (!unlimited && (!Number.isInteger(maxClaims) || maxClaims < 1)) {
@@ -3749,7 +3749,7 @@
     const revokeBtn = e.target.closest('[data-cape-gift-revoke]');
     if (!revokeBtn) return;
     const code = revokeBtn.getAttribute('data-cape-gift-revoke');
-    askConfirm('Disable gift link?', 'Nobody else will be able to claim it. Capes already claimed stay with their owners.', { okLabel: 'Disable' }, function () {
+    askConfirm('Disable gift link?', 'Nobody else will be able to claim it. Cloaks already claimed stay with their owners.', { okLabel: 'Disable' }, function () {
       return callAdmin('capeGift.revoke', { code: code }).then(function (d) {
         if (d && d.ok) {
           showToast('Gift disabled.', 'success');
