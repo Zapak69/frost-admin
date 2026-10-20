@@ -3501,7 +3501,9 @@
   function renderReviews(reviews, limit) {
     const shown = limit ? reviews.slice(0, limit) : reviews;
     const rows = shown.map(function (r) {
-      const removeBtn = (r.discordId && canPublishContent) ? '<button class="btn-small danger" data-remove="' + r.discordId + '">Remove</button>' : '';
+      const removeBtn = canPublishContent
+        ? '<button class="btn-small danger" data-remove="' + (r.discordId || '') + '" data-export-index="' + r.exportIndex + '" data-submitted-at="' + escapeHtml(r.submittedAt || '') + '">Remove</button>'
+        : '';
       const hasFps = r.fpsBefore != null && r.fpsAfter != null && !isNaN(Number(r.fpsBefore)) && !isNaN(Number(r.fpsAfter));
       const fps = hasFps ? Math.round(Number(r.fpsBefore)) + ' → ' + Math.round(Number(r.fpsAfter)) : '—';
       return '<tr><td><span class="cell-user"><img class="cell-avatar" src="' + reviewAvatarUrl(r) + '"/>' + userLink(r.discordId, r.username) + '</span></td><td class="mono">' + escapeHtml(r.stars || '') + '</td><td class="mono">' + fps + '</td><td style="max-width:340px;">' + escapeHtml((r.comment || '').slice(0, 140)) + '</td><td>' + removeBtn + '</td></tr>';
@@ -3511,8 +3513,14 @@
     table.querySelectorAll('button[data-remove]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         const discordId = btn.dataset.remove;
-        askConfirm('Remove review?', 'This deletes the Discord message and the export entry.', {}, function () {
-          return callAdmin('reviews.remove', { discordId: discordId }).then(function (d2) {
+        const body = discordId
+          ? { discordId: discordId }
+          : { exportIndex: Number(btn.dataset.exportIndex), submittedAt: btn.dataset.submittedAt || '' };
+        const note = discordId
+          ? 'This deletes the Discord message and the export entry.'
+          : 'This review has no Discord account left, so only the entry shown on the website is deleted.';
+        askConfirm('Remove review?', note, {}, function () {
+          return callAdmin('reviews.remove', body).then(function (d2) {
             if (d2 && d2.ok) {
                 showToast('Review removed.', 'success');
                 loadReviews();
