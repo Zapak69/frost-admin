@@ -14,7 +14,7 @@
 <meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="admin.css?v=20261014">
+<link rel="stylesheet" href="admin.css?v=20261027">
 </head>
 <body>
 <canvas id="snowCanvas"></canvas>
@@ -79,6 +79,7 @@
       <button type="button" class="nav-item" data-view="liteBoosts" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Lite Boosts</button>
       <button type="button" class="nav-item" data-view="linkFilter" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Link Filter</button>
       <button type="button" class="nav-item" data-view="partnerData" data-requires="owner" style="display:none;"><span class="nav-icon">◆</span>Partner Data</button>
+      <button type="button" class="nav-item" data-view="partnerAssets" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Partner Assets</button>
       <div class="nav-group-label">Content &amp; Tickets</div>
       <button type="button" class="nav-item" data-view="reviews"><span class="nav-icon">◆</span>Reviews</button>
       <button type="button" class="nav-item" data-view="drops" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Publish Drop</button>
@@ -492,6 +493,21 @@
         <div class="autoreply-form-actions">
           <button type="button" class="btn-primary" id="linkFilterSaveBtn"><span class="btn-spinner"></span><span class="btn-label">Save link filter</span></button>
           <button type="button" class="btn-small" id="linkFilterResetRepliesBtn">Reset messages to default</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" id="view-partnerAssets">
+      <div class="panel">
+        <div class="panel-head"><h2>Partner Assets</h2><span class="panel-sub">Files every partner and media creator sees on the Assets page of their dashboard. Upload, replace, rename or delete them here. A file with "banner" in its name stays locked for media creators until they reach the order goal.</span></div>
+        <div class="pa-layout">
+          <div class="pa-side">
+            <input type="search" class="text-input" id="paSearch" placeholder="Search name, username, code or ID" autocomplete="off"/>
+            <div class="pa-list" id="paList"></div>
+          </div>
+          <div class="pa-main" id="paMain">
+            <div class="pa-empty">Pick a creator on the left.</div>
+          </div>
         </div>
       </div>
     </div>
@@ -1094,8 +1110,8 @@
 
 <div id="changeCodeModal" class="modal-overlay">
   <div class="modal-box">
-    <div class="modal-title">Change code — <span id="changeCodeModalName"></span></div>
-    <p class="modal-text">Deletes their old Whop code and creates a new one under the same discount terms. Takes effect immediately.</p>
+    <div class="modal-title"><span id="changeCodeModalTitle">Change code</span> — <span id="changeCodeModalName"></span></div>
+    <p class="modal-text" id="changeCodeModalText">Deletes their old Whop code and creates a new one under the same discount terms. Takes effect immediately.</p>
     <div class="form-field">
       <label>New code</label>
       <input type="text" id="changeCodeInput" class="text-input" placeholder="e.g. FROSTJOHN" autocomplete="off" maxlength="8"/>
@@ -1104,7 +1120,7 @@
     <p class="modal-text" id="changeCodeError" style="display:none;color:var(--danger);"></p>
     <div class="modal-actions">
       <button type="button" class="btn-secondary" id="changeCodeCancelBtn">Cancel</button>
-      <button type="button" class="btn-primary" id="changeCodeSubmitBtn"><span class="btn-spinner"></span><span class="btn-label">Change code</span></button>
+      <button type="button" class="btn-primary" id="changeCodeSubmitBtn"><span class="btn-spinner"></span><span class="btn-label" id="changeCodeSubmitLabel">Change code</span></button>
     </div>
   </div>
 </div>
@@ -1120,6 +1136,6 @@
   </div>
 </div>
 
-<script src="admin.js?v=20261014"></script>
+<script src="admin.js?v=20261028"></script>
 </body>
 </html>

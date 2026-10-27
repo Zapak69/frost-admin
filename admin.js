@@ -494,7 +494,7 @@
     staffApps: 'Staff Applications', partnerLogs: 'Creators', partnerRankup: 'Partner Rankup Requests', reports: 'Bug Reports', scams: 'Scam Database',
     logs: 'Action Logs', excuses: 'Excuses', warns: 'Warns', reviews: 'Reviews', drops: 'Publish Drop', capeGift: 'Cloak Gift', giveaway: 'Publish Giveaway', tickets: 'Tickets',
     ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies', scamFilter: 'Scam Filter', statusPage: 'Status Page', liteBoosts: 'Lite Boosts', linkFilter: 'Link Filter', partnerPage: 'Partner Page',
-    partnerData: 'Partner Data'
+    partnerData: 'Partner Data', partnerAssets: 'Partner Assets'
   };
   const VIEW_LOADERS = {
     overview: loadOverview, members: function () {}, leaderboard: loadLeaderboard, staff: loadStaff,
@@ -547,6 +547,9 @@
     },
     partnerData: function () {
         loadPartnerData();
+    },
+    partnerAssets: function () {
+        return loadPartnerAssets();
     }
   };
   let currentView = 'overview';
@@ -2760,6 +2763,295 @@
       else showToast('Sync failed: ' + (d && (d.syncError || d.error) || 'unknown error'), 'error');
     });
   });
+  const PA_FILE_URL = 'https://bot.frostclient.eu/admin/partner-assets/file';
+  const PA_UPLOAD_URL = 'https://bot.frostclient.eu/admin/partner-assets/upload';
+  const PA_ICON_UPLOAD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>';
+  const PA_ICON_FILE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/></svg>';
+  let paPartners = [];
+  let paSelected = null;
+  let paMaxBytes = 200 * 1024 * 1024;
+  let paExtensions = ['.gif', '.png', '.jpg', '.jpeg', '.webp', '.mp4', '.mov', '.webm', '.zip', '.pdf', '.psd'];
+  let paRenaming = null;
+  const PA_TIER_LABELS = { media: 'Media', partner: 'Partner', partner_plus: 'Partner+' };
+  function paFormatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+  }
+  function paFileUrl(discordId, file, inline) {
+    return PA_FILE_URL + '?token=' + encodeURIComponent(loadToken()) + '&discordId=' + encodeURIComponent(discordId) + '&file=' + encodeURIComponent(file) + (inline ? '&inline=1' : '');
+  }
+  function paDisplayName(p) {
+    return p.name || p.username || p.discordId;
+  }
+  function paTierBadge(p) {
+    if (!p.hasRole) return '<span class="pa-tier norole" title="No creator role on Discord, so they cannot open the dashboard">No role</span>';
+    return p.tier ? '<span class="pa-tier ' + escapeHtml(p.tier) + '">' + escapeHtml(PA_TIER_LABELS[p.tier] || p.tier) + '</span>' : '';
+  }
+  function paAvatar(p) {
+    return p.avatar ? '<img class="pa-avatar" src="' + escapeHtml(p.avatar) + '" alt=""/>' : '<span class="pa-avatar"></span>';
+  }
+  function renderPartnerAssetList() {
+    const q = document.getElementById('paSearch').value.trim().toLowerCase();
+    const list = paPartners.filter(function (p) {
+        return !q || [p.name, p.username, p.code, p.discordId].some(function (v) {
+            return v && String(v).toLowerCase().includes(q);
+        });
+    });
+    document.getElementById('paList').innerHTML = list.length ? list.map(function (p) {
+      return '<button type="button" class="pa-item' + (p.discordId === paSelected ? ' active' : '') + '" data-pa-id="' + escapeHtml(p.discordId) + '">' + paAvatar(p) +
+        '<span class="pa-item-text"><span class="pa-item-name">' + escapeHtml(paDisplayName(p)) + '</span><span class="pa-item-sub">' + escapeHtml(p.username ? '@' + p.username : p.discordId) + (p.code ? ' · ' + escapeHtml(p.code) : '') + '</span></span>' +
+        '<span class="pa-count" title="Files">' + p.assets.length + '</span></button>';
+    }).join('') : '<div class="pa-empty">No creator matches.</div>';
+  }
+  function paCurrent() {
+    return paPartners.find(function (p) {
+        return p.discordId === paSelected;
+    }) || null;
+  }
+  function renderPartnerAssetMain() {
+    const main = document.getElementById('paMain');
+    const p = paCurrent();
+    if (!p) {
+      main.innerHTML = '<div class="pa-empty">Pick a creator on the left.</div>';
+      return;
+    }
+    const cards = p.assets.map(function (a) {
+      const ext = (a.filename.split('.').pop() || '').toLowerCase();
+      const url = paFileUrl(p.discordId, a.filename, true);
+      let thumb = PA_ICON_FILE;
+      if (/^(gif|png|jpe?g|webp)$/.test(ext)) thumb = '<img loading="lazy" src="' + escapeHtml(url) + '" alt=""/>';
+      else if (/^(mp4|webm|mov)$/.test(ext)) thumb = '<video src="' + escapeHtml(url) + '#t=0.1" preload="metadata" muted playsinline></video>';
+      const renaming = paRenaming === a.filename;
+      return '<div class="pa-card" data-pa-file="' + escapeHtml(a.filename) + '"><div class="pa-thumb">' + thumb + '</div><div class="pa-card-body">' +
+        (renaming ? '<input type="text" class="text-input pa-name-input" maxlength="120" value="' + escapeHtml(a.filename) + '"/>' : '<div class="pa-name">' + escapeHtml(a.filename) + '</div>') +
+        '<div class="pa-meta">' + paFormatSize(a.size) + ' · ' + formatDateTime(Date.parse(a.mtime)) + '</div><div class="pa-actions">' +
+        (renaming
+          ? '<button type="button" class="btn-small success" data-pa-act="rename-save">Save</button><button type="button" class="btn-small" data-pa-act="rename-cancel">Cancel</button>'
+          : '<a class="btn-small" href="' + escapeHtml(paFileUrl(p.discordId, a.filename, false)) + '">Download</a><button type="button" class="btn-small" data-pa-act="rename">Rename</button><button type="button" class="btn-small" data-pa-act="replace">Replace</button><button type="button" class="btn-small danger" data-pa-act="delete">Delete</button>') +
+        '</div></div></div>';
+    }).join('');
+    main.innerHTML = '<div class="pa-head">' + paAvatar(p) + '<div class="pa-head-text"><div class="pa-head-name">' + escapeHtml(paDisplayName(p)) + paTierBadge(p) + '</div><div class="muted">' +
+      (p.username ? '@' + escapeHtml(p.username) + ' · ' : '') + escapeHtml(p.discordId) + (p.code ? ' · code ' + escapeHtml(p.code) : '') + '</div></div></div>' +
+      '<label class="pa-drop" id="paDrop">' + PA_ICON_UPLOAD + '<span>Drop files here or click to upload</span><span class="muted">' + escapeHtml(paExtensions.join(' ')) + ' · max ' + paFormatSize(paMaxBytes) + '</span><input type="file" id="paFileInput" multiple hidden accept="' + escapeHtml(paExtensions.join(',')) + '"/></label>' +
+      '<div class="pa-progress" id="paProgress"></div>' +
+      (p.assets.length ? '<div class="pa-grid">' + cards + '</div>' : '<div class="pa-empty">No files yet. Anything you upload shows up on their Assets page right away.</div>');
+    const nameInput = main.querySelector('.pa-name-input');
+    if (nameInput) {
+      nameInput.focus();
+      const dot = nameInput.value.lastIndexOf('.');
+      nameInput.setSelectionRange(0, dot > 0 ? dot : nameInput.value.length);
+    }
+  }
+  function paSetAssets(discordId, assets) {
+    const p = paPartners.find(function (x) {
+        return x.discordId === discordId;
+    });
+    if (p) p.assets = assets || [];
+    renderPartnerAssetList();
+    if (discordId === paSelected) renderPartnerAssetMain();
+  }
+  function loadPartnerAssets() {
+    return callAdmin('partnerAssets.list').then(function (d) {
+      if (!d || !d.ok) {
+        if (d && d.error && d.error !== 'insufficient_permission') showToast('Could not load partner assets: ' + d.error, 'error');
+        return;
+      }
+      paPartners = d.partners || [];
+      paMaxBytes = d.maxBytes || paMaxBytes;
+      paExtensions = d.extensions || paExtensions;
+      if (paSelected && !paCurrent()) paSelected = null;
+      renderPartnerAssetList();
+      renderPartnerAssetMain();
+    });
+  }
+  function paUploadOne(discordId, file, name, overwrite) {
+    return new Promise(function (resolve) {
+      const row = document.createElement('div');
+      row.className = 'pa-progress-row';
+      row.innerHTML = '<span class="pa-progress-name"></span><span class="pa-pct">0%</span><div class="pa-bar"><span></span></div>';
+      row.querySelector('.pa-progress-name').textContent = name;
+      const box = document.getElementById('paProgress');
+      if (box) box.appendChild(row);
+      const bar = row.querySelector('.pa-bar span');
+      const pct = row.querySelector('.pa-pct');
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', PA_UPLOAD_URL + '?token=' + encodeURIComponent(loadToken()) + '&discordId=' + encodeURIComponent(discordId) + '&file=' + encodeURIComponent(name) + (overwrite ? '&overwrite=1' : ''));
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.upload.onprogress = function (e) {
+        if (!e.lengthComputable) return;
+        const v = Math.round(e.loaded / e.total * 100);
+        bar.style.width = v + '%';
+        pct.textContent = v + '%';
+      };
+      const done = function (data) {
+        if (!data || !data.ok) {
+          row.querySelector('.pa-bar').classList.add('failed');
+          pct.textContent = 'Failed';
+        } else row.remove();
+        resolve(data || { ok: false, error: 'network_error' });
+      };
+      xhr.onload = function () {
+        let data = null;
+        try { data = JSON.parse(xhr.responseText); } catch (e) { data = { ok: false, error: 'http_' + xhr.status }; }
+        done(data);
+      };
+      xhr.onerror = function () {
+          done({ ok: false, error: 'network_error' });
+      };
+      xhr.send(file);
+    });
+  }
+  const PA_UPLOAD_ERRORS = { too_large: 'file is too big', bad_filename: 'file type or name not allowed', bad_partner: 'invalid creator', exists: 'a file with that name already exists', empty_file: 'file is empty', forbidden: 'no permission' };
+  function paUploadFiles(files, replaceName) {
+    const p = paCurrent();
+    if (!p || !files.length) return;
+    const discordId = p.discordId;
+    const existing = new Set(p.assets.map(function (a) {
+        return a.filename;
+    }));
+    const queue = Array.from(files).filter(function (f) {
+      const name = replaceName || f.name;
+      const ext = '.' + (name.split('.').pop() || '').toLowerCase();
+      if (paExtensions.indexOf(ext) < 0) {
+          showToast(name + ': file type not allowed.', 'error');
+          return false;
+      }
+      if (f.size > paMaxBytes) {
+          showToast(name + ': file is bigger than ' + paFormatSize(paMaxBytes) + '.', 'error');
+          return false;
+      }
+      return true;
+    });
+    if (!queue.length) return;
+    const clashes = replaceName ? [] : queue.filter(function (f) {
+        return existing.has(f.name);
+    }).map(function (f) {
+        return f.name;
+    });
+    const run = function () {
+      let chain = Promise.resolve();
+      let okCount = 0;
+      queue.forEach(function (f) {
+        chain = chain.then(function () {
+          return paUploadOne(discordId, f, replaceName || f.name, !!replaceName || clashes.indexOf(f.name) >= 0).then(function (d) {
+            if (d.ok) {
+                okCount++;
+                paSetAssets(discordId, d.assets);
+            }
+            else showToast((replaceName || f.name) + ': ' + (PA_UPLOAD_ERRORS[d.error] || d.error || 'upload failed'), 'error');
+          });
+        });
+      });
+      chain.then(function () {
+        if (okCount) showToast(replaceName ? 'File replaced.' : okCount + ' file' + (okCount === 1 ? '' : 's') + ' uploaded.', 'success');
+      });
+    };
+    if (clashes.length) {
+      askConfirm('Replace existing files?', clashes.join(', ') + (clashes.length === 1 ? ' already exists' : ' already exist') + ' for this creator. Uploading replaces ' + (clashes.length === 1 ? 'it' : 'them') + '.', { okLabel: 'Replace', tone: 'primary' }).then(function (r) {
+          if (r.ok) run();
+      });
+    } else run();
+  }
+  document.getElementById('paSearch').addEventListener('input', renderPartnerAssetList);
+  document.getElementById('paList').addEventListener('click', function (e) {
+    const item = e.target.closest('[data-pa-id]');
+    if (!item) return;
+    paSelected = item.dataset.paId;
+    paRenaming = null;
+    renderPartnerAssetList();
+    renderPartnerAssetMain();
+  });
+  const paMain = document.getElementById('paMain');
+  paMain.addEventListener('change', function (e) {
+    if (e.target.id === 'paFileInput') {
+      paUploadFiles(e.target.files, null);
+      e.target.value = '';
+    }
+  });
+  paMain.addEventListener('dragover', function (e) {
+    const drop = e.target.closest('#paDrop');
+    if (!drop) return;
+    e.preventDefault();
+    drop.classList.add('over');
+  });
+  paMain.addEventListener('dragleave', function (e) {
+    const drop = e.target.closest('#paDrop');
+    if (drop && !drop.contains(e.relatedTarget)) drop.classList.remove('over');
+  });
+  paMain.addEventListener('drop', function (e) {
+    const drop = e.target.closest('#paDrop');
+    if (!drop) return;
+    e.preventDefault();
+    drop.classList.remove('over');
+    paUploadFiles(e.dataTransfer.files, null);
+  });
+  function paRenameSave(card) {
+    const p = paCurrent();
+    const input = card.querySelector('.pa-name-input');
+    if (!p || !input) return;
+    const file = card.dataset.paFile;
+    const next = input.value.trim();
+    if (!next || next === file) {
+      paRenaming = null;
+      renderPartnerAssetMain();
+      return;
+    }
+    if (next.split('.').pop().toLowerCase() !== file.split('.').pop().toLowerCase()) {
+      showToast('Keep the same file extension.', 'error');
+      return;
+    }
+    callAdmin('partnerAssets.rename', { discordId: p.discordId, file: file, newName: next }).then(function (d) {
+      if (d && d.ok) {
+        paRenaming = null;
+        paSetAssets(p.discordId, d.assets);
+        showToast('File renamed.', 'success');
+      } else showToast('Rename failed: ' + (PA_UPLOAD_ERRORS[d && d.error] || (d && d.error) || 'unknown error'), 'error');
+    });
+  }
+  paMain.addEventListener('keydown', function (e) {
+    if (!e.target.classList.contains('pa-name-input')) return;
+    if (e.key === 'Enter') paRenameSave(e.target.closest('.pa-card'));
+    else if (e.key === 'Escape') {
+      paRenaming = null;
+      renderPartnerAssetMain();
+    }
+  });
+  paMain.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-pa-act]');
+    if (!btn) return;
+    const card = btn.closest('.pa-card');
+    const p = paCurrent();
+    if (!card || !p) return;
+    const file = card.dataset.paFile;
+    const act = btn.dataset.paAct;
+    if (act === 'rename') {
+      paRenaming = file;
+      renderPartnerAssetMain();
+    } else if (act === 'rename-cancel') {
+      paRenaming = null;
+      renderPartnerAssetMain();
+    } else if (act === 'rename-save') {
+      paRenameSave(card);
+    } else if (act === 'replace') {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.' + file.split('.').pop();
+      input.addEventListener('change', function () {
+          if (input.files.length) paUploadFiles([input.files[0]], file);
+      });
+      input.click();
+    } else if (act === 'delete') {
+      askConfirm('Delete file?', file + ' will be removed from ' + paDisplayName(p) + "'s dashboard. This cannot be undone.", { okLabel: 'Delete' }, function () {
+        return callAdmin('partnerAssets.delete', { discordId: p.discordId, file: file }).then(function (d) {
+          if (d && d.ok) {
+            paSetAssets(p.discordId, d.assets);
+            showToast('File deleted.', 'success');
+          } else showToast('Delete failed: ' + (d && d.error || 'unknown error'), 'error');
+        });
+      });
+    }
+  });
   function describeLiteBoostSync(sync) {
     return Object.keys(sync || {}).map(function (k) {
         return k + ' ' + String(sync[k]).replace(/_/g, ' ');
@@ -3068,7 +3360,9 @@
           '<div class="app-card-user"><img class="app-card-avatar" src="' + avatarUrl(l.discordId, l.avatar) + '"/>' + userLink(l.discordId, l.username || l.discordId) + ' <span class="app-card-meta">' + l.discordId + '</span></div>' +
           (l.grantedBy ? '<span class="pill manual">staff grant</span>' : (l.hasSignupLog === false ? '<span class="pill manual">role only — no signup record</span>' : '')) +
           '<div class="app-card-actions">' +
-            '<button class="btn-small" data-change-code-id="' + escapeHtml(l.discordId) + '" data-change-code-name="' + escapeHtml(l.username || l.discordId) + '">Change code</button>' +
+            (l.code
+              ? '<button class="btn-small" data-change-code-id="' + escapeHtml(l.discordId) + '" data-change-code-name="' + escapeHtml(l.username || l.discordId) + '">Change code</button>'
+              : '<button class="btn-small success" data-add-code-id="' + escapeHtml(l.discordId) + '" data-add-code-name="' + escapeHtml(l.username || l.discordId) + '" data-add-code-tier="' + escapeHtml(l.tier || '') + '">Add code</button>') +
             '<button class="btn-small danger" data-delete-creator-id="' + escapeHtml(l.discordId) + '" data-delete-creator-name="' + escapeHtml(l.username || l.discordId) + '">Delete creator</button>' +
           '</div>' +
         '</div>' +
@@ -3084,6 +3378,10 @@
     const changeBtn = card.querySelector('button[data-change-code-id]');
     if (changeBtn) changeBtn.addEventListener('click', function () {
         openChangeCodeModal(changeBtn.dataset.changeCodeId, changeBtn.dataset.changeCodeName);
+    });
+    const addBtn = card.querySelector('button[data-add-code-id]');
+    if (addBtn) addBtn.addEventListener('click', function () {
+        openChangeCodeModal(addBtn.dataset.addCodeId, addBtn.dataset.addCodeName, addBtn.dataset.addCodeTier || 'none');
     });
     const deleteBtn = card.querySelector('button[data-delete-creator-id]');
     if (deleteBtn) {
@@ -3106,13 +3404,23 @@
   const changeCodeStatus = document.getElementById('changeCodeStatus');
   let changeCodeTargetId = null;
   let changeCodeCheckTimer = null, changeCodeCheckSeq = 0;
+  let changeCodeAddTier = null;
+  const CREATOR_TIER_NAMES = { media: 'Media', partner: 'Partner', partner_plus: 'Partner+' };
   function setChangeCodeStatus(state, text) {
     changeCodeStatus.className = 'code-check-status' + (state ? ' ' + state : '');
     changeCodeStatus.textContent = text || '';
   }
-  function openChangeCodeModal(userId, name) {
+  function openChangeCodeModal(userId, name, addTier) {
     changeCodeTargetId = userId;
+    changeCodeAddTier = addTier || null;
     document.getElementById('changeCodeModalName').textContent = name;
+    document.getElementById('changeCodeModalTitle').textContent = addTier ? 'Add code' : 'Change code';
+    document.getElementById('changeCodeSubmitLabel').textContent = addTier ? 'Add code' : 'Change code';
+    document.getElementById('changeCodeModalText').textContent = !addTier
+      ? 'Deletes their old Whop code and creates a new one under the same discount terms. Takes effect immediately.'
+      : CREATOR_TIER_NAMES[addTier]
+        ? 'They have the ' + CREATOR_TIER_NAMES[addTier] + ' role, so the code gets the ' + CREATOR_TIER_NAMES[addTier] + ' commission and customer discount. Creates the Whop code and their Partners row right away.'
+        : 'They no longer have a creator role, so a code cannot be added.';
     changeCodeInput.value = '';
     setChangeCodeStatus(null, '');
     document.getElementById('changeCodeError').style.display = 'none';
@@ -3164,14 +3472,16 @@
     if (!changeCodeTargetId) return;
     const btn = document.getElementById('changeCodeSubmitBtn');
     setBtnLoading(btn, true);
-    callAdmin('staff.changeMediaCode', { targetId: changeCodeTargetId, newCode: code }).then(function (d) {
+    const adding = !!changeCodeAddTier;
+    callAdmin(adding ? 'staff.assignCreatorCode' : 'staff.changeMediaCode', adding ? { targetId: changeCodeTargetId, code: code } : { targetId: changeCodeTargetId, newCode: code }).then(function (d) {
       setBtnLoading(btn, false);
       if (d && d.ok) {
-        showToast('Code changed to ' + d.code + '.', 'success');
+        showToast(adding ? 'Code ' + d.code + ' added · ' + (CREATOR_TIER_NAMES[d.tier] || d.tier) + ': ' + d.commissionPercentage + '% commission, ' + d.discountPercentage + '% discount.' : 'Code changed to ' + d.code + '.', 'success');
         changeCodeModal.classList.remove('active');
         loadPartnerLogs();
       } else {
-        errEl.textContent = 'Failed: ' + (d && d.error || 'unknown error');
+        const reasons = { no_creator_role: 'They have no Media, Partner or Partner+ role.', already_has_code: 'They already have a code. Use Change code instead.', code_unavailable: 'That code is already taken.', code_blocked: 'That code is not allowed.', invalid_code: 'Use 3 to 8 letters or numbers.' };
+        errEl.textContent = 'Failed: ' + (reasons[d && d.error] || (d && d.error) || 'unknown error');
         errEl.style.display = '';
       }
     });
