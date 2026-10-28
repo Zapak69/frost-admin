@@ -2178,6 +2178,7 @@
     document.getElementById('warnTargetName').textContent = name;
     document.getElementById('warnReasonInput').value = '';
     document.getElementById('warnDurationInput').value = '';
+    document.getElementById('warnInactivityInput').checked = false;
     warnModal.classList.add('active');
   }
   document.getElementById('warnCancelBtn').addEventListener('click', function () {
@@ -2189,13 +2190,14 @@
   document.getElementById('warnSubmitBtn').addEventListener('click', function () {
     const reason = document.getElementById('warnReasonInput').value.trim();
     const duration = document.getElementById('warnDurationInput').value.trim();
-    if (!reason || !currentWarnTargetId) {
+    const inactivity = document.getElementById('warnInactivityInput').checked;
+    if ((!reason && !inactivity) || !currentWarnTargetId) {
         showToast('Please write a reason.', 'error');
         return;
     }
     const btn = document.getElementById('warnSubmitBtn');
     setBtnLoading(btn, true);
-    callAdmin('staff.warn', { targetId: currentWarnTargetId, reason: reason, duration: duration }).then(function (d) {
+    callAdmin('staff.warn', { targetId: currentWarnTargetId, reason: reason || 'Inactivity', duration: duration, inactivity: inactivity }).then(function (d) {
       setBtnLoading(btn, false);
       if (d && d.ok) {
         showToast(duration ? 'Temporary warning issued.' : 'Warning issued.', 'success');
@@ -4220,6 +4222,10 @@
     return callAdmin('ticketArchive.list', { status: status }).then(function (d) {
       if (!d || !d.ok) return;
       lastTicketArchiveEntries = d.entries;
+      const archiveFilter = document.getElementById('ticketArchiveFilter');
+      if (archiveFilter) archiveFilter.style.display = canPublishContent ? '' : 'none';
+      const archiveTitle = document.querySelector('#view-ticketArchive .panel-head h2');
+      if (archiveTitle) archiveTitle.textContent = canPublishContent ? 'Ticket archive' : 'My solved tickets';
       renderTicketArchiveTable();
     });
   }
@@ -4248,7 +4254,7 @@
           '<td><span class="pill ' + (TICKET_ARCHIVE_STATUS_PILL[t.status] || '') + '">' + escapeHtml(t.status) + '</span></td>' +
           '<td class="actions-cell"><button class="btn-small" data-transcript="' + t.channelId + '">View chat</button>' + recoverBtn + deleteBtn + '</td>' +
         '</tr>';
-      }).join('') || emptyRow(8, lastTicketArchiveEntries.length ? 'No tickets match your search.' : 'No archived tickets yet.');
+      }).join('') || emptyRow(8, lastTicketArchiveEntries.length ? 'No tickets match your search.' : (canPublishContent ? 'No archived tickets yet.' : 'You have no solved tickets yet.'));
       const table = document.getElementById('ticketArchiveTable');
       table.innerHTML =
         '<thead><tr><th>Ticket</th><th>Category</th><th>Created by</th><th>Created</th><th>Claimed by</th><th>Closed by</th><th>Status</th><th></th></tr></thead><tbody>' + rows + '</tbody>';

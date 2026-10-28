@@ -1017,6 +1017,9 @@
       <label>Duration <span class="optional-tag">(optional — leave empty for a permanent warning)</span></label>
       <input type="text" id="warnDurationInput" class="text-input" placeholder="e.g. 7d, 30d, 12h" autocomplete="off"/>
     </div>
+    <div class="form-field">
+      <label class="check-row"><input type="checkbox" id="warnInactivityInput"/><span>Inactivity warn (adds a Write Excuse button; an empty reason becomes "Inactivity")</span></label>
+    </div>
     <div class="modal-actions">
       <button type="button" class="btn-secondary" id="warnCancelBtn">Cancel</button>
       <button type="button" class="btn-danger" id="warnSubmitBtn"><span class="btn-spinner"></span><span class="btn-label">Issue warning</span></button>
@@ -1136,6 +1139,6 @@
   </div>
 </div>
 
-<script src="admin.js?v=20261028"></script>
+<script src="admin.js?v=20261028b"></script>
 </body>
 </html>
