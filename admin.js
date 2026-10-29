@@ -3284,7 +3284,7 @@
       if (!d || !d.ok) return;
       const list = document.getElementById('reportsList');
       if (!d.reports.length) {
-          list.innerHTML = '<p style="color:var(--muted);font-size:13px;">No bug reports here.</p>';
+          list.innerHTML = '<p style="color:var(--muted);font-size:13px;">No reports here.</p>';
           return;
       }
       list.innerHTML = d.reports.map(renderReportCard).join('');
@@ -3295,7 +3295,15 @@
       + '&reportId=' + encodeURIComponent(reportId) + '&file=' + encodeURIComponent(file);
   }
   function renderReportCard(r) {
-    const details = [
+    const details = r.kind === 'cheat' ? [
+      ['Type', r.cheatTypeLabel],
+      ['Name given', r.cheatName],
+      ['Notes', r.description],
+      ['Mod id', (r.modIds || []).join(', ') || 'none found'],
+      ['Mod name', r.modName],
+      ['Top packages', (r.packages || []).join('\n')],
+      ['SHA-256', r.sha256]
+    ] : [
       ['Description', r.description],
       ['Mods', r.isModded ? (r.modList || 'Yes') : 'No (vanilla instance)'],
       ['Attached link', r.linkUrl]

@@ -1031,6 +1031,7 @@ textarea.text-input {
   color: var(--text);
   line-height: 1.55;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .app-card-details {
   display: flex;
