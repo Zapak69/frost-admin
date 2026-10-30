@@ -100,12 +100,6 @@
   let confirmAction = null;
   let confirmReasonRequired = false;
 
-  // `action`, when given, is called with the reason (if any) once the user hits Confirm - the
-  // modal stays open with a spinner on confirmOkBtn until it resolves, instead of closing
-  // instantly, since most confirmed actions (ban/kick/warn/accept/deny/...) are real network
-  // round trips and closing immediately gave no feedback that anything was happening.
-  // `opts.requireReason` keeps Confirm disabled until the reason field is non-empty - for actions
-  // like a staff-app ban where the reason isn't just a nice-to-have, it's shown to the banned user.
   function askConfirm(title, text, opts, action) {
     opts = opts || {};
     confirmTitle.textContent = title;
@@ -3517,11 +3511,6 @@
         '<button type="button" class="danger" data-delete-word="' + escapeHtml(w) + '" aria-label="Delete" title="Delete">✕</button>' +
       '</span>';
     }).join('');
-    // All three actions below update lastBannedWords + re-render immediately (optimistic), then
-    // fire the actual request in the background - the round trip to Code.gs (itself relayed
-    // through the bot) is slow enough that waiting for it before showing the change made the list
-    // feel laggy. On failure the local change is rolled back and the list re-synced from the
-    // server, so it never stays out of sync with what's actually blocked.
     list.querySelectorAll('button[data-delete-word]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         const word = btn.dataset.deleteWord;
@@ -3578,9 +3567,6 @@
       renderBannedWordsList();
       callAdmin('bannedWords.add', { word: word }).then(function (d) {
         if (!d || !d.ok) {
-          // "already_exists" here means this admin's view was stale even after the client-side
-          // check above (e.g. someone else added it between page load and now) - resync from the
-          // server rather than just rolling back, so the list reflects what's actually blocked.
           showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
           lastBannedWords = previous;
           renderBannedWordsList();
