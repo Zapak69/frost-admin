@@ -3759,17 +3759,17 @@
       '<span class="cell-user">Target: <img class="cell-avatar" src="' + avatarUrl(entry.targetUserId, entry.targetAvatar) + '"/><strong>' + userLink(entry.targetUserId, entry.targetUsername || entry.targetUserId || '—') + '</strong></span>' +
       (actionerId ? '<span class="cell-user">' + (entry.reporterId ? 'Reported' : 'Actioned') + ' by: <img class="cell-avatar" src="' + avatarUrl(actionerId, entry.actorAvatar) + '"/><strong>' + userLink(actionerId, entry.actorUsername || entry.reporterUsername || actionerId) + '</strong></span>' : '') +
       '<span>' + formatDateTime(entry.timestamp) + '</span>' +
-      (entry.messageLink ? '<span><a href="' + escapeHtml(entry.messageLink) + '" target="_blank" style="color:var(--accent);">Original link</a></span>' : '');
+      (entry.messageLink ? '<span><a href="' + escapeHtml(entry.messageLink) + '" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">Original link</a></span>' : '');
 
     const attachments = entry.attachments || (entry.attachmentNames || []).map(function (n) {
         return { name: n, url: null };
     });
     const attachmentsHtml = attachments.map(function (a) {
       if (a.url && (IMAGE_EXT_RE.test(a.url) || (a.contentType || '').indexOf('image/') === 0)) {
-        return '<a href="' + escapeHtml(a.url) + '" target="_blank"><img src="' + escapeHtml(a.url) + '" class="scam-attachment-img" alt="' + escapeHtml(a.name) + '"/></a>';
+        return '<a href="' + escapeHtml(a.url) + '" target="_blank" rel="noopener noreferrer"><img src="' + escapeHtml(a.url) + '" class="scam-attachment-img" alt="' + escapeHtml(a.name) + '"/></a>';
       }
       return a.url
-        ? '<a href="' + escapeHtml(a.url) + '" target="_blank" class="transcript-attachment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>' + escapeHtml(a.name) + '</a>'
+        ? '<a href="' + escapeHtml(a.url) + '" target="_blank" rel="noopener noreferrer" class="transcript-attachment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>' + escapeHtml(a.name) + '</a>'
         : '<span class="transcript-attachment" style="color:var(--muted-dim);cursor:default;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>' + escapeHtml(a.name) + ' (expired)</span>';
     }).join('');
 
@@ -4314,7 +4314,7 @@
   function renderTranscriptMessagesHtml(messages) {
     return messages.map(function (m) {
       const attachments = (m.attachments || []).map(function (a) {
-        return '<a href="' + escapeHtml(a.url) + '" target="_blank" class="transcript-attachment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>' + escapeHtml(a.name) + '</a>';
+        return '<a href="' + escapeHtml(a.url) + '" target="_blank" rel="noopener noreferrer" class="transcript-attachment"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>' + escapeHtml(a.name) + '</a>';
       }).join('');
       const embeds = (m.embeds || []).map(function (e) {
         return '<div class="transcript-embed">' + (e.title ? '<strong>' + escapeHtml(e.title) + '</strong><br/>' : '') + (e.description ? escapeHtml(e.description) : '') + '</div>';
@@ -4747,6 +4747,10 @@
     if (u.indexOf('discord.gg') !== -1 || u.indexOf('discord.com') !== -1) return 'discord';
     return 'website';
   }
+  document.addEventListener('error', function (e) {
+    if (e.target && e.target.classList && e.target.classList.contains('partner-page-thumb')) e.target.removeAttribute('src');
+  }, true);
+
   function renderPartnerPage(d) {
     partnerPageEntries = d.entries || [];
     const list = document.getElementById('partnerPageList');
@@ -4755,7 +4759,7 @@
     list.innerHTML = partnerPageEntries.map(function (e, i) {
       const links = Object.keys(e.links || {}).map(function (k) { return PARTNER_LINK_LABELS[k] || k; }).join(' · ');
       return '<div class="partner-page-row" data-id="' + escapeHtml(e.id) + '">' +
-        (e.imageUrl ? '<img class="partner-page-thumb" src="' + escapeHtml(e.imageUrl) + '" alt="" onerror="this.removeAttribute(\'src\')"/>' : '<div class="partner-page-thumb partner-page-thumb--empty">' + escapeHtml(e.name.charAt(0).toUpperCase()) + '</div>') +
+        (e.imageUrl ? '<img class="partner-page-thumb" src="' + escapeHtml(e.imageUrl) + '" alt=""/>' : '<div class="partner-page-thumb partner-page-thumb--empty">' + escapeHtml(e.name.charAt(0).toUpperCase()) + '</div>') +
         '<div class="partner-page-info"><div class="partner-page-name">' + escapeHtml(e.name) + ' <span class="pill">' + (e.type === 'server' ? 'Server' : 'Creator') + '</span>' + (e.featured ? ' <span class="pill accepted">Homepage</span>' : '') + '</div>' +
         '<div class="partner-page-sub">' + escapeHtml(e.type === 'server' && e.serverIp ? e.serverIp + (links ? ' · ' + links : '') : links || 'No links') + '</div></div>' +
         '<div class="partner-page-actions">' +
@@ -4800,7 +4804,7 @@
     const box = document.getElementById('partnerPageCandidates');
     box.innerHTML = candidates.length ? candidates.map(function (c, i) {
       return '<div class="partner-page-row">' +
-        (c.avatar ? '<img class="partner-page-thumb" src="' + escapeHtml(c.avatar) + '" alt="" onerror="this.removeAttribute(\'src\')"/>' : '<div class="partner-page-thumb partner-page-thumb--empty">' + escapeHtml(c.name.charAt(0).toUpperCase()) + '</div>') +
+        (c.avatar ? '<img class="partner-page-thumb" src="' + escapeHtml(c.avatar) + '" alt=""/>' : '<div class="partner-page-thumb partner-page-thumb--empty">' + escapeHtml(c.name.charAt(0).toUpperCase()) + '</div>') +
         '<div class="partner-page-info"><div class="partner-page-name">' + escapeHtml(c.name) + '</div><div class="partner-page-sub">' + escapeHtml(c.socialLink || 'No link from signup') + '</div></div>' +
         '<div class="partner-page-actions"><button type="button" class="btn-small" data-pp-add="' + i + '">Add</button></div></div>';
     }).join('') : '<p style="color:var(--muted);font-size:13px;">Every creator is already on the page.</p>';
@@ -4913,7 +4917,7 @@
       cleanUrl.searchParams.delete('state');
       window.history.replaceState(null, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
 
-      if (storedState && returnedState !== storedState) {
+      if (!storedState || returnedState !== storedState) {
         showGateError('Sign-in session mismatch. Please try again.');
         return;
       }
