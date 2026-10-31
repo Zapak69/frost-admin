@@ -2476,3 +2476,83 @@ textarea.text-input {
 .pa-head .muted {
   font-size: 12px; overflow-wrap: anywhere;
 }
+
+.lb-results {
+  display: flex; flex-direction: column; gap: 12px; margin-top: 14px;
+}
+.lb-empty {
+  font-size: 13px; color: var(--muted); padding: 10px 2px;
+}
+.lb-grid {
+  display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 18px;
+  padding-top: 12px; border-top: 1px solid var(--border);
+}
+.lb-line {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 13px; margin-bottom: 8px; overflow-wrap: anywhere;
+}
+.lb-line .mono, .lb-card .mono, #lbTable .mono {
+  font-family: 'Space Mono', monospace; font-size: 12px;
+}
+.lb-sub {
+  font-size: 12px; color: var(--muted-dim);
+}
+.lb-reason {
+  margin: -6px 0 12px;
+}
+.lb-seen {
+  margin-top: 6px;
+}
+.lb-ban-btn, .lb-unban-btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px;
+}
+.lb-line .lb-ban-btn {
+  margin-left: auto;
+}
+.lb-icon {
+  flex-shrink: 0;
+}
+#lbTable td > div + div {
+  margin-top: 3px;
+}
+.lb-banid {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.lb-banid .mono {
+  font-family: 'Space Mono', monospace; font-size: 12px;
+}
+.lb-copy-btn {
+  display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0;
+  border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer;
+}
+.lb-copy-btn:hover {
+  color: var(--text); border-color: var(--accent);
+}
+.lb-appeal-badge {
+  margin-left: 10px;
+}
+.lb-appeal-text {
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.lb-appeal-banreason {
+  color: var(--text);
+}
+.lb-appeal-targets {
+  display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; margin: 6px 0 4px;
+}
+.lb-appeal-targets .mono {
+  font-family: 'Space Mono', monospace; font-size: 12px;
+}
+.lb-history {
+  margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px;
+}
+.lb-history summary {
+  cursor: pointer; font-size: 13px; font-weight: 600; color: var(--muted); user-select: none;
+}
+.lb-history[open] summary {
+  margin-bottom: 4px;
+}
+@media (max-width: 900px) {
+  .lb-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -15,7 +15,7 @@
 <meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="admin.css?v=20261029">
+<link rel="stylesheet" href="admin.css?v=20261031b">
 </head>
 <body>
 <canvas id="snowCanvas"></canvas>
@@ -73,6 +73,7 @@
       <div class="nav-group-label">Moderation</div>
       <button type="button" class="nav-item" data-view="scams"><span class="nav-icon">◆</span>Scam Database<span class="nav-dot" id="navDotScams" style="display:none;"></span></button>
       <button type="button" class="nav-item" data-view="scamFilter" data-requires="highStaff" style="display:none;"><span class="nav-icon">◆</span>Scam Filter<span class="nav-badge" id="badgeScamFilter" style="display:none;">0</span></button>
+      <button type="button" class="nav-item" data-view="launcherBans" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Launcher Bans<span class="nav-badge" id="badgeLauncherAppeals" style="display:none;">0</span><span class="nav-dot" id="navDotLauncherBans" style="display:none;"></span></button>
       <button type="button" class="nav-item" data-view="warns"><span class="nav-icon">◆</span>Warns<span class="nav-dot" id="navDotWarns" style="display:none;"></span></button>
       <button type="button" class="nav-item" data-view="excuses"><span class="nav-icon">◆</span>Excuses<span class="nav-dot" id="navDotExcuses" style="display:none;"></span></button>
       <button type="button" class="nav-item" data-view="logs" data-requires="management" style="display:none;"><span class="nav-icon">◆</span>Action Logs</button>
@@ -474,6 +475,34 @@
           <input type="number" class="text-input" id="liteBoostsInput" min="1" max="20" step="1" style="width:110px;"/>
           <button type="button" class="btn-primary" id="liteBoostsSaveBtn"><span class="btn-spinner"></span><span class="btn-label">Save</span></button>
           <button type="button" class="btn-primary" id="liteBoostsSendBtn"><span class="btn-spinner"></span><span class="btn-label">Send embeds</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" id="view-launcherBans">
+      <div class="panel">
+        <div class="panel-head"><h2><svg class="heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Appeals<span class="nav-badge lb-appeal-badge" id="lbAppealsBadge" style="display:none;">0</span></h2><span class="panel-sub">Banned players appeal on the website with their Ban ID. Deny keeps the ban and starts a 7-day wait before the next appeal for that ban. Unban lifts the ban right away.</span></div>
+        <div class="scamfilter-status" id="lbAppealsMeta"></div>
+        <div id="lbAppealsPending" class="lb-results"></div>
+        <details class="lb-history" id="lbAppealsHistoryWrap" style="display:none;">
+          <summary id="lbAppealsHistorySummary">Decided appeals</summary>
+          <div id="lbAppealsHistory" class="lb-results"></div>
+        </details>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Find a player</h2><span class="panel-sub">Search by Discord ID or name, hardware ID (or its first characters), IP address, Minecraft name or UUID. Banning a Discord account also bans every PC and Minecraft account it has used, and a banned PC bans every Discord account that signs in on it.</span></div>
+        <div class="search-row">
+          <input type="text" id="lbSearchInput" class="text-input" placeholder="Discord ID, HWID, IP, Minecraft name or UUID..." autocomplete="off"/>
+          <button type="button" class="btn-primary" id="lbSearchBtn"><span class="btn-spinner"></span><span class="btn-label">Search</span></button>
+          <button type="button" class="btn-secondary" id="lbManualBtn">Ban manually</button>
+        </div>
+        <div id="lbResults" class="lb-results"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>Launcher bans</h2><span class="panel-sub">Banned players can't use the launcher, download Frost files or start FrostCore. Bans also live in the LauncherBans sheet, so rows added there by hand show up here within two minutes.</span></div>
+        <div class="scamfilter-status" id="lbMeta"></div>
+        <div class="table-wrap">
+          <table class="data-table" id="lbTable"></table>
         </div>
       </div>
     </div>
@@ -1141,6 +1170,42 @@
   </div>
 </div>
 
-<script src="admin.js?v=20261029"></script>
+<div id="lbBanModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title">Ban from Frost Client</div>
+    <p class="modal-text">Fill in at least one identifier. The ban spreads to every PC, Discord and Minecraft account linked to it.</p>
+    <div class="form-field-row">
+      <div class="form-field"><label>Discord ID</label><input type="text" id="lbBanDiscord" class="text-input" autocomplete="off" placeholder="e.g. 123456789012345678"/></div>
+      <div class="form-field"><label>Minecraft UUID</label><input type="text" id="lbBanMc" class="text-input" autocomplete="off"/></div>
+    </div>
+    <div class="form-field"><label>Hardware ID</label><input type="text" id="lbBanHwid" class="text-input mono" autocomplete="off" placeholder="64 hex characters"/></div>
+    <div class="form-field"><label>IP address <span class="optional-tag">(blocks everyone on this IP, use with care)</span></label><input type="text" id="lbBanIp" class="text-input" autocomplete="off"/></div>
+    <div class="form-field"><label>Reason</label><textarea id="lbBanReason" class="text-input" rows="3" maxlength="300" placeholder="Shown to the player"></textarea></div>
+    <div class="form-field-row">
+      <div class="form-field"><label>Duration</label><select id="lbBanDurationType" class="text-input"><option value="perm">Permanent</option><option value="days">Number of days</option></select></div>
+      <div class="form-field"><label>Days</label><input type="number" id="lbBanDays" class="text-input" min="1" max="3650" value="7" disabled/></div>
+    </div>
+    <p class="modal-text" id="lbBanError" style="display:none;color:var(--danger);"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="lbBanCancelBtn">Cancel</button>
+      <button type="button" class="btn-danger" id="lbBanSubmitBtn"><span class="btn-spinner"></span><span class="btn-label">Ban player</span></button>
+    </div>
+  </div>
+</div>
+
+<div id="lbAppealModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title" id="lbAppealModalTitle">Deny appeal</div>
+    <p class="modal-text" id="lbAppealModalText"></p>
+    <div class="form-field"><label id="lbAppealModalLabel">Reason <span class="optional-tag">(optional, shown to the player)</span></label><textarea id="lbAppealModalReason" class="text-input" rows="3" maxlength="1000"></textarea></div>
+    <p class="modal-text" id="lbAppealModalError" style="display:none;color:var(--danger);"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="lbAppealModalCancel">Cancel</button>
+      <button type="button" class="btn-danger" id="lbAppealModalOk"><span class="btn-spinner"></span><span class="btn-label">Deny</span></button>
+    </div>
+  </div>
+</div>
+
+<script src="admin.js?v=20261031b"></script>
 </body>
 </html>

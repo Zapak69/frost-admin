@@ -177,12 +177,13 @@
     staffApps: ['staff_app_submitted'],
     partnerLogs: ['partner_signup_logged'],
     partnerRankup: ['partner_rankup_submitted'],
-    reports: ['bug_report_submitted']
+    reports: ['bug_report_submitted'],
+    launcherBans: ['launcher_appeal_submitted']
   };
   const NAV_DOT_IDS = {
     warns: 'navDotWarns', excuses: 'navDotExcuses', scams: 'navDotScams',
     staffApps: 'navDotStaffApps', partnerLogs: 'navDotPartnerLogs', partnerRankup: 'navDotPartnerRankup',
-    reports: 'navDotReports'
+    reports: 'navDotReports', launcherBans: 'navDotLauncherBans'
   };
   function updateNavDots() {
     const unreadViews = new Set();
@@ -229,6 +230,7 @@
     if (type === 'scam_report') return { icon: NOTIF_ICON_ALERT_OCTAGON, title: 'New scam report' };
     if (type === 'staff_app_submitted') return { icon: NOTIF_ICON_USER_CHECK, title: 'New staff application' };
     if (type === 'bug_report_submitted') return { icon: NOTIF_ICON_ALERT_OCTAGON, title: 'New bug report' };
+    if (type === 'launcher_appeal_submitted') return { icon: NOTIF_ICON_PENCIL, title: 'New ban appeal' };
     if (type === 'partner_signup_logged') return { icon: NOTIF_ICON_USER_PLUS, title: 'New Media partner signup' };
     if (type === 'new_review') return { icon: NOTIF_ICON_STAR, title: 'New review' };
     if (type === 'reputation_received') return { icon: NOTIF_ICON_STAR, title: 'New reputation' };
@@ -487,7 +489,7 @@
     overview: 'Overview', members: 'Members', leaderboard: 'Leaderboards', staff: 'Staff Team', staffActivity: 'Activity',
     staffApps: 'Staff Applications', partnerLogs: 'Creators', partnerRankup: 'Partner Rankup Requests', reports: 'Bug Reports', scams: 'Scam Database',
     logs: 'Action Logs', excuses: 'Excuses', warns: 'Warns', reviews: 'Reviews', drops: 'Publish Drop', capeGift: 'Cloak Gift', giveaway: 'Publish Giveaway', tickets: 'Tickets',
-    ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies', scamFilter: 'Scam Filter', statusPage: 'Status Page', liteBoosts: 'Lite Boosts', linkFilter: 'Link Filter', partnerPage: 'Partner Page',
+    ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies', scamFilter: 'Scam Filter', statusPage: 'Status Page', liteBoosts: 'Lite Boosts', linkFilter: 'Link Filter', launcherBans: 'Launcher Bans', partnerPage: 'Partner Page',
     partnerData: 'Partner Data', partnerAssets: 'Partner Assets'
   };
   const VIEW_LOADERS = {
@@ -538,6 +540,9 @@
     },
     linkFilter: function () {
         loadLinkFilter();
+    },
+    launcherBans: function () {
+        return Promise.all([loadLauncherAppeals(), loadLauncherBans()]);
     },
     partnerData: function () {
         loadPartnerData();
@@ -736,6 +741,7 @@
         [d.scamsTotal, 'Scams logged (all-time)']
       ]);
       setBadge('badgeStaffApps', d.pendingStaffApps);
+      if (d.pendingLauncherAppeals != null) setBadge('badgeLauncherAppeals', d.pendingLauncherAppeals);
       return Promise.all([
         loadGrowthChart(currentGrowthGranularity),
         callAdmin('staff.rankups').then(function (rd) {
@@ -3196,6 +3202,321 @@
       else showToast(LINK_FILTER_ERRORS[d && d.error] || ('Failed: ' + (d && d.error || 'unknown error')), 'error');
     });
   });
+  const LB_BAN_ICON = '<svg class="lb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg>';
+  const LB_UNBAN_ICON = '<svg class="lb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>';
+  const LB_ERRORS = {
+    missing_identifier: 'Fill in at least one identifier.',
+    missing_reason: 'Enter a reason.',
+    invalid_discordId: 'That Discord ID is not valid.',
+    invalid_hwid: 'A hardware ID is 64 hex characters.',
+    invalid_ip: 'That IP address is not valid.',
+    invalid_mcUuid: 'That Minecraft UUID is not valid.',
+    invalid_duration: 'Duration must be between 1 and 3650 days.',
+    sheets_unavailable: 'Google Sheets did not answer. Try again in a minute.',
+    busy: 'Google Sheets is busy. Try again in a moment.'
+  };
+  function lbShortHwid(h) {
+    return h ? h.slice(0, 12) + '…' + h.slice(-6) : '—';
+  }
+  function lbExpires(ms) {
+    return ms ? formatDateTime(ms) : 'Permanent';
+  }
+  function lbBanPill(banned, ban) {
+    if (!banned) return '<span class="pill accepted">not banned</span>';
+    return '<span class="pill banned" title="' + escapeHtml((ban && ban.reason) || '') + '">banned' + (ban && ban.expiresAt ? ' until ' + escapeHtml(formatDateTime(ban.expiresAt)) : '') + '</span>';
+  }
+  function lbBanBtn(attrs, label) {
+    return '<button type="button" class="btn-small danger lb-ban-btn"' + attrs + '>' + LB_BAN_ICON + '<span>' + escapeHtml(label) + '</span></button>';
+  }
+  function lbanAttr(k, v) {
+    return v ? ' data-' + k + '="' + escapeHtml(v) + '"' : '';
+  }
+  function renderLbResults(d) {
+    const box = document.getElementById('lbResults');
+    if (!d || !d.ok) {
+      box.innerHTML = '<div class="lb-empty">' + escapeHtml(LB_ERRORS[d && d.error] || ('Search failed: ' + ((d && d.error) || 'unknown error'))) + '</div>';
+      return;
+    }
+    if (!d.accounts.length) {
+      box.innerHTML = '<div class="lb-empty">Nobody matches "' + escapeHtml(d.query) + '". Players only show up after they open the launcher or start the game.</div>';
+      return;
+    }
+    box.innerHTML = d.accounts.map(function (a) {
+      const title = a.discordId ? userLink(a.discordId, a.discordName || a.discordId) : 'Not signed in';
+      const devices = a.devices.map(function (dv) {
+        return '<div class="lb-line"><span class="mono" title="' + escapeHtml(dv.hwid) + '">' + escapeHtml(lbShortHwid(dv.hwid)) + '</span>' +
+          '<span class="lb-sub">' + escapeHtml((dv.ips && dv.ips[0]) || 'no IP') + ' · seen ' + escapeHtml(formatRelative(dv.lastSeen)) + '</span>' +
+          lbBanPill(dv.banned, dv.ban) + (dv.banned ? '' : lbBanBtn(lbanAttr('hwid', dv.hwid), 'Ban PC')) + '</div>';
+      }).join('') || '<div class="lb-sub">No PC recorded yet.</div>';
+      const ips = a.ips.map(function (ip) {
+        const state = ip.banned ? '<span class="pill banned">banned</span>' : (ip.seenWithBanned ? '<span class="pill pending" title="Only blocks downloads from the website">seen with a banned player</span>' : '');
+        return '<div class="lb-line"><span class="mono">' + escapeHtml(ip.ip) + '</span>' + state + (ip.banned ? '' : lbBanBtn(lbanAttr('ip', ip.ip), 'Ban IP')) + '</div>';
+      }).join('') || '<div class="lb-sub">No IP recorded.</div>';
+      const mc = a.mcAccounts.map(function (m) {
+        return '<div class="lb-line"><span>' + escapeHtml(m.name || 'Unknown name') + '</span><span class="mono lb-sub">' + escapeHtml(m.uuid) + '</span>' + (m.banned ? '<span class="pill banned">banned</span>' : '') + '</div>';
+      }).join('') || '<div class="lb-sub">No Minecraft account linked.</div>';
+      const actions = a.discordId && !a.banned ? lbBanBtn(lbanAttr('discord', a.discordId), 'Ban account') : '';
+      return '<div class="app-card lb-card">' +
+        '<div class="app-card-head"><div class="app-card-user">' + (a.discordId ? '<img class="app-card-avatar" src="' + avatarUrl(a.discordId, null) + '" alt=""/>' : '') + title + '</div>' +
+        (a.discordId ? '<span class="app-card-meta">' + escapeHtml(a.discordId) + '</span>' : '') + lbBanPill(a.banned, a.ban) +
+        '<div class="app-card-actions">' + actions + '</div></div>' +
+        (a.banned && a.ban ? '<div class="lb-sub lb-reason">Reason: ' + escapeHtml(a.ban.reason) + '</div>' : '') +
+        '<div class="lb-grid"><div><div class="app-card-q">PCs</div>' + devices + '</div><div><div class="app-card-q">IP addresses</div>' + ips + '</div><div><div class="app-card-q">Minecraft</div>' + mc + '</div></div>' +
+        '<div class="app-card-meta lb-seen">First seen ' + escapeHtml(formatDateTime(a.firstSeen)) + ' · last seen ' + escapeHtml(formatRelative(a.lastSeen)) + '</div>' +
+      '</div>';
+    }).join('');
+    box.querySelectorAll('.lb-ban-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        openLbBanModal({ discordId: btn.dataset.discord || '', hwid: btn.dataset.hwid || '', ip: btn.dataset.ip || '' });
+      });
+    });
+  }
+  function runLbSearch() {
+    const query = document.getElementById('lbSearchInput').value.trim();
+    if (!query) return Promise.resolve();
+    const btn = document.getElementById('lbSearchBtn');
+    setBtnLoading(btn, true);
+    return callAdmin('launcherBans.search', { query: query }).then(function (d) {
+      setBtnLoading(btn, false);
+      renderLbResults(d);
+    });
+  }
+  function lbTargetCell(b) {
+    const parts = [];
+    b.discordIds.forEach(function (u) {
+        parts.push('<div>' + userLink(u.id, u.name || u.id) + '</div>');
+    });
+    b.hwids.forEach(function (h) {
+        parts.push('<div class="mono" title="' + escapeHtml(h) + '">PC ' + escapeHtml(lbShortHwid(h)) + '</div>');
+    });
+    b.ips.forEach(function (ip) {
+        parts.push('<div class="mono">IP ' + escapeHtml(ip) + '</div>');
+    });
+    b.mcUuids.forEach(function (u) {
+        parts.push('<div class="mono" title="' + escapeHtml(u) + '">MC ' + escapeHtml(b.minecraftName || u) + '</div>');
+    });
+    if (b.reach && (b.reach.discordIds > b.discordIds.length || b.reach.hwids > b.hwids.length)) {
+        parts.push('<div class="lb-sub">reaches ' + b.reach.discordIds + ' Discord, ' + b.reach.hwids + ' PC, ' + b.reach.mcUuids + ' Minecraft</div>');
+    }
+    return parts.join('');
+  }
+  function loadLauncherBans() {
+    return callAdmin('launcherBans.list', {}).then(function (d) {
+      const meta = document.getElementById('lbMeta');
+      const table = document.getElementById('lbTable');
+      if (!d || !d.ok) {
+        meta.textContent = 'Could not load bans: ' + ((d && d.error) || 'unknown error');
+        return;
+      }
+      const active = d.bans.filter(function (b) { return b.status === 'active'; }).length;
+      meta.textContent = active + ' active ban' + (active === 1 ? '' : 's') + (d.stale ? ' · Google Sheets did not answer, showing the last saved list' : '');
+      const rows = d.bans.map(function (b) {
+        const pill = b.status === 'active' ? '<span class="pill banned">active</span>' : '<span class="pill denied">expired</span>';
+        return '<tr><td>' + lbBanIdChip(b.banId) + '</td><td>' + lbTargetCell(b) + '</td><td style="max-width:280px;">' + escapeHtml(b.reason || '—') + (b.note ? '<div class="lb-sub">' + escapeHtml(b.note) + '</div>' : '') + '</td>' +
+          '<td>' + escapeHtml(b.bannedBy || 'Sheet') + '</td><td>' + pill + '</td><td class="mono">' + escapeHtml(lbExpires(b.expiresAt)) + '</td><td class="mono">' + escapeHtml(formatRelative(b.bannedAt)) + '</td>' +
+          '<td><button type="button" class="btn-small lb-unban-btn" data-ban-id="' + escapeHtml(b.banId) + '">' + LB_UNBAN_ICON + '<span>' + (b.status === 'active' ? 'Unban' : 'Remove') + '</span></button></td></tr>';
+      }).join('') || emptyRow(8, 'No launcher bans.');
+      table.innerHTML = '<thead><tr><th>Ban ID</th><th>Banned</th><th>Reason</th><th>Banned by</th><th>Status</th><th>Expires</th><th>Issued</th><th></th></tr></thead><tbody>' + rows + '</tbody>';
+      wireLbCopy(table);
+      table.querySelectorAll('.lb-unban-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          const id = btn.dataset.banId;
+          askConfirm('Lift this ban?', 'The player can use the launcher and start the game again right away. The row stays in the sheet, marked inactive.', { tone: 'primary', okLabel: 'Unban' }, function () {
+            return callAdmin('launcherBans.remove', { banId: id }).then(function (r) {
+              if (r && r.ok) {
+                  showToast('Ban lifted.', 'success');
+                  loadLauncherBans();
+                  if (document.getElementById('lbSearchInput').value.trim()) runLbSearch();
+              }
+              else showToast(LB_ERRORS[r && r.error] || ('Failed: ' + ((r && r.error) || 'unknown error')), 'error');
+            });
+          });
+        });
+      });
+    });
+  }
+  const LB_COPY_ICON = '<svg class="lb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  const LB_DENY_ICON = '<svg class="lb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+  const LB_APPEAL_ERRORS = {
+    not_found: 'That appeal no longer exists.',
+    not_pending: 'Someone already decided this appeal.',
+    invalid_decision: 'Unknown decision.',
+    sheets_unavailable: 'Google Sheets did not answer. Try again in a minute.',
+    busy: 'Google Sheets is busy. Try again in a moment.'
+  };
+  function lbBanIdChip(banId) {
+    if (!banId) return '<span class="lb-sub">—</span>';
+    return '<span class="lb-banid"><span class="mono">' + escapeHtml(banId) + '</span><button type="button" class="lb-copy-btn" data-lb-copy="' + escapeHtml(banId) + '" title="Copy Ban ID" aria-label="Copy Ban ID">' + LB_COPY_ICON + '</button></span>';
+  }
+  function wireLbCopy(root) {
+    root.querySelectorAll('[data-lb-copy]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        copyText(btn.getAttribute('data-lb-copy')).then(function () {
+            showToast('Ban ID copied.', 'success');
+        }, function () {
+            showToast('Could not copy.', 'error');
+        });
+      });
+    });
+  }
+  const LB_APPEAL_PILL = { pending: 'pending', denied: 'denied', unbanned: 'accepted' };
+  function renderLbAppealCard(a) {
+    const ban = a.ban;
+    const who = a.discordId ? userLink(a.discordId, a.discordName || a.discordId) : escapeHtml(a.discordName || 'Unknown');
+    const banLine = ban
+      ? '<div class="lb-sub">Ban reason: <span class="lb-appeal-banreason">' + escapeHtml(ban.reason || '—') + '</span></div><div class="lb-sub">Banned ' + escapeHtml(formatDateTime(ban.bannedAt)) + ' by ' + escapeHtml(ban.bannedBy || 'Sheet') + ' · ' + escapeHtml(ban.expiresAt ? 'until ' + formatDateTime(ban.expiresAt) : 'permanent') + ' · ban is ' + escapeHtml(ban.status) + '</div>' + (lbTargetCell(ban) ? '<div class="lb-appeal-targets">' + lbTargetCell(ban) + '</div>' : '')
+      : '<div class="lb-sub">This ban is no longer in the sheet.</div>';
+    const decided = a.status !== 'pending'
+      ? '<div class="app-card-details"><span>Decided: <strong>' + escapeHtml(formatRelative(a.decidedAt)) + '</strong></span>' + (a.decidedBy ? '<span>By: <strong>' + escapeHtml(a.decidedBy) + '</strong></span>' : '') + '</div>' +
+        (a.decisionReason ? '<div><div class="app-card-q">Message to the player</div><div class="app-card-a">' + escapeHtml(a.decisionReason) + '</div></div>' : '')
+      : '';
+    const actions = a.status === 'pending'
+      ? '<button type="button" class="btn-small danger lb-ban-btn" data-appeal-deny="' + escapeHtml(a.appealId) + '">' + LB_DENY_ICON + '<span>Deny</span></button><button type="button" class="btn-small success lb-ban-btn" data-appeal-unban="' + escapeHtml(a.appealId) + '">' + LB_UNBAN_ICON + '<span>Unban</span></button>'
+      : '';
+    return '<div class="app-card lb-card">' +
+      '<div class="app-card-head"><div class="app-card-user">' + (a.discordId ? '<img class="app-card-avatar" src="' + avatarUrl(a.discordId, null) + '" alt=""/>' : '') + who + '</div>' +
+      (a.discordId ? '<span class="app-card-meta">' + escapeHtml(a.discordId) + '</span>' : '') + lbBanIdChip(a.banId) +
+      '<span class="pill ' + (LB_APPEAL_PILL[a.status] || 'pending') + '">' + escapeHtml(a.status) + '</span>' +
+      '<div class="app-card-actions">' + actions + '</div></div>' +
+      '<div class="app-card-details"><span>Submitted: <strong>' + escapeHtml(formatDateTime(a.submittedAt)) + '</strong> (' + escapeHtml(formatRelative(a.submittedAt)) + ')</span><span class="mono">' + escapeHtml(a.appealId) + '</span></div>' +
+      banLine +
+      '<div class="app-card-qa"><div><div class="app-card-q">Appeal</div><div class="app-card-a lb-appeal-text">' + escapeHtml(a.reason) + '</div></div>' + decided + '</div>' +
+    '</div>';
+  }
+  function loadLauncherAppeals() {
+    return callAdmin('launcherAppeals.list', {}).then(function (d) {
+      const meta = document.getElementById('lbAppealsMeta');
+      const pendingBox = document.getElementById('lbAppealsPending');
+      const historyWrap = document.getElementById('lbAppealsHistoryWrap');
+      const historyBox = document.getElementById('lbAppealsHistory');
+      if (!d || !d.ok) {
+        meta.textContent = 'Could not load appeals: ' + ((d && d.error) || 'unknown error');
+        return;
+      }
+      const pending = d.appeals.filter(function (a) { return a.status === 'pending'; });
+      const decided = d.appeals.filter(function (a) { return a.status !== 'pending'; });
+      setBadge('lbAppealsBadge', pending.length);
+      setBadge('badgeLauncherAppeals', pending.length);
+      meta.textContent = pending.length + ' pending appeal' + (pending.length === 1 ? '' : 's') + (d.stale ? ' · Google Sheets did not answer, showing the last saved list' : '');
+      pendingBox.innerHTML = pending.map(renderLbAppealCard).join('') || '<div class="lb-empty">No appeals waiting for a decision.</div>';
+      historyWrap.style.display = decided.length ? '' : 'none';
+      document.getElementById('lbAppealsHistorySummary').textContent = 'Decided appeals (' + decided.length + ')';
+      historyBox.innerHTML = decided.map(renderLbAppealCard).join('');
+      [pendingBox, historyBox].forEach(wireLbCopy);
+      pendingBox.querySelectorAll('[data-appeal-deny]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            openLbAppealModal(btn.getAttribute('data-appeal-deny'), 'deny');
+        });
+      });
+      pendingBox.querySelectorAll('[data-appeal-unban]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            openLbAppealModal(btn.getAttribute('data-appeal-unban'), 'unban');
+        });
+      });
+    });
+  }
+  const lbAppealModal = document.getElementById('lbAppealModal');
+  const lbAppealOk = document.getElementById('lbAppealModalOk');
+  let lbAppealTarget = null;
+  function openLbAppealModal(appealId, decision) {
+    lbAppealTarget = { appealId: appealId, decision: decision };
+    const deny = decision === 'deny';
+    document.getElementById('lbAppealModalTitle').textContent = deny ? 'Deny appeal' : 'Unban player';
+    document.getElementById('lbAppealModalText').textContent = deny
+      ? 'The ban stays. The player can appeal this ban again in 7 days.'
+      : 'The ban is lifted right away and the appeal is marked as unbanned. The row stays in the sheet, marked inactive.';
+    document.getElementById('lbAppealModalReason').value = '';
+    document.getElementById('lbAppealModalError').style.display = 'none';
+    lbAppealOk.classList.toggle('btn-danger', deny);
+    lbAppealOk.classList.toggle('btn-primary', !deny);
+    lbAppealOk.querySelector('.btn-label').textContent = deny ? 'Deny' : 'Unban';
+    setBtnLoading(lbAppealOk, false);
+    lbAppealModal.classList.add('active');
+  }
+  document.getElementById('lbAppealModalCancel').addEventListener('click', function () {
+      lbAppealModal.classList.remove('active');
+  });
+  lbAppealModal.addEventListener('click', function (e) {
+      if (e.target === lbAppealModal && !lbAppealOk.disabled) lbAppealModal.classList.remove('active');
+  });
+  lbAppealOk.addEventListener('click', function () {
+    if (!lbAppealTarget) return;
+    const target = lbAppealTarget;
+    const errEl = document.getElementById('lbAppealModalError');
+    setBtnLoading(lbAppealOk, true);
+    callAdmin('launcherAppeals.decide', { appealId: target.appealId, decision: target.decision, reason: document.getElementById('lbAppealModalReason').value.trim() }).then(function (r) {
+      setBtnLoading(lbAppealOk, false);
+      if (r && r.ok) {
+        lbAppealModal.classList.remove('active');
+        showToast(target.decision === 'deny' ? 'Appeal denied.' : 'Player unbanned.', 'success');
+        loadLauncherAppeals();
+        loadLauncherBans();
+        if (document.getElementById('lbSearchInput').value.trim()) runLbSearch();
+      } else {
+        errEl.textContent = LB_APPEAL_ERRORS[r && r.error] || ('Failed: ' + ((r && r.error) || 'unknown error'));
+        errEl.style.display = '';
+        if (r && r.error === 'not_pending') loadLauncherAppeals();
+      }
+    });
+  });
+  const lbBanModal = document.getElementById('lbBanModal');
+  const lbDurationType = document.getElementById('lbBanDurationType');
+  function openLbBanModal(prefill) {
+    const p = prefill || {};
+    document.getElementById('lbBanDiscord').value = p.discordId || '';
+    document.getElementById('lbBanHwid').value = p.hwid || '';
+    document.getElementById('lbBanIp').value = p.ip || '';
+    document.getElementById('lbBanMc').value = p.mcUuid || '';
+    document.getElementById('lbBanReason').value = '';
+    lbDurationType.value = 'perm';
+    document.getElementById('lbBanDays').disabled = true;
+    document.getElementById('lbBanError').style.display = 'none';
+    lbBanModal.classList.add('active');
+  }
+  lbDurationType.addEventListener('change', function () {
+      document.getElementById('lbBanDays').disabled = lbDurationType.value !== 'days';
+  });
+  document.getElementById('lbBanCancelBtn').addEventListener('click', function () {
+      lbBanModal.classList.remove('active');
+  });
+  lbBanModal.addEventListener('click', function (e) {
+      if (e.target === lbBanModal) lbBanModal.classList.remove('active');
+  });
+  document.getElementById('lbManualBtn').addEventListener('click', function () {
+      openLbBanModal({});
+  });
+  document.getElementById('lbSearchBtn').addEventListener('click', runLbSearch);
+  document.getElementById('lbSearchInput').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') runLbSearch();
+  });
+  document.getElementById('lbBanSubmitBtn').addEventListener('click', function () {
+    const errEl = document.getElementById('lbBanError');
+    const params = {
+      discordId: document.getElementById('lbBanDiscord').value.trim(),
+      hwid: document.getElementById('lbBanHwid').value.trim(),
+      ip: document.getElementById('lbBanIp').value.trim(),
+      mcUuid: document.getElementById('lbBanMc').value.trim(),
+      reason: document.getElementById('lbBanReason').value.trim(),
+      durationDays: lbDurationType.value === 'days' ? Number(document.getElementById('lbBanDays').value) : null
+    };
+    const fail = function (code) {
+      errEl.textContent = LB_ERRORS[code] || ('Failed: ' + (code || 'unknown error'));
+      errEl.style.display = '';
+    };
+    if (!params.discordId && !params.hwid && !params.ip && !params.mcUuid) return fail('missing_identifier');
+    if (!params.reason) return fail('missing_reason');
+    const btn = document.getElementById('lbBanSubmitBtn');
+    setBtnLoading(btn, true);
+    callAdmin('launcherBans.add', params).then(function (d) {
+      setBtnLoading(btn, false);
+      if (d && d.ok) {
+        showToast('Player banned.', 'success');
+        lbBanModal.classList.remove('active');
+        loadLauncherBans();
+        if (document.getElementById('lbSearchInput').value.trim()) runLbSearch();
+      } else fail(d && d.error);
+    });
+  });
   function renderStaffAppCard(a, labels, roleLabel) {
     const qa = (labels || []).map(function (pair) {
       const key = pair[0], label = pair[1];
@@ -4515,6 +4836,7 @@
     { type: 'staff_app_submitted', label: 'New staff application', desc: 'Someone applies for the staff team on the website.', gate: 'highStaff' },
     { type: 'partner_signup_logged', label: 'New Media partner signup', desc: 'Someone signs up for (or is granted) the Media creator tier.', gate: 'management' },
     { type: 'partner_rankup_submitted', label: 'New rank-up request', desc: 'A creator requests a rank-up to Partner or Partner+.', gate: 'highStaff' },
+    { type: 'launcher_appeal_submitted', label: 'New ban appeal', desc: 'A banned player appeals a launcher ban on the website.', gate: 'management' },
     { type: 'scam_report', label: 'New scam report', desc: 'Someone reports a suspected scam message for review.', gate: null },
     { type: 'inactivity_reminder', label: 'Inactivity reminder', desc: 'You\'ve been inactive for 2+ days with no excuse on file.', gate: null }
   ];
