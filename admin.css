@@ -2556,3 +2556,5 @@ textarea.text-input {
     grid-template-columns: 1fr;
   }
 }
+.nonmember-card .app-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.nonmember-line { margin-top: 8px; }

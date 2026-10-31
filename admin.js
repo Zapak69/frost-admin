@@ -1477,12 +1477,25 @@
     return '<span class="user-link" data-user-id="' + escapeHtml(id) + '">' + escapeHtml(label || id) + '</span>';
   }
 
+  function renderNonMemberCard(u) {
+    const name = u.globalName || u.username || u.id;
+    return '<div class="member-card nonmember-card"><div class="app-card-head"><div class="app-card-user"><img class="app-card-avatar" src="' + avatarUrl(u.id, u.avatar) + '" alt=""/>' +
+      '<span>' + escapeHtml(name) + '</span></div><span class="pill pending">not in the server</span></div>' +
+      '<div class="lb-sub nonmember-line">@' + escapeHtml(u.username || '') + ' · <span class="mono">' + escapeHtml(u.id) + '</span>' + (u.bot ? ' · bot' : '') + '</div>' +
+      (u.createdAt ? '<div class="lb-sub nonmember-line">Discord account created ' + escapeHtml(formatDateTime(u.createdAt)) + '</div>' : '') +
+      '<div class="lb-sub nonmember-line">This user is not a member of the Discord server, so roles and moderation actions are unavailable.</div></div>';
+  }
+
   const memberModal = document.getElementById('memberModal');
   const memberModalBody = document.getElementById('memberModalBody');
   function openMemberModal(userId) {
     memberModalBody.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:6px 0;">Loading…</p>';
     memberModal.classList.add('active');
     callAdmin('members.search', { query: userId }).then(function (d) {
+      if (d && d.ok && !d.members.length && d.user) {
+        memberModalBody.innerHTML = renderNonMemberCard(d.user);
+        return;
+      }
       if (!d || !d.ok || !d.members.length) {
         memberModalBody.innerHTML = '<p style="color:var(--danger);font-size:13px;padding:6px 0;">Member not found — they may have left the server.</p>';
         return;
@@ -3250,14 +3263,17 @@
       }).join('') || '<div class="lb-sub">No PC recorded yet.</div>';
       const ips = a.ips.map(function (ip) {
         const state = ip.banned ? '<span class="pill banned">banned</span>' : (ip.seenWithBanned ? '<span class="pill pending" title="Only blocks downloads from the website">seen with a banned player</span>' : '');
-        return '<div class="lb-line"><span class="mono">' + escapeHtml(ip.ip) + '</span>' + state + (ip.banned ? '' : lbBanBtn(lbanAttr('ip', ip.ip), 'Ban IP')) + '</div>';
+        return '<div class="lb-line"><span class="mono">' + escapeHtml(ip.ip) + '</span>' + state + '</div>';
       }).join('') || '<div class="lb-sub">No IP recorded.</div>';
       const mc = a.mcAccounts.map(function (m) {
         return '<div class="lb-line"><span>' + escapeHtml(m.name || 'Unknown name') + '</span><span class="mono lb-sub">' + escapeHtml(m.uuid) + '</span>' + (m.banned ? '<span class="pill banned">banned</span>' : '') + '</div>';
       }).join('') || '<div class="lb-sub">No Minecraft account linked.</div>';
-      const actions = a.discordId && !a.banned ? lbBanBtn(lbanAttr('discord', a.discordId), 'Ban account') : '';
+      const allHwids = a.devices.map(function (dv) { return dv.hwid; }).filter(Boolean).join(', ');
+      const allIps = a.ips.map(function (ip) { return ip.ip; }).filter(Boolean).join(', ');
+      const allMc = a.mcAccounts.map(function (m) { return m.uuid; }).filter(Boolean).join(', ');
+      const actions = a.banned ? '' : lbBanBtn(lbanAttr('discord', a.discordId) + lbanAttr('hwid', allHwids) + lbanAttr('ip', allIps) + lbanAttr('mc', allMc) + ' data-player="1"', 'Ban Player');
       return '<div class="app-card lb-card">' +
-        '<div class="app-card-head"><div class="app-card-user">' + (a.discordId ? '<img class="app-card-avatar" src="' + avatarUrl(a.discordId, null) + '" alt=""/>' : '') + title + '</div>' +
+        '<div class="app-card-head"><div class="app-card-user">' + (a.discordId ? '<img class="app-card-avatar" src="' + avatarUrl(a.discordId, a.discordAvatar || null) + '" alt=""/>' : '') + title + '</div>' +
         (a.discordId ? '<span class="app-card-meta">' + escapeHtml(a.discordId) + '</span>' : '') + lbBanPill(a.banned, a.ban) +
         '<div class="app-card-actions">' + actions + '</div></div>' +
         (a.banned && a.ban ? '<div class="lb-sub lb-reason">Reason: ' + escapeHtml(a.ban.reason) + '</div>' : '') +
@@ -3267,7 +3283,7 @@
     }).join('');
     box.querySelectorAll('.lb-ban-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        openLbBanModal({ discordId: btn.dataset.discord || '', hwid: btn.dataset.hwid || '', ip: btn.dataset.ip || '' });
+        openLbBanModal({ discordId: btn.dataset.discord || '', hwid: btn.dataset.hwid || '', ip: btn.dataset.ip || '', mcUuid: btn.dataset.mc || '' });
       });
     });
   }
