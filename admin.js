@@ -3276,7 +3276,7 @@
         '<div class="app-card-head"><div class="app-card-user">' + (a.discordId ? '<img class="app-card-avatar" src="' + avatarUrl(a.discordId, a.discordAvatar || null) + '" alt=""/>' : '') + title + '</div>' +
         (a.discordId ? '<span class="app-card-meta">' + escapeHtml(a.discordId) + '</span>' : '') + lbBanPill(a.banned, a.ban) +
         '<div class="app-card-actions">' + actions + '</div></div>' +
-        (a.banned && a.ban ? '<div class="lb-sub lb-reason">Reason: ' + escapeHtml(a.ban.reason) + '</div>' : '') +
+        (a.banned && a.ban && a.ban.reason ? '<div class="lb-sub lb-reason">Reason: ' + escapeHtml(a.ban.reason) + '</div>' : '') +
         '<div class="lb-grid"><div><div class="app-card-q">PCs</div>' + devices + '</div><div><div class="app-card-q">IP addresses</div>' + ips + '</div><div><div class="app-card-q">Minecraft</div>' + mc + '</div></div>' +
         '<div class="app-card-meta lb-seen">First seen ' + escapeHtml(formatDateTime(a.firstSeen)) + ' · last seen ' + escapeHtml(formatRelative(a.lastSeen)) + '</div>' +
       '</div>';
@@ -3520,7 +3520,6 @@
       errEl.style.display = '';
     };
     if (!params.discordId && !params.hwid && !params.ip && !params.mcUuid) return fail('missing_identifier');
-    if (!params.reason) return fail('missing_reason');
     const btn = document.getElementById('lbBanSubmitBtn');
     setBtnLoading(btn, true);
     callAdmin('launcherBans.add', params).then(function (d) {
