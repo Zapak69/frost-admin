@@ -2828,3 +2828,55 @@ textarea.text-input {
     grid-template-columns: 1fr;
   }
 }
+
+.app-card-info {
+  margin-top: 12px;
+}
+.app-info-loading {
+  font-size: 12.5px; color: var(--muted);
+}
+.app-info-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px;
+}
+.app-info-stat {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+  padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+}
+.app-info-stat span {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase; color: var(--muted);
+}
+.app-info-stat strong {
+  font-size: 14px; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.app-info-stat.is-good strong {
+  color: var(--success);
+}
+.app-info-stat.is-warn strong {
+  color: var(--warning);
+}
+.app-info-stat.is-bad strong {
+  color: var(--danger);
+}
+.app-info-tags {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px;
+}
+.app-info-accounts {
+  font-size: 12.5px;
+}
+
+.app-info-timeouts {
+  margin-top: 8px; font-size: 12.5px;
+}
+.app-info-timeouts summary {
+  cursor: pointer; color: var(--danger); font-weight: 600;
+}
+.app-info-timeouts ul {
+  margin: 8px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px;
+}
+.app-info-timeouts li {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
+  padding: 7px 10px; border-radius: 8px; background: rgba(255,105,97,0.05); border: 1px solid rgba(255,105,97,0.18);
+}
+.app-info-reason {
+  flex: 1; min-width: 200px; overflow-wrap: anywhere;
+}

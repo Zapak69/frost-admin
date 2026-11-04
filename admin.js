@@ -2275,6 +2275,7 @@
         return renderStaffAppCard(a, roleInfo.fields || d.questionLabels, roleInfo.label || 'Staff Team');
       }).join('');
       d.applications.forEach(wireStaffAppActions);
+      d.applications.forEach(loadApplicantInfo);
     });
   }
   function renderRecruitment(roles) {
@@ -3836,9 +3837,70 @@
           '</div>' +
         '</div>' +
         '<div class="app-card-details"><span>Applied: <strong>' + formatRelative(a.appliedAt) + '</strong></span>' + (a.decidedAt ? '<span>Decided: <strong>' + formatRelative(a.decidedAt) + '</strong></span>' : '') + '</div>' +
+        '<div class="app-card-info" data-applicant="' + escapeHtml(a.discordId) + '"><span class="app-info-loading">Loading player info…</span></div>' +
         '<div class="app-card-qa">' + qa + extra + '</div>' +
       '</div>'
     );
+  }
+  function fmtHours(ms) {
+    const h = ms / 3600000;
+    return h >= 10 ? Math.round(h) + ' h' : h >= 1 ? (Math.round(h * 10) / 10) + ' h' : Math.round(ms / 60000) + ' min';
+  }
+  function fmtAge(ms) {
+    if (!ms) return '—';
+    const days = Math.floor((Date.now() - ms) / 86400000);
+    if (days < 60) return days + ' days';
+    if (days < 730) return Math.floor(days / 30) + ' months';
+    return (Math.round(days / 365 * 10) / 10) + ' years';
+  }
+  function loadApplicantInfo(a) {
+    const box = document.querySelector('#staffapp-' + a.discordId + ' .app-card-info');
+    if (!box) return;
+    callAdmin('staffApplications.applicantInfo', { discordId: a.discordId }).then(function (d) {
+      if (!d || !d.ok) {
+        box.innerHTML = '<span class="app-info-loading">Player info unavailable.</span>';
+        return;
+      }
+      const stat = function (label, value, cls) {
+        return '<div class="app-info-stat' + (cls ? ' ' + cls : '') + '"><span>' + escapeHtml(label) + '</span><strong>' + escapeHtml(String(value)) + '</strong></div>';
+      };
+      const playtime = d.accounts.length ? fmtHours(d.playtimeMs) : 'No linked account';
+      let html = '<div class="app-info-grid">' +
+        stat('Played on Frost', playtime, d.playtimeMs >= 36000000 ? 'is-good' : '') +
+        stat('Launcher user for', d.launcherFirstSeen ? fmtAge(d.launcherFirstSeen) : 'Never signed in', d.launcherFirstSeen ? '' : 'is-warn') +
+        stat('On the server for', d.joinedAt ? fmtAge(d.joinedAt) : (d.inGuild ? '—' : 'Not a member'), d.inGuild ? '' : 'is-bad') +
+        stat('Discord account age', fmtAge(d.accountCreatedAt), Date.now() - d.accountCreatedAt < 90 * 86400000 ? 'is-warn' : '') +
+        stat('Active days (30d)', d.activeDays30) +
+        stat('Messages this week', d.messagesThisWeek) +
+        stat('Reputation', d.reps) +
+        stat('Tickets opened', d.ticketsOpened) +
+        stat('Timeouts', d.timeouts.length + (d.timedOutUntil ? ' (active)' : ''), d.timedOutUntil || d.timeouts.length >= 2 ? 'is-bad' : d.timeouts.length ? 'is-warn' : '') +
+        '</div>';
+      const tags = [];
+      if (d.lite) tags.push('<span class="pill accepted">Lite</span>');
+      if (d.booster) tags.push('<span class="pill">Booster</span>');
+      if (d.launcherBanned) tags.push('<span class="pill denied">Launcher ban</span>');
+      if (d.launcherDevices > 1) tags.push('<span class="pill pending">' + d.launcherDevices + ' PCs</span>');
+      d.testAttempts.forEach(function (t, i) {
+        tags.push('<span class="pill ' + (t.passed ? 'accepted' : 'denied') + '">Test ' + (i + 1) + ': ' + (t.expired ? 'expired' : t.percent + '%') + '</span>');
+      });
+      if (d.accounts.length) {
+        tags.push('<span class="app-info-accounts">' + d.accounts.map(function (acc) {
+          return escapeHtml(acc.name) + ' <span class="app-card-meta">' + fmtHours(acc.playtimeMs) + (acc.lastSeen ? ', last ' + formatRelative(acc.lastSeen) : '') + '</span>';
+        }).join(' · ') + '</span>');
+      }
+      if (tags.length) html += '<div class="app-info-tags">' + tags.join('') + '</div>';
+      if (d.timeouts.length) {
+        html += '<details class="app-info-timeouts"><summary>Timeout history (' + d.timeouts.length + ')</summary><ul>' + d.timeouts.map(function (t) {
+          const dur = t.durationMs ? fmtHours(t.durationMs) : '';
+          return '<li><span class="mono">' + escapeHtml(new Date(t.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })) + '</span>' +
+            (dur ? '<span class="app-card-meta">' + escapeHtml(dur) + '</span>' : '') +
+            '<span class="app-info-reason">' + escapeHtml(t.reason || 'No reason recorded') + '</span>' +
+            '<span class="app-card-meta">' + escapeHtml(t.auto ? 'Auto-mod' : (t.by ? 'by ' + t.by : '')) + '</span></li>';
+        }).join('') + '</ul></details>';
+      }
+      box.innerHTML = html;
+    });
   }
   function wireStaffAppActions(a) {
     const card = document.getElementById('staffapp-' + a.discordId);
