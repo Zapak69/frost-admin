@@ -1,6 +1,6 @@
 (function () {
-  const LITE_API_URL = 'https://bot.frostclient.eu/sheets';
-  const ADMIN_API_URL = 'https://bot.frostclient.eu/admin';
+  const LITE_API_URL = 'https://api.frostclient.eu/sheets';
+  const ADMIN_API_URL = 'https://api.frostclient.eu/admin';
   const DISCORD_CLIENT_ID = '1512834635640475898';
   const DISCORD_REDIRECT_URI = 'https://admin.frostclient.eu';
   const TOKEN_KEY = 'frostAdminToken';
@@ -2793,8 +2793,8 @@
       else showToast('Sync failed: ' + (d && (d.syncError || d.error) || 'unknown error'), 'error');
     });
   });
-  const PA_FILE_URL = 'https://bot.frostclient.eu/admin/partner-assets/file';
-  const PA_UPLOAD_URL = 'https://bot.frostclient.eu/admin/partner-assets/upload';
+  const PA_FILE_URL = 'https://api.frostclient.eu/admin/partner-assets/file';
+  const PA_UPLOAD_URL = 'https://api.frostclient.eu/admin/partner-assets/upload';
   const PA_ICON_UPLOAD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>';
   const PA_ICON_FILE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/></svg>';
   let paPartners = [];
@@ -3905,7 +3905,7 @@
     });
   }
   function reportDownloadUrl(reportId, file) {
-    return 'https://bot.frostclient.eu/bug-reports/download?token=' + encodeURIComponent(loadToken())
+    return 'https://api.frostclient.eu/bug-reports/download?token=' + encodeURIComponent(loadToken())
       + '&reportId=' + encodeURIComponent(reportId) + '&file=' + encodeURIComponent(file);
   }
   function renderReportCard(r) {
@@ -4477,7 +4477,7 @@
     dropCapeOptionsLoaded = true;
     const select = document.getElementById('dropTarget');
     if (!select) return;
-    fetch('https://bot.frostclient.eu/launcher/capes/capes.json', { cache: 'no-store' })
+    fetch('https://cdn.frostclient.eu/launcher/capes/capes.json', { cache: 'no-store' })
       .then(function (r) {
           return r.json();
       })
@@ -4519,7 +4519,7 @@
       } else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
     });
   });
-  const CAPE_GIFT_CAPES_BASE = 'https://bot.frostclient.eu/launcher/capes/';
+  const CAPE_GIFT_CAPES_BASE = 'https://cdn.frostclient.eu/launcher/capes/';
   const CAPE_GIFT_STATUS_PILL = { active: 'accepted', full: 'pending', expired: 'withdrawn', revoked: 'denied' };
   let capeGiftCatalog = null;
   function capeGiftDefaultExpiry() {
@@ -5314,7 +5314,7 @@
   }
   function partnerPageImageUrl(image) {
     if (!image) return '';
-    return image.indexOf('https://') === 0 ? image : 'https://bot.frostclient.eu/site/partners/img/' + image;
+    return image.indexOf('https://') === 0 ? image : 'https://cdn.frostclient.eu/site/partners/img/' + image;
   }
   function partnerPageSyncForm() {
     const isServer = document.getElementById('ppType').value === 'server';
@@ -5449,7 +5449,7 @@
     }
     const reader = new FileReader();
     reader.onload = function () {
-      fetch('https://bot.frostclient.eu/admin/partner-image', {
+      fetch('https://api.frostclient.eu/admin/partner-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: loadToken(), dataUrl: reader.result })
@@ -5529,7 +5529,7 @@
         return;
       }
 
-      fetch('https://bot.frostclient.eu/launcher/discord-login', {
+      fetch('https://api.frostclient.eu/launcher/discord-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: code, redirectUri: DISCORD_REDIRECT_URI }),
