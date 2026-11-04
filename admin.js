@@ -3817,6 +3817,12 @@
       } else fail(d && d.error);
     });
   });
+  function staffAppTicketLine(t) {
+    if (!t || t.state === 'none') return '<span class="app-ticket app-ticket--none">Ticket: <strong>not opened</strong></span>';
+    const name = t.channelName ? '#' + escapeHtml(t.channelName) : 'ticket';
+    if (t.state === 'open') return '<span class="app-ticket app-ticket--open">Ticket: <strong>open</strong> ' + (t.url ? '<a href="' + escapeHtml(t.url) + '" target="_blank" rel="noopener">' + name + ' ↗</a>' : name) + '</span>';
+    return '<span class="app-ticket app-ticket--closed">Ticket: <strong>closed</strong> ' + name + '</span>';
+  }
   function renderStaffAppCard(a, labels, roleLabel) {
     const qa = (labels || []).map(function (pair) {
       const key = pair[0], label = pair[1];
@@ -3832,11 +3838,11 @@
           '<div class="app-card-user">' + userLink(a.discordId, a.username || a.discordId) + ' <span class="app-card-meta">' + a.discordId + '</span></div>' +
           '<span class="pill role-' + escapeHtml(a.role || 'staff') + '">' + escapeHtml(roleLabel || 'Staff Team') + '</span>' +
           '<span class="pill ' + a.status + '">' + a.status + '</span>' +
-          '<div class="app-card-actions"><button class="btn-small" data-action="ticket">Create Ticket</button>' +
+          '<div class="app-card-actions">' + (a.ticket && a.ticket.state === 'open' && a.ticket.url ? '<a class="btn-small" href="' + escapeHtml(a.ticket.url) + '" target="_blank" rel="noopener">Open ticket</a>' : '<button class="btn-small" data-action="ticket">Create Ticket</button>') +
           (a.status === 'pending' ? '<button class="btn-small success" data-action="accept">Accept</button><button class="btn-small danger" data-action="deny">Deny</button><button class="btn-small danger" data-action="ban">Ban</button>' : '') +
           '</div>' +
         '</div>' +
-        '<div class="app-card-details"><span>Applied: <strong>' + formatRelative(a.appliedAt) + '</strong></span>' + (a.decidedAt ? '<span>Decided: <strong>' + formatRelative(a.decidedAt) + '</strong></span>' : '') + '</div>' +
+        '<div class="app-card-details"><span>Applied: <strong>' + formatRelative(a.appliedAt) + '</strong></span>' + (a.decidedAt ? '<span>Decided: <strong>' + formatRelative(a.decidedAt) + '</strong></span>' : '') + staffAppTicketLine(a.ticket) + '</div>' +
         '<div class="app-card-info" data-applicant="' + escapeHtml(a.discordId) + '"><span class="app-info-loading">Loading player info…</span></div>' +
         '<div class="app-card-qa">' + qa + extra + '</div>' +
       '</div>'
@@ -3912,7 +3918,10 @@
           setBtnLoading(btn, true);
           callAdmin('staffApplications.createTicket', { discordId: a.discordId }).then(function (d) {
             setBtnLoading(btn, false);
-            if (d && d.ok) showToast('Ticket created: ' + (d.channelName || ''), 'success');
+            if (d && d.ok) {
+              showToast(d.existing ? 'A ticket is already open: #' + (d.channelName || '') : 'Ticket created: #' + (d.channelName || ''), 'success');
+              loadStaffApps(currentStaffAppsFilter);
+            }
             else showToast('Failed: ' + (d && d.error || 'unknown error'), 'error');
           });
           return;

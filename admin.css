@@ -2880,3 +2880,20 @@ textarea.text-input {
 .app-info-reason {
   flex: 1; min-width: 200px; overflow-wrap: anywhere;
 }
+
+.app-ticket strong {
+  color: var(--text);
+}
+.app-ticket--open strong {
+  color: var(--success);
+}
+.app-ticket a {
+  color: var(--accent); text-decoration: none;
+}
+.app-ticket a:hover {
+  text-decoration: underline;
+}
+
+a.btn-small {
+  display: inline-flex; align-items: center; text-decoration: none;
+}
