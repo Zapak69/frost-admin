@@ -569,6 +569,7 @@
     });
     viewTitle.textContent = VIEW_TITLES[view] || view;
     sidebar.classList.remove('open');
+    revealNavItem(view);
     if (VIEW_LOADERS[view]) VIEW_LOADERS[view]();
     markViewNotifsRead(view);
   }
@@ -1516,18 +1517,29 @@
     const liteStatus = (m.lite && m.lite.gifted)
       ? '<span>Lite until <strong style="color:var(--success);">' + formatDateTime(Date.parse(m.lite.expiresAt)) + '</strong> (gifted)</span>'
       : (m.hasLiteRole ? '<span>Lite: <strong style="color:var(--success);">purchased</strong></span>' : '');
+    const group = function (label, html) {
+        return html ? '<div class="mc-group"><span class="mc-group-label">' + label + '</span><div class="mc-group-btns">' + html + '</div></div>' : '';
+    };
+    const tags = (m.isBot ? '<span class="pill">Bot</span>' : '') +
+      (m.timedOutUntil ? '<span class="pill pending">Timed out</span>' : '') + (hasTicketBan ? '<span class="pill denied">Ticket ban</span>' : '');
     return (
-      '<div class="app-card" id="' + idPrefix + m.id + '">' +
+      '<div class="app-card member-card-v2" id="' + idPrefix + m.id + '">' +
         '<div class="app-card-head">' +
-          '<div class="app-card-user"><img class="app-card-avatar" src="' + avatarUrl(m.id, m.avatar) + '"/>' + escapeHtml(m.globalName || m.username) + ' <span class="app-card-meta">@' + escapeHtml(m.username) + ' · ' + m.id + '</span></div>' +
-          '<div class="app-card-actions">' + modActions + ticketBanBtn + liteBtn + grantMediaBtn + staffBtns + creatorBtns + '</div>' +
+          '<div class="app-card-user"><img class="app-card-avatar" src="' + avatarUrl(m.id, m.avatar) + '"/><div class="app-card-names"><strong>' + escapeHtml(m.globalName || m.username) + '</strong><span class="app-card-meta">@' + escapeHtml(m.username) + ' · ' + m.id + '</span></div></div>' +
+          (tags ? '<div class="app-card-tags">' + tags + '</div>' : '') +
         '</div>' +
         '<div class="app-card-details">' +
           '<span>Joined: <strong>' + formatDateTime(m.joinedAt ? Date.parse(m.joinedAt) : null) + '</strong></span>' +
           (m.timedOutUntil ? '<span>Timed out until: <strong style="color:var(--warning);">' + formatDateTime(Date.parse(m.timedOutUntil)) + '</strong></span>' : '') +
           liteStatus +
         '</div>' +
-        (roles ? '<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">' + roles + '</div>' : '') +
+        (roles ? '<div class="mc-roles">' + roles + '</div>' : '') +
+        '<div class="mc-actions">' +
+          group('Moderation', modActions + ticketBanBtn) +
+          group('Perks', liteBtn + grantMediaBtn) +
+          group('Staff', staffBtns) +
+          group('Creator', creatorBtns) +
+        '</div>' +
       '</div>'
     );
   }
@@ -2603,7 +2615,8 @@
       [st.reviewedWrong || 0, 'Wrong deletions', st.reviewedWrong > 0 ? 'danger' : ''],
       [st.attachmentOnlyDeletedTotal || 0, 'Attachment-only deleted'],
       [st.attachmentOnlyFalsePositives || 0, 'Attachment-only wrong', st.attachmentOnlyFalsePositives > 0 ? 'danger' : ''],
-      [st.attachmentOnlyKnownFilenames || 0, 'Known scam filenames']
+      [st.attachmentOnlyKnownFilenames || 0, 'Known scam filenames'],
+      [st.linkDeletedTotal || 0, 'Scam links deleted']
     ].map(function (c) {
       return '<div class="stat-card"><div class="num ' + (c[2] || '') + '">' + c[0] + '</div><div class="label">' + c[1] + '</div></div>';
     }).join('');
@@ -2637,6 +2650,9 @@
     document.getElementById('scamFilterDeleteAttachmentOnly').checked = s.deleteAttachmentOnly !== false;
     document.getElementById('scamFilterAttachmentOnlyMinCount').value = s.attachmentOnlyMinCount || 4;
     document.getElementById('scamFilterKnownFilename').checked = !!s.attachmentOnlyKnownFilename;
+    document.getElementById('scamLinksEnabled').checked = s.blockLinks !== false;
+    scamLinks = d.blockedLinks || [];
+    renderScamLinks();
     document.getElementById('scamFilterResumeBtn').style.display = d.paused ? '' : 'none';
     document.getElementById('scamFilterResumeAttachmentOnlyBtn').style.display = d.attachmentOnlyPaused ? '' : 'none';
     const badge = document.getElementById('badgeScamFilter');
@@ -2700,6 +2716,83 @@
       });
     });
   }
+  let scamLinks = [];
+  function renderScamLinks() {
+    const q = document.getElementById('scamLinksSearch').value.trim().toLowerCase();
+    const list = scamLinks.slice().sort(function (a, b) {
+        return (b.addedAt || 0) - (a.addedAt || 0);
+    }).filter(function (l) {
+        return !q || l.pattern.indexOf(q) !== -1;
+    });
+    document.getElementById('scamLinksCount').textContent = scamLinks.length + (scamLinks.length === 1 ? ' link blocked' : ' links blocked');
+    const box = document.getElementById('scamLinksList');
+    if (!list.length) {
+        box.innerHTML = '<p class="sl-empty">' + (scamLinks.length ? 'No blocked link matches your search.' : 'No links blocked yet. Add the first one above.') + '</p>';
+        return;
+    }
+    box.innerHTML = list.map(function (l) {
+      const meta = [];
+      meta.push(l.hits ? l.hits + (l.hits === 1 ? ' deletion' : ' deletions') + (l.lastHitAt ? ', last ' + formatRelative(l.lastHitAt) : '') : 'no deletions yet');
+      if (l.addedAt) meta.push('added ' + formatRelative(l.addedAt) + (l.addedByUsername ? ' by ' + l.addedByUsername : ''));
+      return '<div class="sl-row"><div class="sl-main"><span class="sl-pattern">' + escapeHtml(l.pattern) + '</span><span class="sl-meta">' + escapeHtml(meta.join(' · ')) + '</span></div>' +
+        '<button type="button" class="btn-small danger" data-scam-link-remove="' + escapeHtml(l.pattern) + '">Remove</button></div>';
+    }).join('');
+    box.querySelectorAll('button[data-scam-link-remove]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const pattern = btn.dataset.scamLinkRemove;
+        askConfirm('Unblock this link?', pattern + ' will no longer be deleted automatically.', { okLabel: 'Remove' }, function () {
+          return callAdmin('scamfilter.removeLink', { pattern: pattern }).then(function (r) {
+            if (r && r.ok) {
+                showToast('Link unblocked.', 'success');
+                scamLinks = scamLinks.filter(function (l) {
+                    return l.pattern !== pattern;
+                });
+                renderScamLinks();
+            }
+            else showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
+          });
+        });
+      });
+    });
+  }
+  document.getElementById('scamLinksSearch').addEventListener('input', renderScamLinks);
+  document.getElementById('scamLinksAddBtn').addEventListener('click', function () {
+    const btn = document.getElementById('scamLinksAddBtn');
+    const input = document.getElementById('scamLinksInput');
+    const text = input.value.trim();
+    if (!text) {
+        showToast('Paste at least one link or domain.', 'error');
+        return;
+    }
+    setBtnLoading(btn, true);
+    callAdmin('scamfilter.addLinks', { links: text }).then(function (r) {
+      setBtnLoading(btn, false);
+      if (!r || !r.ok) {
+          showToast(r && r.error === 'too_many' ? 'The list is full (2000 links).' : 'Failed: ' + (r && r.error || 'unknown error'), 'error');
+          return;
+      }
+      const parts = [];
+      if (r.added.length) parts.push(r.added.length + (r.added.length === 1 ? ' link blocked' : ' links blocked'));
+      if (r.existing.length) parts.push(r.existing.length + ' already on the list');
+      if (r.invalid.length) parts.push('not a link: ' + r.invalid.slice(0, 3).join(', ') + (r.invalid.length > 3 ? '…' : ''));
+      showToast(parts.join(' · ') || 'Nothing to add.', r.added.length ? 'success' : 'error');
+      input.value = r.invalid.join('\n');
+      loadScamFilter();
+    });
+  });
+  document.getElementById('scamLinksInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) document.getElementById('scamLinksAddBtn').click();
+  });
+  document.getElementById('scamLinksEnabled').addEventListener('change', function () {
+    const el = this;
+    callAdmin('scamfilter.saveSettings', { settings: { blockLinks: el.checked } }).then(function (r) {
+      if (r && r.ok) showToast(el.checked ? 'Blocked links are deleted again.' : 'Blocked links are no longer deleted.', 'success');
+      else {
+          el.checked = !el.checked;
+          showToast('Failed: ' + (r && r.error || 'unknown error'), 'error');
+      }
+    });
+  });
   function loadScamFilter() {
     return callAdmin('scamfilter.overview').then(function (d) {
       if (d && d.ok) renderScamFilter(d);
@@ -2765,6 +2858,10 @@
       }
       const r = d.decision;
       const verdict = r.action === 'delete' ? 'Would delete' : 'Would keep';
+      if (r.blockedLink) {
+          out.innerHTML = '<span class="pill denied">' + verdict + '</span> contains the blocked link <strong>' + escapeHtml(r.blockedLink) + '</strong>';
+          return;
+      }
       out.innerHTML = '<span class="pill ' + (r.action === 'delete' ? 'denied' : 'accepted') + '">' + verdict + '</span> ' +
         escapeHtml(String(r.reason || '').replace(/_/g, ' ')) + ' · probability ' + scamFilterPct(r.pScam) + ' · closest example ' + scamFilterPct(r.similarity) +
         (r.matched ? ' (' + escapeHtml(r.matched.type) + ': ' + escapeHtml(String(r.matched.text || '').slice(0, 80)) + ')' : '') + ' · ' + r.tokens + ' words';
@@ -3946,28 +4043,52 @@
     if (t.state === 'open') return '<span class="app-ticket app-ticket--open">Ticket: <strong>open</strong> ' + (t.url ? '<a href="' + escapeHtml(t.url) + '" target="_blank" rel="noopener">' + name + ' ↗</a>' : name) + '</span>';
     return '<span class="app-ticket app-ticket--closed">Ticket: <strong>closed</strong> ' + name + '</span>';
   }
+  const QA_OK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+  const QA_BAD_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
+  function renderTestResult(text) {
+    const lines = String(text).split('\n').map(function (l) {
+        return l.trim();
+    }).filter(Boolean);
+    const head = lines.shift() || '';
+    return '<div class="qa-test"><strong>' + escapeHtml(head) + '</strong><ul>' + lines.map(function (l) {
+      const ok = l.indexOf('\u2705') === 0, bad = l.indexOf('\u274c') === 0;
+      const body = l.replace(/^(\u2705|\u274c)\s*/, '');
+      return '<li class="' + (ok ? 'is-ok' : bad ? 'is-bad' : '') + '">' + (ok ? QA_OK_ICON : bad ? QA_BAD_ICON : '') + '<span>' + escapeHtml(body) + '</span></li>';
+    }).join('') + '</ul></div>';
+  }
   function renderStaffAppCard(a, labels, roleLabel) {
-    const qa = (labels || []).map(function (pair) {
+    const facts = [], long = [];
+    (labels || []).forEach(function (pair) {
       const key = pair[0], label = pair[1];
       const val = a.answers ? a.answers[key] : null;
-      if (!val) return '';
-      return '<div><div class="app-card-q">' + escapeHtml(label) + '</div><div class="app-card-a">' + escapeHtml(val) + '</div></div>';
-    }).join('');
+      if (!val) return;
+      if (key === 'testResult') {
+          long.unshift('<div class="qa-item qa-wide"><div class="app-card-q">' + escapeHtml(label) + '</div>' + renderTestResult(val) + '</div>');
+          return;
+      }
+      const html = '<div class="qa-item"><div class="app-card-q">' + escapeHtml(label) + '</div><div class="app-card-a">' + escapeHtml(val) + '</div></div>';
+      if (String(val).length <= 40 && String(val).indexOf('\n') === -1) facts.push(html);
+      else long.push(html);
+    });
+    const qa = (facts.length ? '<div class="qa-facts">' + facts.join('') + '</div>' : '') + long.join('');
     const extra = (a.extra ? '<div><div class="app-card-q">Anything else</div><div class="app-card-a">' + escapeHtml(a.extra) + '</div></div>' : '') +
       ((a.status === 'denied' || a.status === 'withdrawn' || a.status === 'banned') && a.denyReason ? '<div><div class="app-card-q">' + (a.status === 'withdrawn' ? 'Withdrawn' : a.status === 'banned' ? 'Ban reason' : 'Denial reason') + '</div><div class="app-card-a" style="color:var(--danger);">' + escapeHtml(a.denyReason) + '</div></div>' : '');
     return (
-      '<div class="app-card" id="staffapp-' + a.discordId + '">' +
+      '<div class="app-card staffapp-card" id="staffapp-' + a.discordId + '">' +
         '<div class="app-card-head">' +
-          '<div class="app-card-user">' + userLink(a.discordId, a.username || a.discordId) + ' <span class="app-card-meta">' + a.discordId + '</span></div>' +
-          '<span class="pill role-' + escapeHtml(a.role || 'staff') + '">' + escapeHtml(roleLabel || 'Staff Team') + '</span>' +
-          '<span class="pill ' + a.status + '">' + a.status + '</span>' +
-          '<div class="app-card-actions">' + (a.ticket && a.ticket.state === 'open' && a.ticket.url ? '<a class="btn-small" href="' + escapeHtml(a.ticket.url) + '" target="_blank" rel="noopener">Open ticket</a>' : '<button class="btn-small" data-action="ticket">Create Ticket</button>') +
-          (a.status === 'pending' ? '<button class="btn-small success" data-action="accept">Accept</button><button class="btn-small danger" data-action="deny">Deny</button><button class="btn-small danger" data-action="ban">Ban</button>' : '') +
-          '</div>' +
+          '<div class="app-card-user"><img class="app-card-avatar" src="' + avatarUrl(a.discordId, a.avatar) + '" alt=""/><div class="app-card-names"><strong>' + userLink(a.discordId, a.username || a.discordId) + '</strong><span class="app-card-meta">' + a.discordId + '</span></div></div>' +
+          '<div class="app-card-tags"><span class="pill role-' + escapeHtml(a.role || 'staff') + '">' + escapeHtml(roleLabel || 'Staff Team') + '</span>' +
+          '<span class="pill ' + a.status + '">' + a.status + '</span></div>' +
         '</div>' +
         '<div class="app-card-details"><span>Applied: <strong>' + formatRelative(a.appliedAt) + '</strong></span>' + (a.decidedAt ? '<span>Decided: <strong>' + formatRelative(a.decidedAt) + '</strong></span>' : '') + staffAppTicketLine(a.ticket) + '</div>' +
-        '<div class="app-card-info" data-applicant="' + escapeHtml(a.discordId) + '"><span class="app-info-loading">Loading player info…</span></div>' +
-        '<div class="app-card-qa">' + qa + extra + '</div>' +
+        '<div class="staffapp-body">' +
+          '<div class="staffapp-side"><div class="staffapp-side-title">Player</div><div class="app-card-info" data-applicant="' + escapeHtml(a.discordId) + '"><span class="app-info-loading">Loading player info…</span></div></div>' +
+          '<div class="staffapp-main"><div class="staffapp-side-title">Answers</div><div class="app-card-qa">' + qa + extra + '</div></div>' +
+        '</div>' +
+        '<div class="app-card-foot">' +
+          (a.ticket && a.ticket.state === 'open' && a.ticket.url ? '<a class="btn-small" href="' + escapeHtml(a.ticket.url) + '" target="_blank" rel="noopener">Open ticket</a>' : '<button class="btn-small" data-action="ticket">Create ticket</button>') +
+          (a.status === 'pending' ? '<span class="app-card-foot-spacer"></span><button class="btn-small danger" data-action="ban">Ban</button><button class="btn-small danger" data-action="deny">Deny</button><button class="btn-small success" data-action="accept">Accept</button>' : '') +
+        '</div>' +
       '</div>'
     );
   }
@@ -4103,7 +4224,7 @@
       + '&reportId=' + encodeURIComponent(reportId) + '&file=' + encodeURIComponent(file);
   }
   function renderReportCard(r) {
-    const details = r.kind === 'cheat' ? [
+    const details = (r.kind === 'cheat' ? [
       ['Type', r.cheatTypeLabel],
       ['Name given', r.cheatName],
       ['Notes', r.description],
@@ -4115,7 +4236,7 @@
       ['Description', r.description],
       ['Mods', r.isModded ? (r.modList || 'Yes') : 'No (vanilla instance)'],
       ['Attached link', r.linkUrl]
-    ].filter(function (p) {
+    ]).filter(function (p) {
         return p[1];
     }).map(function (p) {
       return '<div><div class="app-card-q">' + escapeHtml(p[0]) + '</div><div class="app-card-a">' + escapeHtml(p[1]) + '</div></div>';
@@ -5575,7 +5696,8 @@
         el.value = (entry && entry.links && entry.links[el.dataset.key]) || '';
     });
     partnerPageSyncForm();
-    document.getElementById('partnerPageFormPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    selectTabFor(document.getElementById('partnerPageFormPanel'));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
   function partnerPageGuessLinkKey(url) {
     const u = String(url || '').toLowerCase();
@@ -5596,7 +5718,7 @@
     partnerPageEntries = d.entries || [];
     const list = document.getElementById('partnerPageList');
     const creators = partnerPageEntries.filter(function (e) { return e.type === 'creator'; }).length;
-    document.getElementById('partnerPageMeta').textContent = partnerPageEntries.length ? partnerPageEntries.length + ' on the page · ' + creators + ' creators · ' + (partnerPageEntries.length - creators) + ' servers · ' + partnerPageEntries.filter(function (e) { return e.featured; }).length + ' on the homepage' : 'No partners on the page yet. Add one below.';
+    document.getElementById('partnerPageMeta').textContent = partnerPageEntries.length ? partnerPageEntries.length + ' on the page · ' + creators + ' creators · ' + (partnerPageEntries.length - creators) + ' servers · ' + partnerPageEntries.filter(function (e) { return e.featured; }).length + ' on the homepage' : 'No partners on the page yet. Add one in the Add or edit tab.';
     list.innerHTML = partnerPageEntries.map(function (e, i) {
       const links = Object.keys(e.links || {}).map(function (k) { return PARTNER_LINK_LABELS[k] || k; }).join(' · ');
       return '<div class="partner-page-row" data-id="' + escapeHtml(e.id) + '">' +
@@ -5726,6 +5848,7 @@
           showToast(partnerPageEditing ? 'Partner updated.' : 'Partner added.', 'success');
           partnerPageReset();
           loadPartnerPage();
+          selectTabFor(document.getElementById('partnerPageList'));
       }
       else showToast(PARTNER_PAGE_ERRORS[r && r.error] || ('Failed: ' + (r && r.error || 'unknown error')), 'error');
     });
@@ -5861,6 +5984,189 @@
     });
   })();
 
+  const INFO_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>';
+  function uiStore(key, value) {
+    try {
+      if (value === undefined) return localStorage.getItem('frostAdminUi.' + key);
+      localStorage.setItem('frostAdminUi.' + key, value);
+    } catch (e) {}
+    return null;
+  }
+  function enhancePanelHeads() {
+    document.querySelectorAll('.panel-head').forEach(function (head) {
+      if (head.dataset.enhanced) return;
+      head.dataset.enhanced = '1';
+      const h2 = head.querySelector(':scope > h2');
+      if (!h2) return;
+      const title = document.createElement('div');
+      title.className = 'panel-title';
+      head.insertBefore(title, h2);
+      title.appendChild(h2);
+      const sub = head.querySelector(':scope > .panel-sub');
+      if (sub) title.appendChild(sub);
+      const help = head.nextElementSibling && head.nextElementSibling.classList.contains('panel-help') ? head.nextElementSibling : null;
+      if (!help) return;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'panel-help-btn';
+      btn.title = 'What is this?';
+      btn.setAttribute('aria-expanded', 'false');
+      btn.innerHTML = INFO_ICON;
+      h2.appendChild(btn);
+      btn.addEventListener('click', function () {
+        const open = help.classList.toggle('open');
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+    });
+  }
+  function paneAvailable(pane) {
+    return pane.style.display !== 'none';
+  }
+  function selectViewTab(view, index, remember) {
+    const panes = view._tabPanes, buttons = view._tabButtons;
+    if (!panes) return;
+    if (!panes[index] || !paneAvailable(panes[index])) index = panes.findIndex(paneAvailable);
+    if (index < 0) index = 0;
+    view._tabIndex = index;
+    panes.forEach(function (p, i) {
+        p.classList.toggle('tab-off', i !== index);
+    });
+    buttons.forEach(function (b, i) {
+      b.classList.toggle('active', i === index);
+      b.setAttribute('aria-selected', i === index ? 'true' : 'false');
+    });
+    if (remember) {
+        view._tabPreferred = index;
+        uiStore('tab.' + view.id, String(index));
+    }
+  }
+  function refreshViewTabs(view) {
+    const panes = view._tabPanes;
+    let visible = 0;
+    panes.forEach(function (p, i) {
+      const ok = paneAvailable(p);
+      view._tabButtons[i].hidden = !ok;
+      if (ok) visible++;
+      const badgeId = p.dataset.tabBadge;
+      if (badgeId) {
+        const src = document.getElementById(badgeId), dst = view._tabButtons[i].querySelector('.view-tab-badge');
+        const show = src && src.style.display !== 'none' && src.textContent.trim() && src.textContent.trim() !== '0';
+        dst.textContent = show ? src.textContent.trim() : '';
+        dst.hidden = !show;
+      }
+    });
+    view._tabBar.hidden = visible < 2;
+    const pref = view._tabPreferred;
+    if (pref !== view._tabIndex && panes[pref] && paneAvailable(panes[pref])) selectViewTab(view, pref);
+    else if (!panes[view._tabIndex] || !paneAvailable(panes[view._tabIndex])) selectViewTab(view, view._tabIndex);
+  }
+  function initViewTabs() {
+    document.querySelectorAll('.view[data-tabs]').forEach(function (view) {
+      const panes = Array.from(view.querySelectorAll(':scope > [data-tab]'));
+      if (panes.length < 2) return;
+      const bar = document.createElement('div');
+      bar.className = 'view-tabs';
+      bar.setAttribute('role', 'tablist');
+      view._tabPanes = panes;
+      view._tabBar = bar;
+      view._tabButtons = panes.map(function (pane, i) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'view-tab';
+        b.setAttribute('role', 'tab');
+        b.innerHTML = '<span>' + escapeHtml(pane.dataset.tab) + '</span>' + (pane.dataset.tabBadge ? '<span class="view-tab-badge" hidden></span>' : '');
+        b.addEventListener('click', function () {
+            selectViewTab(view, i, true);
+        });
+        bar.appendChild(b);
+        return b;
+      });
+      view.insertBefore(bar, panes[0]);
+      const stored = parseInt(uiStore('tab.' + view.id), 10);
+      view._tabPreferred = isNaN(stored) || stored >= panes.length ? 0 : stored;
+      selectViewTab(view, view._tabPreferred);
+      refreshViewTabs(view);
+      const obs = new MutationObserver(function () {
+          refreshViewTabs(view);
+      });
+      panes.forEach(function (p) {
+        obs.observe(p, { attributes: true, attributeFilter: ['style'] });
+        const badge = p.dataset.tabBadge && document.getElementById(p.dataset.tabBadge);
+        if (badge) obs.observe(badge, { attributes: true, attributeFilter: ['style'], childList: true, characterData: true, subtree: true });
+      });
+    });
+  }
+  function selectTabFor(el) {
+    const view = el && el.closest('.view[data-tabs]');
+    if (!view || !view._tabPanes) return;
+    const i = view._tabPanes.findIndex(function (p) {
+        return p === el || p.contains(el);
+    });
+    if (i >= 0) selectViewTab(view, i, true);
+  }
+  function navGroupItems(label) {
+    const items = [];
+    let el = label.nextElementSibling;
+    while (el && !el.classList.contains('nav-group-label')) {
+      items.push(el);
+      el = el.nextElementSibling;
+    }
+    return items;
+  }
+  function setNavGroupCollapsed(label, collapsed) {
+    label.classList.toggle('collapsed', collapsed);
+    label.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    navGroupItems(label).forEach(function (el) {
+        el.classList.toggle('nav-collapsed', collapsed);
+    });
+    refreshNavGroupAlerts();
+  }
+  function refreshNavGroupAlerts() {
+    document.querySelectorAll('#sidebarNav .nav-group-label').forEach(function (label) {
+      const alert = label.classList.contains('collapsed') && navGroupItems(label).some(function (el) {
+        if (el.style.display === 'none') return false;
+        return Array.from(el.querySelectorAll('.nav-badge, .nav-dot')).some(function (b) {
+            return b.style.display !== 'none';
+        });
+      });
+      label.classList.toggle('has-alert', alert);
+    });
+  }
+  function initNavGroups() {
+    const collapsed = (uiStore('navCollapsed') || '').split('|').filter(Boolean);
+    document.querySelectorAll('#sidebarNav .nav-group-label').forEach(function (label) {
+      const name = label.textContent.trim();
+      label.setAttribute('role', 'button');
+      label.tabIndex = 0;
+      label.insertAdjacentHTML('beforeend', '<svg class="nav-group-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>');
+      const toggle = function () {
+        setNavGroupCollapsed(label, !label.classList.contains('collapsed'));
+        const names = Array.from(document.querySelectorAll('#sidebarNav .nav-group-label.collapsed')).map(function (l) {
+            return l.textContent.trim();
+        });
+        uiStore('navCollapsed', names.join('|'));
+      };
+      label.addEventListener('click', toggle);
+      label.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggle();
+        }
+      });
+      if (collapsed.indexOf(name) !== -1) setNavGroupCollapsed(label, true);
+    });
+    new MutationObserver(refreshNavGroupAlerts).observe(document.getElementById('sidebarNav'), { attributes: true, attributeFilter: ['style'], subtree: true });
+  }
+  function revealNavItem(view) {
+    const item = document.querySelector('#sidebarNav .nav-item[data-view="' + view + '"]');
+    if (!item || !item.classList.contains('nav-collapsed')) return;
+    let label = item.previousElementSibling;
+    while (label && !label.classList.contains('nav-group-label')) label = label.previousElementSibling;
+    if (label) setNavGroupCollapsed(label, false);
+  }
+  enhancePanelHeads();
+  initViewTabs();
+  initNavGroups();
   window.addEventListener('scroll', function () {
     const header = document.querySelector('.content-header');
     if (header) header.classList.toggle('scrolled', window.scrollY > 8);

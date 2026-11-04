@@ -15,8 +15,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="admin.css?v=20261104f">
-<link rel="stylesheet" href="glass.css?v=20261104f">
+<link rel="stylesheet" href="admin.css?v=20261104h">
+<link rel="stylesheet" href="glass.css?v=20261104h">
 </head>
 <body>
 <canvas id="snowCanvas"></canvas>
@@ -84,7 +84,7 @@
       <button type="button" class="nav-item" data-view="linkFilter" data-requires="management" style="display:none;"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>Link Filter</button>
       <div class="nav-group-label">Creators</div>
       <button type="button" class="nav-item" data-view="partnerLogs" data-requires="management" style="display:none;"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg></span>Creators<span class="nav-dot" id="navDotPartnerLogs" style="display:none;"></span></button>
-      <button type="button" class="nav-item" data-view="partnerRankup" data-requires="highStaff" style="display:none;"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></svg></span>Partner Rankup Requests<span class="nav-badge" id="badgePartnerRankup" style="display:none;">0</span><span class="nav-dot" id="navDotPartnerRankup" style="display:none;"></span></button>
+      <button type="button" class="nav-item" data-view="partnerRankup" data-requires="highStaff" style="display:none;"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></svg></span>Partner Rankups<span class="nav-badge" id="badgePartnerRankup" style="display:none;">0</span><span class="nav-dot" id="navDotPartnerRankup" style="display:none;"></span></button>
       <button type="button" class="nav-item" data-view="partnerData" data-requires="owner" style="display:none;"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>Partner Data</button>
       <button type="button" class="nav-item" data-view="partnerAssets" data-requires="management" style="display:none;"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>Partner Assets</button>
       <button type="button" class="nav-item" data-view="partnerPage" data-requires="management" style="display:none;"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></span>Partner Page</button>
@@ -194,7 +194,7 @@
 
     <div class="view" id="view-members">
       <div class="panel">
-        <div class="panel-head"><h2>Search members</h2></div>
+        <div class="panel-head"><h2>Search members</h2><span class="panel-sub">Results show up as you type · Enter searches everything</span></div>
         <div class="search-row">
           <input type="text" id="memberSearchInput" class="text-input" placeholder="Username or Discord ID..." autocomplete="off"/>
           <button type="button" class="btn-primary" id="memberSearchBtn">Search</button>
@@ -229,9 +229,23 @@
       </div>
     </div>
 
-    <div class="view" id="view-staff">
-      <div class="panel" data-requires="highStaff" style="display:none;">
-        <div class="panel-head"><h2>Ticket claim limits</h2><span class="panel-sub">How many tickets each rank can hold at once. Senior Staff and above are never limited. Pause the limits when the queue is overloaded — they come back on their own when the time runs out.</span></div>
+    <div class="view" id="view-staff" data-tabs>
+      <div class="panel" data-tab="Team">
+        <div class="panel-head">
+          <h2>Current staff team</h2>
+          <div class="filter-pills" id="staffSortMode">
+            <button type="button" class="filter-pill active" data-sort="activity">Activity</button>
+            <button type="button" class="filter-pill" data-sort="rank">Rank</button>
+          </div>
+          <button type="button" class="btn-small sort-toggle-btn" id="staffSortToggle" data-dir="desc">Highest first <span class="sort-arrow">↓</span></button>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table" id="staffTable"></table>
+        </div>
+      </div>
+      <div class="panel" data-requires="highStaff" data-tab="Claim limits" style="display:none;">
+        <div class="panel-head"><h2>Ticket claim limits</h2><span class="panel-sub">Max tickets each rank can hold at once</span></div>
+        <p class="panel-help">Senior Staff and above are never limited. Pause the limits when the queue is overloaded — they come back on their own when the time runs out.</p>
         <div class="scamfilter-status" id="claimLimitsStatus"></div>
         <div class="autoreply-form">
           <div class="form-field-row" id="claimLimitsFields"></div>
@@ -254,26 +268,13 @@
           </div>
         </div>
       </div>
-      <div class="panel">
-        <div class="panel-head">
-          <h2>Current staff team</h2>
-          <div class="filter-pills" id="staffSortMode">
-            <button type="button" class="filter-pill active" data-sort="activity">Activity</button>
-            <button type="button" class="filter-pill" data-sort="rank">Rank</button>
-          </div>
-          <button type="button" class="btn-small sort-toggle-btn" id="staffSortToggle" data-dir="desc">Highest first <span class="sort-arrow">↓</span></button>
-        </div>
-        <div class="table-wrap">
-            <table class="data-table" id="staffTable"></table>
-        </div>
-      </div>
     </div>
 
     <div class="view" id="view-staffActivity">
       <div class="panel">
         <div class="panel-head">
           <h2>Staff activity</h2>
-          <span class="panel-sub">Who's inactive, for how long, and whether they've excused it</span>
+          <span class="panel-sub">Inactive staff and their excuses</span>
           <div class="filter-pills" id="staffActivityFilter">
             <button type="button" class="filter-pill active" data-filter="inactive">Inactive</button>
             <button type="button" class="filter-pill" data-filter="all">All staff</button>
@@ -335,7 +336,8 @@
 
     <div class="view" id="view-trials">
       <div class="panel">
-        <div class="panel-head"><h2>Waiting for a decision</h2><span class="panel-sub">Trials that met every goal, or whose time ran out. Promote, extend once by 7 days, or end the trial (the player can apply again in 30 days).</span></div>
+        <div class="panel-head"><h2>Waiting for a decision</h2><span class="panel-sub">Every goal met, or time ran out</span></div>
+        <p class="panel-help">Promote, extend once by 7 days, or end the trial. An ended trial can apply again in 30 days.</p>
         <div id="trialsRequests" class="tr-list"></div>
       </div>
       <div class="panel">
@@ -348,18 +350,16 @@
       </details>
     </div>
 
-    <div class="view" id="view-staffApps">
-      <div class="panel">
-        <div class="panel-head"><h2>Recruitment</h2><span class="panel-sub">Switch a position off when it's full — closed positions can't be applied for on the website</span></div>
-        <div id="recruitmentList" class="recruitment-list"></div>
-      </div>
-      <div class="panel">
+    <div class="view" id="view-staffApps" data-tabs>
+      <div class="panel" data-tab="Applications">
         <div class="panel-head">
           <h2>Staff applications</h2>
           <div class="filter-pills" id="staffAppsFilter">
             <button type="button" class="filter-pill active" data-status="pending">Pending</button>
             <button type="button" class="filter-pill" data-status="">All</button>
           </div>
+        </div>
+        <div class="panel-toolbar">
           <div class="filter-pills" id="staffAppsRoleFilter">
             <button type="button" class="filter-pill active" data-role="">All roles</button>
             <button type="button" class="filter-pill" data-role="staff">Staff</button>
@@ -372,6 +372,10 @@
           </div>
         </div>
         <div id="staffAppsList" class="app-list"></div>
+      </div>
+      <div class="panel" data-tab="Recruitment">
+        <div class="panel-head"><h2>Recruitment</h2><span class="panel-sub">Closed positions can't be applied for on the website</span></div>
+        <div id="recruitmentList" class="recruitment-list"></div>
       </div>
     </div>
 
@@ -390,22 +394,16 @@
       </div>
     </div>
 
-    <div class="view" id="view-partnerLogs">
-      <div class="panel">
-        <div class="panel-head">
-          <h2>Creators</h2>
-        </div>
-        <p style="color:var(--muted);font-size:12.5px;margin:-6px 0 14px;">Media creator signups, most recent first.</p>
+    <div class="view" id="view-partnerLogs" data-tabs>
+      <div class="panel" data-tab="Creators">
+        <div class="panel-head"><h2>Creators</h2><span class="panel-sub">Media creator signups, newest first</span></div>
         <div class="search-row">
           <input type="text" id="creatorsSearchInput" class="text-input" placeholder="Search by username or Discord ID..." autocomplete="off"/>
         </div>
         <div id="partnerLogsList" class="app-list"></div>
       </div>
-      <div class="panel">
-        <div class="panel-head">
-          <h2>Blocked code words</h2>
-        </div>
-        <p style="color:var(--muted);font-size:12.5px;margin:-6px 0 14px;">Any code containing one of these (as a substring, case-insensitive) is rejected on signup.</p>
+      <div class="panel" data-tab="Blocked code words">
+        <div class="panel-head"><h2>Blocked code words</h2><span class="panel-sub">Codes containing any of these are rejected on signup</span></div>
         <div class="search-row">
           <input type="text" id="bannedWordInput" class="text-input" placeholder="Add a word..." autocomplete="off" maxlength="40"/>
           <button type="button" class="btn-primary" id="bannedWordAddBtn"><span class="btn-spinner"></span><span class="btn-label">Add</span></button>
@@ -431,6 +429,8 @@
       <div class="panel">
         <div class="panel-head">
           <h2>Scam database</h2>
+        </div>
+        <div class="panel-toolbar">
           <div class="filter-pills" id="scamsFilter">
             <button type="button" class="filter-pill active" data-type="">All</button>
             <button type="button" class="filter-pill" data-type="auto">Auto-mod</button>
@@ -438,6 +438,7 @@
             <button type="button" class="filter-pill" data-type="report">Reported</button>
             <button type="button" class="filter-pill" data-type="filter">Scam filter</button>
             <button type="button" class="filter-pill" data-type="attachment_only">Attachment-only</button>
+            <button type="button" class="filter-pill" data-type="scam_link">Scam links</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -446,75 +447,105 @@
       </div>
     </div>
 
-    <div class="view" id="view-scamFilter">
-      <div class="panel">
-        <div class="panel-head"><h2>Scam filter</h2><span class="panel-sub">Learns from scam reports, /scam removals and the image auto-mod, then deletes new messages that look like them. Every deletion goes to the automod channel with review buttons, and marking one as wrong teaches the filter.</span></div>
+    <div class="view" id="view-scamFilter" data-tabs>
+      <div class="panel" data-tab="Settings">
+        <div class="panel-head"><h2>Scam filter</h2><span class="panel-sub">Learns from reports and deletes look-alike scam messages</span></div>
+        <p class="panel-help">Learns from scam reports, /scam removals and the image auto-mod, then deletes new messages that look like them. Every deletion goes to the automod channel with review buttons, and marking one as wrong teaches the filter.</p>
         <div class="scamfilter-stats" id="scamFilterStats"></div>
         <div class="scamfilter-status" id="scamFilterStatus"></div>
-        <div class="autoreply-form" id="scamFilterSettings">
-          <div class="form-field-row">
-            <div class="form-field">
-              <label>Delete when scam probability is at least <span class="optional-tag">(%)</span></label>
-              <input type="number" id="scamFilterThreshold" class="text-input" min="50" max="99" step="1"/>
+        <div id="scamFilterSettings" class="settings-groups">
+          <section class="settings-group">
+            <h3>Filter</h3>
+            <div class="switch-list">
+              <label class="check-row"><input type="checkbox" id="scamFilterEnabled"/><span>Filter enabled</span></label>
+              <label class="check-row"><input type="checkbox" id="scamFilterTimeout"/><span>Also time out the sender for 24 h</span></label>
             </div>
-            <div class="form-field">
-              <label>Delete when similar to a reported scam <span class="optional-tag">(%)</span></label>
-              <input type="number" id="scamFilterSimilarity" class="text-input" min="30" max="100" step="1"/>
+          </section>
+          <section class="settings-group">
+            <h3>Detection</h3>
+            <div class="form-field-row">
+              <div class="form-field">
+                <label>Delete at scam probability <span class="optional-tag">(%)</span></label>
+                <input type="number" id="scamFilterThreshold" class="text-input" min="50" max="99" step="1"/>
+              </div>
+              <div class="form-field">
+                <label>Delete at similarity to a reported scam <span class="optional-tag">(%)</span></label>
+                <input type="number" id="scamFilterSimilarity" class="text-input" min="30" max="100" step="1"/>
+              </div>
+              <div class="form-field">
+                <label>Learned examples before probability deletes</label>
+                <input type="number" id="scamFilterMinSamples" class="text-input" min="1" max="500" step="1"/>
+              </div>
+              <div class="form-field">
+                <label>Minimum words in a message</label>
+                <input type="number" id="scamFilterMinTokens" class="text-input" min="1" max="30" step="1"/>
+              </div>
             </div>
-          </div>
-          <div class="form-field-row">
-            <div class="form-field">
-              <label>Learned examples needed before probability deletes</label>
-              <input type="number" id="scamFilterMinSamples" class="text-input" min="1" max="500" step="1"/>
+          </section>
+          <section class="settings-group">
+            <h3>Attachment-only messages</h3>
+            <div class="form-field-row">
+              <div class="form-field">
+                <label>Delete on sight at this many attachments</label>
+                <input type="number" id="scamFilterAttachmentOnlyMinCount" class="text-input" min="2" max="20" step="1"/>
+              </div>
             </div>
-            <div class="form-field">
-              <label>Minimum words in a message to check it</label>
-              <input type="number" id="scamFilterMinTokens" class="text-input" min="1" max="30" step="1"/>
+            <div class="switch-list">
+              <label class="check-row"><input type="checkbox" id="scamFilterDeleteAttachmentOnly"/><span>Delete messages with only attachments and no text once they reach that count</span></label>
+              <label class="check-row"><input type="checkbox" id="scamFilterKnownFilename"/><span>Below that count, delete when a filename matches the scam database (can hit single images)</span></label>
             </div>
-          </div>
-          <div class="form-field-row">
-            <div class="form-field">
-              <label>Pause after this many wrong deletions in 24 h</label>
-              <input type="number" id="scamFilterPauseAfter" class="text-input" min="1" max="50" step="1"/>
+          </section>
+          <section class="settings-group">
+            <h3>Safety</h3>
+            <div class="form-field-row">
+              <div class="form-field">
+                <label>Pause after this many wrong deletions in 24 h</label>
+                <input type="number" id="scamFilterPauseAfter" class="text-input" min="1" max="50" step="1"/>
+              </div>
             </div>
-          </div>
-          <div class="form-field-row">
-            <div class="form-field">
-              <label>Attachment-only: delete on sight at this many attachments</label>
-              <input type="number" id="scamFilterAttachmentOnlyMinCount" class="text-input" min="2" max="20" step="1"/>
-            </div>
-          </div>
-          <div class="autoreply-options">
-            <label class="check-row"><input type="checkbox" id="scamFilterEnabled"/><span>Filter enabled</span></label>
-            <label class="check-row"><input type="checkbox" id="scamFilterTimeout"/><span>Also time out the sender for 24 h</span></label>
-            <label class="check-row"><input type="checkbox" id="scamFilterDeleteAttachmentOnly"/><span>Delete messages that are only attachments with no text once they reach the count above</span></label>
-            <label class="check-row"><input type="checkbox" id="scamFilterKnownFilename"/><span>Also delete attachment-only messages below that count when a filename matches the scam database (can hit single images)</span></label>
-          </div>
-          <div class="autoreply-form-actions">
+          </section>
+          <div class="autoreply-form-actions settings-actions">
             <button type="button" class="btn-primary" id="scamFilterSaveBtn"><span class="btn-spinner"></span><span class="btn-label">Save settings</span></button>
             <button type="button" class="btn-small" id="scamFilterResumeBtn" style="display:none;">Resume filter</button>
             <button type="button" class="btn-small" id="scamFilterResumeAttachmentOnlyBtn" style="display:none;">Resume attachment-only rule</button>
           </div>
         </div>
       </div>
-      <div class="panel">
-        <div class="panel-head"><h2>Test a message</h2><span class="panel-sub">Paste any text to see what the filter would do with it right now.</span></div>
+      <div class="panel" data-tab="Scam links">
+        <div class="panel-head"><h2>Scam links</h2><span class="panel-sub">Messages with these links are deleted right away</span></div>
+        <p class="panel-help">Add a domain (scam-site.com) to block it with every subdomain and path, or a full link (discord.gg/abc123) to block only that link. Edited messages are checked too, staff are never filtered. Deletions go to the automod channel and the Scam Database, and the sender is timed out when "Also time out the sender" is on.</p>
+        <div class="sl-top">
+          <label class="check-row"><input type="checkbox" id="scamLinksEnabled"/><span>Delete messages with blocked links</span></label>
+          <span class="sl-count" id="scamLinksCount"></span>
+        </div>
+        <div class="sl-add">
+          <textarea id="scamLinksInput" class="text-input" rows="2" placeholder="steamcommunlty.com&#10;discord.gg/fake-nitro"></textarea>
+          <button type="button" class="btn-primary" id="scamLinksAddBtn"><span class="btn-spinner"></span><span class="btn-label">Add links</span></button>
+        </div>
+        <p class="sl-hint">One per line, or separated by spaces or commas. http://, https:// and www. are removed automatically.</p>
+        <input type="search" id="scamLinksSearch" class="text-input sl-search" placeholder="Search blocked links…" autocomplete="off"/>
+        <div class="sl-list" id="scamLinksList"></div>
+      </div>
+      <div class="panel" data-tab="Test a message">
+        <div class="panel-head"><h2>Test a message</h2><span class="panel-sub">See what the filter would do with any text right now</span></div>
         <div class="form-field">
           <textarea id="scamFilterTestText" class="text-input" placeholder="Free nitro giveaway, claim here: https://..."></textarea>
         </div>
         <div class="autoreply-form-actions">
-          <button type="button" class="btn-small" id="scamFilterTestBtn">Score message</button>
+          <button type="button" class="btn-primary" id="scamFilterTestBtn">Score message</button>
           <span id="scamFilterTestResult" class="scamfilter-test-result"></span>
         </div>
       </div>
-      <div class="panel">
-        <div class="panel-head"><h2>Recent deletions</h2><span class="panel-sub">Same review as the buttons in Discord. Wrong marks add the message to the safe list and can pause the filter.</span></div>
+      <div class="panel" data-tab="Recent deletions">
+        <div class="panel-head"><h2>Recent deletions</h2><span class="panel-sub">Same review as the buttons in Discord</span></div>
+        <p class="panel-help">Marking a deletion as wrong adds the message to the safe list and can pause the filter.</p>
         <div class="table-wrap">
             <table class="data-table" id="scamFilterRecentTable"></table>
         </div>
       </div>
-      <div class="panel">
-        <div class="panel-head"><h2>Learned examples</h2><span class="panel-sub">Every scam report, manual removal and confirmed deletion with text is an example. Ignore one if it was a false report.</span></div>
+      <div class="panel" data-tab="Learned examples">
+        <div class="panel-head"><h2>Learned examples</h2><span class="panel-sub">Ignore an example if it came from a false report</span></div>
+        <p class="panel-help">Every scam report, manual removal and confirmed deletion with text becomes an example the filter learns from.</p>
         <div class="table-wrap">
             <table class="data-table" id="scamFilterSamplesTable"></table>
         </div>
@@ -523,7 +554,7 @@
 
     <div class="view" id="view-statusPage">
       <div class="panel">
-        <div class="panel-head"><h2>Status page</h2><span class="panel-sub">Sets what frostclient.eu/status shows. Changes go live the moment you click Update — no more editing the JSON by hand.</span></div>
+        <div class="panel-head"><h2>Status page</h2><span class="panel-sub">What frostclient.eu/status shows · live on Update</span></div>
         <div class="scamfilter-status" id="statusPageMeta"></div>
         <div class="table-wrap">
             <table class="data-table" id="statusPageTable"></table>
@@ -536,20 +567,21 @@
 
     <div class="view" id="view-liteBoosts">
       <div class="panel">
-        <div class="panel-head"><h2>Lite boosts</h2><span class="panel-sub">How many server boosts unlock FrostClient Lite. Saving updates the booster-perks and Lite-download embeds on Discord automatically. Use Send embeds if they haven't been posted by the bot yet.</span></div>
+        <div class="panel-head"><h2>Lite boosts</h2><span class="panel-sub">Server boosts needed to unlock FrostClient Lite</span></div>
+        <p class="panel-help">Saving updates the booster-perks and Lite-download embeds on Discord automatically. Use Send embeds if the bot hasn't posted them yet.</p>
         <div class="scamfilter-status" id="liteBoostsMeta"></div>
         <div class="autoreply-form-actions">
-          <span class="panel-sub">Boosts required</span>
-          <input type="number" class="text-input" id="liteBoostsInput" min="1" max="20" step="1" style="width:110px;"/>
+          <label class="inline-field"><span>Boosts required</span><input type="number" class="text-input" id="liteBoostsInput" min="1" max="20" step="1" style="width:110px;"/></label>
           <button type="button" class="btn-primary" id="liteBoostsSaveBtn"><span class="btn-spinner"></span><span class="btn-label">Save</span></button>
-          <button type="button" class="btn-primary" id="liteBoostsSendBtn"><span class="btn-spinner"></span><span class="btn-label">Send embeds</span></button>
+          <button type="button" class="btn-secondary" id="liteBoostsSendBtn"><span class="btn-spinner"></span><span class="btn-label">Send embeds</span></button>
         </div>
       </div>
     </div>
 
-    <div class="view" id="view-launcherBans">
-      <div class="panel">
-        <div class="panel-head"><h2><svg class="heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Appeals<span class="nav-badge lb-appeal-badge" id="lbAppealsBadge" style="display:none;">0</span></h2><span class="panel-sub">Banned players appeal on the website with their Ban ID. Deny keeps the ban and starts a 7-day wait before the next appeal for that ban. Unban lifts the ban right away.</span></div>
+    <div class="view" id="view-launcherBans" data-tabs>
+      <div class="panel" data-tab="Appeals" data-tab-badge="lbAppealsBadge">
+        <div class="panel-head"><h2><svg class="heading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Appeals<span class="nav-badge lb-appeal-badge" id="lbAppealsBadge" style="display:none;">0</span></h2><span class="panel-sub">Appeals sent from the website with a Ban ID</span></div>
+        <p class="panel-help">Deny keeps the ban and starts a 7-day wait before the next appeal for that ban. Unban lifts the ban right away.</p>
         <div class="scamfilter-status" id="lbAppealsMeta"></div>
         <div id="lbAppealsPending" class="lb-results"></div>
         <details class="lb-history" id="lbAppealsHistoryWrap" style="display:none;">
@@ -557,8 +589,9 @@
           <div id="lbAppealsHistory" class="lb-results"></div>
         </details>
       </div>
-      <div class="panel">
-        <div class="panel-head"><h2>Find a player</h2><span class="panel-sub">Search by Discord ID or name, hardware ID (or its first characters), IP address, Minecraft name or UUID. Banning a Discord account also bans every PC and Minecraft account it has used, and a banned PC bans every Discord account that signs in on it.</span></div>
+      <div class="panel" data-tab="Find a player">
+        <div class="panel-head"><h2>Find a player</h2><span class="panel-sub">Discord, hardware ID, IP, Minecraft name or UUID</span></div>
+        <p class="panel-help">A hardware ID also matches by its first characters. Banning a Discord account also bans every PC and Minecraft account it has used, and a banned PC bans every Discord account that signs in on it.</p>
         <div class="search-row">
           <input type="text" id="lbSearchInput" class="text-input" placeholder="Discord ID, HWID, IP, Minecraft name or UUID..." autocomplete="off"/>
           <button type="button" class="btn-primary" id="lbSearchBtn"><span class="btn-spinner"></span><span class="btn-label">Search</span></button>
@@ -566,8 +599,9 @@
         </div>
         <div id="lbResults" class="lb-results"></div>
       </div>
-      <div class="panel">
-        <div class="panel-head"><h2>Launcher bans</h2><span class="panel-sub">Banned players can't use the launcher, download Frost files or start FrostCore. Bans also live in the LauncherBans sheet, so rows added there by hand show up here within two minutes.</span></div>
+      <div class="panel" data-tab="All bans">
+        <div class="panel-head"><h2>Launcher bans</h2><span class="panel-sub">No launcher, no Frost downloads, no FrostCore</span></div>
+        <p class="panel-help">Bans also live in the LauncherBans sheet, so rows added there by hand show up here within two minutes.</p>
         <div class="scamfilter-status" id="lbMeta"></div>
         <div class="table-wrap">
           <table class="data-table" id="lbTable"></table>
@@ -577,7 +611,8 @@
 
     <div class="view" id="view-linkFilter">
       <div class="panel">
-        <div class="panel-head"><h2>Blocked links</h2><span class="panel-sub">Pick a channel and list the domains that aren't allowed there. The bot deletes any message with a link to them (subdomains included) and logs it to Action Logs and the automod channel. Members who can manage messages are never filtered.</span></div>
+        <div class="panel-head"><h2>Blocked links</h2><span class="panel-sub">Domains that aren't allowed per channel</span></div>
+        <p class="panel-help">The bot deletes any message with a link to these domains (subdomains included) and logs it to Action Logs and the automod channel. Members who can manage messages are never filtered.</p>
         <div class="scamfilter-status" id="linkFilterMeta"></div>
         <div id="linkFilterRules"></div>
         <div class="autoreply-form-actions">
@@ -585,7 +620,8 @@
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head"><h2>Alert messages</h2><span class="panel-sub">When a channel has alerts on, the bot posts one of these at random after deleting the message, then removes it after 10 seconds. One message per line. Use {user}, {domain} and {channel}.</span></div>
+        <div class="panel-head"><h2>Alert messages</h2><span class="panel-sub">One per line · {user}, {domain}, {channel}</span></div>
+        <p class="panel-help">When a channel has alerts on, the bot posts one of these at random after deleting the message, then removes it after 10 seconds.</p>
         <div class="form-field">
           <textarea id="linkFilterReplies" class="text-input linkfilter-replies" rows="7"></textarea>
         </div>
@@ -598,7 +634,8 @@
 
     <div class="view" id="view-partnerAssets">
       <div class="panel">
-        <div class="panel-head"><h2>Partner Assets</h2><span class="panel-sub">Files every partner and media creator sees on the Assets page of their dashboard. Upload, replace, rename or delete them here. A file with "banner" in its name stays locked for media creators until they reach the order goal.</span></div>
+        <div class="panel-head"><h2>Partner Assets</h2><span class="panel-sub">Files on the Assets page of each creator's dashboard</span></div>
+        <p class="panel-help">Upload, replace, rename or delete files here. A file with "banner" in its name stays locked for media creators until they reach the order goal.</p>
         <div class="pa-layout">
           <div class="pa-side">
             <input type="search" class="text-input" id="paSearch" placeholder="Search name, username, code or ID" autocomplete="off"/>
@@ -611,28 +648,30 @@
       </div>
     </div>
 
-    <div class="view" id="view-partnerData">
-      <div class="panel">
-        <div class="panel-head"><h2>Partners</h2><span class="panel-sub">Creator rows the bot uses for /partner login and the account popup. Edit a row and click Save, or add a new creator at the bottom. Media signups, staff grants and code changes from the site land here automatically.</span></div>
+    <div class="view" id="view-partnerData" data-tabs>
+      <div class="panel" data-tab="Partners">
+        <div class="panel-head"><h2>Partners</h2><span class="panel-sub">Edit a row and Save, or add a creator at the bottom</span></div>
+        <p class="panel-help">Creator rows the bot uses for /partner login and the account popup. Media signups, staff grants and code changes from the site land here automatically.</p>
         <div class="scamfilter-status" id="partnerDataMeta"></div>
         <div class="table-wrap">
             <table class="data-table" id="partnerDataTable"></table>
         </div>
       </div>
-      <div class="panel">
-        <div class="panel-head"><h2>Whop claims</h2><span class="panel-sub">Which Whop customer each Discord account claimed Lite under. Written automatically on checkout; read-only here.</span></div>
+      <div class="panel" data-tab="Whop claims">
+        <div class="panel-head"><h2>Whop claims</h2><span class="panel-sub">Whop customer behind each Lite claim · read-only</span></div>
         <div class="table-wrap">
             <table class="data-table" id="whopClaimsTable"></table>
         </div>
       </div>
-      <div class="panel">
-        <div class="panel-head"><h2>Partner orders</h2><span class="panel-sub">First orders per Whop customer that used a creator code. Written automatically by the Whop webhook; read-only here.</span></div>
+      <div class="panel" data-tab="Orders">
+        <div class="panel-head"><h2>Partner orders</h2><span class="panel-sub">First orders that used a creator code · read-only</span></div>
         <div class="table-wrap">
             <table class="data-table" id="partnerOrdersTable"></table>
         </div>
       </div>
-      <div class="panel">
-        <div class="panel-head"><h2>Google Sheets sync</h2><span class="panel-sub">Google Sheets stays the source of truth. The bot pulls all three tabs every 10 minutes and on startup; every edit you save here is written to the sheet first and only then kept by the bot. Use Sync now after editing the sheet by hand.</span></div>
+      <div class="panel" data-tab="Sheets sync">
+        <div class="panel-head"><h2>Google Sheets sync</h2><span class="panel-sub">Use Sync now after editing the sheet by hand</span></div>
+        <p class="panel-help">Google Sheets stays the source of truth. The bot pulls all three tabs every 10 minutes and on startup; every edit saved here is written to the sheet first.</p>
         <div class="scamfilter-status" id="partnerSyncMeta"></div>
         <div class="autoreply-form-actions">
           <button type="button" class="btn-primary" id="partnerSyncBtn"><span class="btn-spinner"></span><span class="btn-label">Sync now</span></button>
@@ -642,45 +681,45 @@
 
     <div class="view" id="view-logs">
       <div class="panel">
-        <div class="panel-head"><h2>Dashboard action log</h2><span class="panel-sub">Actions taken from this console, plus select automod actions</span></div>
+        <div class="panel-head"><h2>Dashboard action log</h2><span class="panel-sub">Actions from this console and select automod actions</span></div>
         <div class="table-wrap">
             <table class="data-table" id="logsTable"></table>
         </div>
       </div>
     </div>
 
-    <div class="view" id="view-excuses">
-      <div class="panel">
-        <div class="panel-head">
-          <h2>Your excuses</h2>
-          <span class="panel-sub">History of excuses you've submitted</span>
-          <button type="button" class="btn-small" id="writeExcuseBtn2" style="margin-left:auto;">Write an excuse</button>
-        </div>
-        <div class="table-wrap">
-            <table class="data-table" id="myExcusesTable"></table>
-        </div>
-      </div>
-      <div id="excusesAllPanel" style="display:none;">
+    <div class="view" id="view-excuses" data-tabs>
+      <div id="excusesAllPanel" data-tab="All excuses" style="display:none;">
         <div class="panel">
           <div class="panel-head"><h2>All excuses</h2><span class="panel-sub">Submitted by staff after being flagged inactive</span></div>
           <div id="excusesList" class="app-list"></div>
         </div>
       </div>
-    </div>
-
-    <div class="view" id="view-warns">
-      <div class="panel">
-        <div class="panel-head"><h2>Your warnings</h2><span class="panel-sub">Your full warning history</span></div>
+      <div class="panel" data-tab="My excuses">
+        <div class="panel-head">
+          <h2>Your excuses</h2>
+          <span class="panel-sub">Excuses you've submitted</span>
+          <button type="button" class="btn-primary" id="writeExcuseBtn2">Write an excuse</button>
+        </div>
         <div class="table-wrap">
-            <table class="data-table" id="myWarnsTable"></table>
+            <table class="data-table" id="myExcusesTable"></table>
         </div>
       </div>
-      <div id="warnsAllPanel" style="display:none;">
+    </div>
+
+    <div class="view" id="view-warns" data-tabs>
+      <div id="warnsAllPanel" data-tab="All warns" style="display:none;">
         <div class="panel">
           <div class="panel-head"><h2>All warns</h2><span class="panel-sub">Full staff warning log</span></div>
           <div class="table-wrap">
               <table class="data-table" id="warnsAllTable"></table>
           </div>
+        </div>
+      </div>
+      <div class="panel" data-tab="My warnings">
+        <div class="panel-head"><h2>Your warnings</h2><span class="panel-sub">Your full warning history</span></div>
+        <div class="table-wrap">
+            <table class="data-table" id="myWarnsTable"></table>
         </div>
       </div>
     </div>
@@ -727,14 +766,15 @@
       </div>
     </div>
 
-    <div class="view" id="view-partnerPage">
-      <div class="panel">
-        <div class="panel-head"><h2>Partners on the website</h2><span class="panel-sub">Everything here shows up on frostclient.eu/partners right away. Partners with "Show on the homepage" also appear in the homepage strip. Use the arrows to change the order.</span></div>
+    <div class="view" id="view-partnerPage" data-tabs>
+      <div class="panel" data-tab="On the website">
+        <div class="panel-head"><h2>Partners on the website</h2><span class="panel-sub">Live on frostclient.eu/partners · arrows change the order</span></div>
+        <p class="panel-help">Changes show up on frostclient.eu/partners right away. Partners with "Show on the homepage" also appear in the homepage strip.</p>
         <div class="scamfilter-status" id="partnerPageMeta"></div>
         <div class="partner-page-list" id="partnerPageList"></div>
       </div>
-      <div class="panel" id="partnerPageFormPanel">
-        <div class="panel-head"><h2 id="partnerPageFormTitle">Add a partner</h2><span class="panel-sub">Creators and partner servers. Links are optional; only filled ones are shown.</span></div>
+      <div class="panel" id="partnerPageFormPanel" data-tab="Add or edit">
+        <div class="panel-head"><h2 id="partnerPageFormTitle">Add a partner</h2><span class="panel-sub">Links are optional · only filled ones are shown</span></div>
         <div class="form-field-row">
           <div class="form-field">
             <label>Type</label>
@@ -783,15 +823,15 @@
           <button type="button" class="btn-small" id="ppCancelBtn" hidden>Cancel editing</button>
         </div>
       </div>
-      <div class="panel">
-        <div class="panel-head"><h2>Add a creator</h2><span class="panel-sub">Creators from the Discord server and creator signups who aren't on the page yet. Add fills the form above with their name, avatar and link.</span></div>
+      <div class="panel" data-tab="Suggested creators">
+        <div class="panel-head"><h2>Suggested creators</h2><span class="panel-sub">Creators not on the page yet · Add fills the form</span></div>
         <div class="partner-page-candidates" id="partnerPageCandidates"></div>
       </div>
     </div>
 
-    <div class="view" id="view-capeGift">
-      <div class="panel cg-panel">
-        <div class="panel-head"><h2>Create a cloak gift</h2><span class="panel-sub">Generates a store link anyone signed in with Discord can use to claim the cloak</span></div>
+    <div class="view" id="view-capeGift" data-tabs>
+      <div class="panel cg-panel" data-tab="Create gift">
+        <div class="panel-head"><h2>Create a cloak gift</h2><span class="panel-sub">A store link anyone signed in with Discord can claim</span></div>
         <div class="form-field">
           <label>Cloak</label>
           <div class="cape-gift-pick" hidden>
@@ -827,7 +867,7 @@
           <button type="button" class="btn-secondary" id="capeGiftCopyBtn">Copy</button>
         </div>
       </div>
-      <div class="panel">
+      <div class="panel" data-tab="Gift links">
         <div class="panel-head"><h2>Cloak gifts</h2><span class="panel-sub">Claims, expiry and status of every generated gift link</span></div>
         <div class="table-wrap">
           <table class="data-table" id="capeGiftTable"></table>
@@ -877,15 +917,16 @@
       </div>
     </div>
 
-    <div class="view" id="view-autoreplies">
-      <div class="panel">
-        <div class="panel-head"><h2>Built-in auto replies</h2><span class="panel-sub">Staff mark a wrong reply with the red button in Discord. A rule pauses itself once it has 5+ wrong marks and its precision drops under 60 %, or when a new message looks like the ones marked wrong. Mode overrides that.</span></div>
+    <div class="view" id="view-autoreplies" data-tabs>
+      <div class="panel" data-tab="Built-in">
+        <div class="panel-head"><h2>Built-in auto replies</h2><span class="panel-sub">Rules learn from wrong marks in Discord</span></div>
+        <p class="panel-help">Staff mark a wrong reply with the red button in Discord. A rule pauses itself once it has 5+ wrong marks and its precision drops under 60 %, or when a new message looks like the ones marked wrong. Mode overrides that.</p>
         <div class="table-wrap">
             <table class="data-table" id="autoreplyBuiltinTable"></table>
         </div>
       </div>
-      <div class="panel">
-        <div class="panel-head"><h2>Custom auto replies</h2><span class="panel-sub">Keyword-triggered replies, learning applies to them too. Use {user} to mention the member.</span><button type="button" class="btn-small" id="autoreplyNewBtn">+ New reply</button></div>
+      <div class="panel" data-tab="Custom">
+        <div class="panel-head"><h2>Custom auto replies</h2><span class="panel-sub">Keyword replies · {user} mentions the member</span><button type="button" class="btn-primary" id="autoreplyNewBtn">New reply</button></div>
         <div id="autoreplyForm" class="autoreply-form" style="display:none;">
           <div class="form-field-row">
             <div class="form-field">
@@ -916,8 +957,8 @@
             <table class="data-table" id="autoreplyCustomTable"></table>
         </div>
       </div>
-      <div class="panel">
-        <div class="panel-head"><h2>Recent feedback</h2><span class="panel-sub">Latest marks from Discord: wrong reply from staff, solved from the ticket owner</span></div>
+      <div class="panel" data-tab="Feedback">
+        <div class="panel-head"><h2>Recent feedback</h2><span class="panel-sub">Wrong marks from staff, solved marks from ticket owners</span></div>
         <div class="table-wrap">
             <table class="data-table" id="autoreplyFeedbackTable"></table>
         </div>
@@ -1281,6 +1322,6 @@
   </div>
 </div>
 
-<script src="admin.js?v=20261104f"></script>
+<script src="admin.js?v=20261104h"></script>
 </body>
 </html>
