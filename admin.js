@@ -489,7 +489,7 @@
     overview: 'Overview', members: 'Members', leaderboard: 'Leaderboards', staff: 'Staff Team', staffActivity: 'Activity',
     staffApps: 'Staff Applications', partnerLogs: 'Creators', partnerRankup: 'Partner Rankup Requests', reports: 'Bug Reports', scams: 'Scam Database',
     logs: 'Action Logs', excuses: 'Excuses', warns: 'Warns', reviews: 'Reviews', drops: 'Publish Drop', capeGift: 'Cloak Gift', giveaway: 'Publish Giveaway', tickets: 'Tickets',
-    ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies', scamFilter: 'Scam Filter', statusPage: 'Status Page', liteBoosts: 'Lite Boosts', linkFilter: 'Link Filter', launcherBans: 'Launcher Bans', partnerPage: 'Partner Page',
+    ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies', scamFilter: 'Scam Filter', statusPage: 'Status Page', liteBoosts: 'Lite Boosts', linkFilter: 'Link Filter', launcherBans: 'Launcher Bans', partnerPage: 'Partner Page', trials: 'Trials', myTrial: 'My Trial',
     partnerData: 'Partner Data', partnerAssets: 'Partner Assets'
   };
   const VIEW_LOADERS = {
@@ -543,6 +543,12 @@
     },
     launcherBans: function () {
         return Promise.all([loadLauncherAppeals(), loadLauncherBans()]);
+    },
+    trials: function () {
+        return loadTrials();
+    },
+    myTrial: function () {
+        return loadMyTrial();
     },
     partnerData: function () {
         loadPartnerData();
@@ -610,6 +616,7 @@
   let canPublishContent = false;
   let canKickStaff = false;
   let isOwner = false;
+  let hasTrial = false;
   let myUserId = '';
   function updateNavGroupVisibility() {
     const children = Array.from(document.getElementById('sidebarNav').children);
@@ -637,6 +644,9 @@
     document.querySelectorAll('[data-requires="owner"]').forEach(function (el) {
         el.style.display = isOwner ? '' : 'none';
     });
+    document.querySelectorAll('[data-requires="trial"]').forEach(function (el) {
+        el.style.display = hasTrial ? '' : 'none';
+    });
     updateNavGroupVisibility();
   }
   function renderStatGrid(containerId, cards) {
@@ -658,8 +668,13 @@
       canPublishContent = !!d.canPublishContent;
       canKickStaff = !!d.canKickStaff;
       isOwner = !!d.isOwner;
+      hasTrial = !!d.hasTrial;
       myUserId = (d.user && d.user.id) || '';
       applyRolePermissions();
+      if (hasTrial && location.hash === '#trial' && currentView !== 'myTrial') {
+        history.replaceState(null, '', location.pathname + location.search);
+        showView('myTrial');
+      }
       loadReputationLeaderboard(5);
       const userTagEl = document.getElementById('userTag');
       userTagEl.textContent = d.myRank || 'Staff';
@@ -3316,6 +3331,275 @@
     }
     return parts.join('');
   }
+  const TRIAL_VERDICT_LABELS = { good: 'Good', partial: 'With remarks', bad: 'Poor' };
+  const TRIAL_ERRORS = { already_extended: 'This trial was already extended once.', insufficient_rank: 'Your rank is too low to promote this member.', insufficient_permission: 'Only senior staff can do this.', bad_mentor: 'Pick a STAFF+ member who is not on trial.', not_trial: 'This trial is no longer active.', cannot_review_self: "You can't review your own trial." };
+  let trialMentors = [];
+  function trialDate(ms) {
+    return ms ? new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '—';
+  }
+  function trialChecks(p) {
+    return '<ul class="tr-checks">' + p.checks.map(function (c) {
+      return '<li class="' + (c.ok ? 'is-ok' : '') + '"><span class="tr-check-dot" aria-hidden="true"></span><span class="tr-check-label">' + escapeHtml(c.label) + '</span><span class="tr-check-val mono">' + escapeHtml(c.value) + '</span></li>';
+    }).join('') + '</ul>';
+  }
+  function trialTickets(t, active) {
+    const counted = t.tickets.filter(function (x) { return x.counted; });
+    if (!counted.length) return '<p class="tr-empty">No solved tickets yet.</p>';
+    return '<div class="tr-tickets">' + counted.map(function (x) {
+      const verdict = x.verdict ? '<span class="tr-verdict tr-verdict--' + x.verdict + '">' + TRIAL_VERDICT_LABELS[x.verdict] + '</span>' : '<span class="tr-verdict">Not reviewed</span>';
+      const actions = active && !x.verdict ? '<span class="tr-review">' + ['good', 'partial', 'bad'].map(function (v) {
+        return '<button type="button" class="btn-small tr-review-btn" data-id="' + escapeHtml(t.discordId) + '" data-channel="' + escapeHtml(x.channelId) + '" data-verdict="' + v + '">' + TRIAL_VERDICT_LABELS[v] + '</button>';
+      }).join('') + '</span>' : '';
+      return '<div class="tr-ticket"><span class="mono">#' + escapeHtml(x.name) + '</span><span class="tr-sub">' + escapeHtml(formatRelative(x.closedAt)) + ' · ' + x.trialMessages + ' msgs</span>' + verdict + actions + (x.note ? '<div class="tr-note">' + escapeHtml(x.note) + '</div>' : '') + '</div>';
+    }).join('') + '</div>';
+  }
+  function trialCard(t) {
+    const active = t.status === 'active';
+    const p = t.progress;
+    const done = p ? p.checks.filter(function (c) { return c.ok; }).length : 0;
+    const mentorOpts = '<option value="">No mentor</option>' + trialMentors.map(function (m) {
+      return '<option value="' + escapeHtml(m.id) + '"' + (t.mentor && t.mentor.id === m.id ? ' selected' : '') + '>' + escapeHtml(m.name) + '</option>';
+    }).join('');
+    const statusPill = active ? (t.request === 'ready' ? '<span class="pill accepted">ready</span>' : t.request === 'expired' ? '<span class="pill pending">time is up</span>' : '<span class="pill">in trial</span>') : '<span class="pill ' + (t.status === 'promoted' ? 'accepted' : 'denied') + '">' + escapeHtml(t.status) + '</span>';
+    let html = '<article class="tr-card' + (t.request ? ' has-request' : '') + '">' +
+      '<header class="tr-head"><img class="tr-avatar" src="' + avatarUrl(t.discordId, t.avatar || null) + '" alt=""/>' +
+      '<div class="tr-who"><strong>' + escapeHtml(t.displayName || t.username) + '</strong><span class="tr-sub">@' + escapeHtml(t.username) + (t.legacy ? ' · started before the trial system' : '') + '</span></div>' + statusPill + '</header>';
+    if (active && p) {
+      html += '<div class="tr-meta"><div><span>Day</span><strong>' + p.days + '</strong></div><div><span>Ends</span><strong>' + trialDate(p.deadline) + (t.extendedUntil ? ' (extended)' : '') + '</strong></div><div><span>Goals</span><strong>' + done + ' / ' + p.checks.length + '</strong></div>' +
+        '<div class="tr-mentor"><span>Mentor</span><select class="tr-mentor-select" data-id="' + escapeHtml(t.discordId) + '">' + mentorOpts + '</select></div></div>' +
+        '<div class="tr-bar"><span style="width:' + Math.round(done / p.checks.length * 100) + '%"></span></div>' + trialChecks(p);
+      if (t.extendNote) html += '<p class="tr-note"><strong>Extension focus:</strong> ' + escapeHtml(t.extendNote) + '</p>';
+      html += '<details class="tr-more"><summary>Tickets (' + t.tickets.filter(function (x) { return x.counted; }).length + ') · drafts ' + t.drafts.approved + ' sent, ' + t.drafts.returned + ' returned, ' + t.drafts.pending + ' waiting</summary>' + trialTickets(t, true) + '</details>' +
+        '<div class="tr-actions"><button type="button" class="btn-small success tr-decide" data-id="' + escapeHtml(t.discordId) + '" data-decision="promote">Promote to Staff</button>' +
+        '<button type="button" class="btn-small tr-decide" data-id="' + escapeHtml(t.discordId) + '" data-decision="extend"' + (t.extendedUntil ? ' disabled title="Already extended once"' : '') + '>Extend 7 days</button>' +
+        '<button type="button" class="btn-small danger tr-decide" data-id="' + escapeHtml(t.discordId) + '" data-decision="remove">End trial</button></div>';
+    } else {
+      html += '<p class="tr-sub">Started ' + trialDate(t.startedAt) + ' · ' + (t.decidedAt ? 'decided ' + trialDate(t.decidedAt) : '') + (t.decisionNote ? ' · ' + escapeHtml(t.decisionNote) : '') + '</p>';
+    }
+    return html + '</article>';
+  }
+  function loadTrials() {
+    return callAdmin('trials.list', {}).then(function (d) {
+      const reqEl = document.getElementById('trialsRequests');
+      const actEl = document.getElementById('trialsActive');
+      const histEl = document.getElementById('trialsHistory');
+      if (!d || !d.ok) {
+        actEl.innerHTML = '<p class="tr-empty">Could not load trials: ' + escapeHtml((d && d.error) || 'unknown error') + '</p>';
+        return;
+      }
+      trialMentors = d.mentors || [];
+      const r = d.rules;
+      document.getElementById('trialsRules').textContent = 'At least ' + r.minDays + ' days, at most ' + r.maxDays + '. Goals: quiz ' + r.quizPass + '%, ' + r.drafts + ' approved drafts, ' + r.tickets + ' tickets, ' + r.quality + '% quality (' + r.minReviewed + '+ reviewed), ' + r.reps + ' reps, ' + r.activeDaysPerWeek + '+ active days every week, no warnings.';
+      const active = d.trials.filter(function (t) { return t.status === 'active'; });
+      const requests = active.filter(function (t) { return t.request; });
+      const others = active.filter(function (t) { return !t.request; });
+      const past = d.trials.filter(function (t) { return t.status !== 'active'; });
+      reqEl.innerHTML = requests.map(trialCard).join('') || '<p class="tr-empty">Nothing waiting.</p>';
+      actEl.innerHTML = others.map(trialCard).join('') || '<p class="tr-empty">No other active trials.</p>';
+      histEl.innerHTML = past.map(trialCard).join('') || '<p class="tr-empty">No finished trials yet.</p>';
+      document.getElementById('trialsHistorySummary').textContent = 'Finished trials (' + past.length + ')';
+      const badge = document.getElementById('badgeTrials');
+      badge.textContent = requests.length;
+      badge.style.display = requests.length ? '' : 'none';
+      wireTrials();
+    });
+  }
+  function trialResult(r, okText) {
+    if (r && r.ok) {
+      showToast(okText, 'success');
+      loadTrials();
+    } else {
+      showToast(TRIAL_ERRORS[r && r.error] || ('Failed: ' + ((r && r.error) || 'unknown error')), 'error');
+    }
+  }
+  function wireTrials() {
+    document.querySelectorAll('#view-trials .tr-decide').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const id = btn.dataset.id;
+        const decision = btn.dataset.decision;
+        const copy = {
+          promote: ['Promote to Staff?', 'The trial role is removed and they become full Staff. They get a DM.', { tone: 'primary', okLabel: 'Promote', reason: true }],
+          extend: ['Extend the trial by 7 days?', 'Write what they should focus on. They see it in their DM. A trial can be extended only once.', { tone: 'primary', okLabel: 'Extend', reason: true, requireReason: true }],
+          remove: ['End this trial?', 'Their staff roles are removed and they can apply again in 30 days. Your feedback is sent to them.', { okLabel: 'End trial', reason: true, requireReason: true }]
+        }[decision];
+        askConfirm(copy[0], copy[1], copy[2], function (note) {
+          return callAdmin('trials.decide', { discordId: id, decision: decision, note: note }).then(function (r) {
+            trialResult(r, decision === 'promote' ? 'Promoted to Staff.' : decision === 'extend' ? 'Trial extended.' : 'Trial ended.');
+          });
+        });
+      });
+    });
+    document.querySelectorAll('#view-trials .tr-review-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const send = function (note) {
+          return callAdmin('trials.review', { discordId: btn.dataset.id, channelId: btn.dataset.channel, verdict: btn.dataset.verdict, note: note || '' }).then(function (r) { trialResult(r, 'Review saved.'); });
+        };
+        if (btn.dataset.verdict === 'good') return send('');
+        askConfirm('Review: ' + TRIAL_VERDICT_LABELS[btn.dataset.verdict], 'Write short feedback. The trial gets it in their DMs.', { tone: 'primary', okLabel: 'Save review', reason: true, requireReason: true }, send);
+      });
+    });
+    document.querySelectorAll('#view-trials .tr-mentor-select').forEach(function (sel) {
+      sel.addEventListener('change', function () {
+        if (!sel.value) return;
+        callAdmin('trials.setMentor', { discordId: sel.dataset.id, mentorId: sel.value }).then(function (r) { trialResult(r, 'Mentor changed.'); });
+      });
+    });
+  }
+  let mtState = null;
+  let mtSession = null;
+  let mtPicks = {};
+  function mtShow(id) {
+    ['mtLoading', 'mtDash', 'mtQuiz', 'mtResult'].forEach(function (k) { document.getElementById(k).hidden = k !== id; });
+  }
+  function mtEl(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function mtFeedItem(name, date, tagText, tagCls, note) {
+    const row = mtEl('div', 'mt-feed-item');
+    const head = mtEl('div', 'mt-feed-head');
+    head.appendChild(mtEl('strong', '', '#' + name));
+    head.appendChild(mtEl('span', 'tr-sub', trialDate(date)));
+    head.appendChild(mtEl('span', 'tr-verdict' + (tagCls ? ' tr-verdict--' + tagCls : ''), tagText));
+    row.appendChild(head);
+    if (note) row.appendChild(mtEl('p', 'mt-text', note));
+    return row;
+  }
+  function loadMyTrial() {
+    mtShow('mtLoading');
+    return callAdmin('trial.me', {}).then(function (s) {
+      if (!s || !s.ok || s.status !== 'active') {
+        document.getElementById('mtLoading').innerHTML = '<p class="tr-empty">' + escapeHtml(s && s.status === 'promoted' ? 'You finished your trial. Welcome to the Staff Team!' : "You don't have an active trial.") + '</p>';
+        return;
+      }
+      mtState = s;
+      const p = s.progress;
+      document.getElementById('mtDay').textContent = p.days;
+      document.getElementById('mtEnds').textContent = trialDate(p.deadline) + (s.extended ? ' (extended)' : '');
+      document.getElementById('mtGoals').textContent = p.checks.filter(function (c) { return c.ok; }).length + ' of ' + p.checks.length;
+      document.getElementById('mtMentor').textContent = s.mentor ? s.mentor.name : 'Being assigned';
+      const banner = document.getElementById('mtBanner');
+      banner.hidden = !(s.request || s.extendNote);
+      banner.className = 'mt-banner' + (s.request === 'ready' ? ' is-ready' : '');
+      banner.textContent = s.request === 'ready' ? 'You met every goal. Senior staff are deciding on your promotion.' : s.request === 'expired' ? 'Your trial time is up. Senior staff will decide what happens next.' : s.extendNote ? 'Your trial was extended. Focus on: ' + s.extendNote : '';
+      document.getElementById('mtGoalsList').innerHTML = trialChecks(p).replace(/^<ul class="tr-checks">|<\/ul>$/g, '');
+      const q = s.quiz;
+      const qBtn = document.getElementById('mtQuizStart');
+      if (q.passedAt) {
+        document.getElementById('mtQuizText').textContent = 'Passed with ' + q.best + '%. You can claim tickets.';
+        qBtn.style.display = 'none';
+      } else {
+        document.getElementById('mtQuizText').textContent = q.questions + ' questions about how we work as staff. You need ' + q.pass + '% to pass and you can try as many times as you need. Until you pass, you can read tickets but not claim them.' + (q.attempts ? ' Your best so far: ' + q.best + '%.' : '');
+        qBtn.style.display = '';
+        qBtn.textContent = q.session ? 'Continue the quiz' : q.attempts ? 'Try again' : 'Start the quiz';
+      }
+      const tickets = document.getElementById('mtTickets');
+      tickets.innerHTML = '';
+      if (!s.tickets.length) tickets.appendChild(mtEl('p', 'tr-empty', "Tickets you solve show up here with your mentor's review."));
+      s.tickets.forEach(function (t) { tickets.appendChild(mtFeedItem(t.name, t.closedAt, t.verdict ? TRIAL_VERDICT_LABELS[t.verdict] : 'Waiting for review', t.verdict, t.note)); });
+      const drafts = document.getElementById('mtDrafts');
+      drafts.innerHTML = '';
+      if (!s.drafts.length) drafts.appendChild(mtEl('p', 'tr-empty', 'No drafts yet.'));
+      s.drafts.forEach(function (d) { drafts.appendChild(mtFeedItem(d.ticketName, d.createdAt, d.status === 'approved' ? 'Sent' : d.status === 'returned' ? 'Returned' : 'Waiting', d.status === 'approved' ? 'good' : d.status === 'returned' ? 'partial' : '', d.note)); });
+      mtShow('mtDash');
+    });
+  }
+  function mtUpdateCount() {
+    const done = Object.keys(mtPicks).length;
+    document.getElementById('mtQuizCount').textContent = done + ' of ' + mtSession.questions.length + ' answered';
+    document.getElementById('mtQuizSubmit').disabled = done < mtSession.questions.length;
+  }
+  function mtRenderQuiz() {
+    const form = document.getElementById('mtQuizForm');
+    form.innerHTML = '';
+    document.getElementById('mtQuizIntro').textContent = 'Pick the best answer for each question. You need ' + mtState.quiz.pass + '% to pass.';
+    mtSession.questions.forEach(function (q, i) {
+      const fs = mtEl('fieldset', 'mt-question');
+      fs.appendChild(mtEl('legend', '', (i + 1) + '. ' + q.q));
+      q.options.forEach(function (o, k) {
+        const lab = mtEl('label', 'mt-option');
+        const input = document.createElement('input');
+        input.type = 'radio';
+        input.name = q.qid;
+        input.value = o.id;
+        input.addEventListener('change', function () {
+          mtPicks[q.qid] = o.id;
+          mtUpdateCount();
+        });
+        lab.appendChild(input);
+        lab.appendChild(mtEl('span', 'mt-option-key', String.fromCharCode(65 + k)));
+        lab.appendChild(mtEl('span', '', o.text));
+        fs.appendChild(lab);
+      });
+      form.appendChild(fs);
+    });
+    mtUpdateCount();
+    mtShow('mtQuiz');
+  }
+  function mtStartQuiz() {
+    if (mtState.quiz.session) {
+      mtSession = mtState.quiz.session;
+      mtPicks = {};
+      return mtRenderQuiz();
+    }
+    const btn = document.getElementById('mtQuizStart');
+    btn.disabled = true;
+    callAdmin('trial.quizStart', {}).then(function (r) {
+      btn.disabled = false;
+      if (!r || !r.ok) return showToast(r && r.error === 'quiz_unavailable' ? 'The quiz is not available right now.' : "Couldn't start the quiz.", 'error');
+      mtSession = r.session;
+      mtState.quiz.session = r.session;
+      mtPicks = {};
+      mtRenderQuiz();
+    });
+  }
+  function mtSubmitQuiz() {
+    const btn = document.getElementById('mtQuizSubmit');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    callAdmin('trial.quizSubmit', { sessionId: mtSession.id, answers: mtPicks }).then(function (r) {
+      if (!r || !r.ok) {
+        if (r && r.error === 'no_session') return loadMyTrial();
+        btn.disabled = false;
+        return showToast("Couldn't submit your answers. Please try again.", 'error');
+      }
+      mtState.quiz.session = null;
+      const res = document.getElementById('mtResult');
+      res.classList.toggle('is-pass', r.passed);
+      res.classList.toggle('is-fail', !r.passed);
+      document.getElementById('mtScorePct').textContent = r.percent + '%';
+      document.getElementById('mtScoreCount').textContent = r.correct + ' of ' + r.total + ' correct';
+      document.getElementById('mtResultTitle').textContent = r.passed ? 'Quiz passed' : 'Not quite yet';
+      document.getElementById('mtResultText').textContent = r.passed ? 'You can claim tickets now. Go help some players!' : 'You need ' + r.pass + '% to pass. Read the answers below and try again, the next quiz has different questions.';
+      const wrong = document.getElementById('mtWrong');
+      wrong.innerHTML = '';
+      r.wrong.forEach(function (w) {
+        const item = mtEl('div', 'mt-wrong-item');
+        item.appendChild(mtEl('strong', '', w.q));
+        item.appendChild(mtEl('p', 'mt-wrong-picked', 'Your answer: ' + (w.picked || '—')));
+        item.appendChild(mtEl('p', 'mt-wrong-right', 'Correct: ' + w.correct));
+        wrong.appendChild(item);
+      });
+      const actions = document.getElementById('mtResultActions');
+      actions.innerHTML = '';
+      const back = mtEl('button', r.passed ? 'btn-primary' : 'btn-small', 'Back to your trial');
+      back.type = 'button';
+      back.addEventListener('click', loadMyTrial);
+      actions.appendChild(back);
+      if (!r.passed) {
+        const again = mtEl('button', 'btn-primary', 'Try again');
+        again.type = 'button';
+        again.addEventListener('click', mtStartQuiz);
+        actions.appendChild(again);
+      }
+      mtShow('mtResult');
+    });
+  }
+  document.getElementById('mtQuizStart').addEventListener('click', mtStartQuiz);
+  document.getElementById('mtQuizBack').addEventListener('click', function () { mtShow('mtDash'); });
+  document.getElementById('mtQuizSubmit').addEventListener('click', mtSubmitQuiz);
   function loadLauncherBans() {
     return callAdmin('launcherBans.list', {}).then(function (d) {
       const meta = document.getElementById('lbMeta');
