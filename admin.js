@@ -1337,9 +1337,42 @@
   const memberSearchBtn = document.getElementById('memberSearchBtn');
   const memberResults = document.getElementById('memberResults');
 
+  let memberLiveSeq = 0;
+  let memberLiveTimer = null;
+  function renderMemberResults(members) {
+    memberResults.innerHTML = members.map(function (m) {
+        return renderMemberCard(m);
+    }).join('');
+    members.forEach(function (m) {
+        wireMemberActions(m, document.getElementById('member-' + m.id), runMemberSearch);
+    });
+  }
+  memberSearchInput.addEventListener('input', function () {
+    clearTimeout(memberLiveTimer);
+    const q = memberSearchInput.value.trim();
+    if (!q) {
+      memberLiveSeq++;
+      memberResults.innerHTML = '';
+      return;
+    }
+    if (/^\d{17,20}$/.test(q)) return;
+    memberLiveTimer = setTimeout(function () {
+      const my = ++memberLiveSeq;
+      callAdmin('members.suggest', { query: q, full: true }).then(function (d) {
+        if (my !== memberLiveSeq || memberSearchInput.value.trim() !== q || !d || !d.ok || !d.members) return;
+        if (!d.members.length) {
+          memberResults.innerHTML = '<p style="color:var(--muted);font-size:13px;">No members match “' + escapeHtml(q) + '”. Press Enter to search Discord directly.</p>';
+          return;
+        }
+        renderMemberResults(d.members);
+      });
+    }, 180);
+  });
   function runMemberSearch() {
     const query = memberSearchInput.value.trim();
     if (!query) return;
+    clearTimeout(memberLiveTimer);
+    memberLiveSeq++;
     memberResults.innerHTML = '<p style="color:var(--muted);font-size:13px;">Searching…</p>';
     callAdmin('members.search', { query: query }).then(function (d) {
       if (!d || !d.ok) {
@@ -1357,6 +1390,88 @@
           wireMemberActions(m, document.getElementById('member-' + m.id), runMemberSearch);
       });
     });
+  }
+  function attachUserSuggest(input, onPick) {
+    if (!input || input.dataset.suggest) return;
+    input.dataset.suggest = '1';
+    input.setAttribute('autocomplete', 'off');
+    input.setAttribute('aria-autocomplete', 'list');
+    const box = document.createElement('div');
+    box.className = 'user-suggest';
+    box.setAttribute('role', 'listbox');
+    box.hidden = true;
+    document.body.appendChild(box);
+    let items = [];
+    let active = -1;
+    let timer = null;
+    let seq = 0;
+    function place() {
+      const r = input.getBoundingClientRect();
+      box.style.left = r.left + 'px';
+      box.style.top = (r.bottom + 6) + 'px';
+      box.style.width = Math.max(r.width, 260) + 'px';
+    }
+    function hide() {
+      box.hidden = true;
+      active = -1;
+    }
+    function paint() {
+      box.querySelectorAll('.user-suggest-item').forEach(function (el, i) { el.classList.toggle('is-active', i === active); });
+    }
+    function pick(u) {
+      hide();
+      input.value = u.id;
+      onPick(u);
+    }
+    function render() {
+      if (!items.length) {
+        box.innerHTML = '<div class="user-suggest-empty">No members found</div>';
+      } else {
+        box.innerHTML = items.map(function (u, i) {
+          return '<button type="button" class="user-suggest-item" role="option" data-i="' + i + '"><img src="' + avatarUrl(u.id, u.avatar) + '" alt=""/><span class="user-suggest-names"><strong>' + escapeHtml(u.displayName || u.username) + '</strong><span>@' + escapeHtml(u.username) + (u.bot ? ' · bot' : '') + '</span></span><span class="user-suggest-id">' + escapeHtml(u.id) + '</span></button>';
+        }).join('');
+        box.querySelectorAll('.user-suggest-item').forEach(function (el) {
+          el.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            pick(items[Number(el.dataset.i)]);
+          });
+        });
+      }
+      place();
+      box.hidden = false;
+      paint();
+    }
+    input.addEventListener('input', function () {
+      clearTimeout(timer);
+      const q = input.value.trim();
+      if (!q || /^\d{17,20}$/.test(q)) return hide();
+      timer = setTimeout(function () {
+        const my = ++seq;
+        callAdmin('members.suggest', { query: q }).then(function (d) {
+          if (my !== seq || input.value.trim() !== q || document.activeElement !== input) return;
+          items = d && d.ok ? d.users || [] : [];
+          active = items.length ? 0 : -1;
+          render();
+        });
+      }, 120);
+    });
+    input.addEventListener('keydown', function (e) {
+      if (box.hidden || !items.length) return;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        active = (active + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+        paint();
+      } else if (e.key === 'Enter' && active >= 0) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        pick(items[active]);
+      } else if (e.key === 'Escape') {
+        hide();
+      }
+    }, true);
+    input.addEventListener('blur', function () { setTimeout(hide, 120); });
+    window.addEventListener('resize', function () { if (!box.hidden) place(); });
+    window.addEventListener('scroll', function () { if (!box.hidden) place(); }, true);
   }
   memberSearchBtn.addEventListener('click', runMemberSearch);
   memberSearchInput.addEventListener('keydown', function (e) {
@@ -3787,6 +3902,14 @@
       openLbBanModal({});
   });
   document.getElementById('lbSearchBtn').addEventListener('click', runLbSearch);
+  let lbLiveTimer = null;
+  document.getElementById('lbSearchInput').addEventListener('input', function () {
+    clearTimeout(lbLiveTimer);
+    const q = this.value.trim();
+    if (q.length < 3) return;
+    lbLiveTimer = setTimeout(runLbSearch, 400);
+  });
+  attachUserSuggest(document.getElementById('lbBanDiscord'), function () {});
   document.getElementById('lbSearchInput').addEventListener('keydown', function (e) {
       if (e.key === 'Enter') runLbSearch();
   });
@@ -4614,6 +4737,36 @@
     thumb.src = CAPE_GIFT_CAPES_BASE + encodeURIComponent(cape.file);
     thumb.hidden = false;
   }
+  function renderCapeGiftGrid() {
+    const grid = document.getElementById('capeGiftGrid');
+    const q = document.getElementById('capeGiftSearch').value.trim().toLowerCase();
+    const selected = document.getElementById('capeGiftCape').value;
+    const list = (capeGiftCatalog || []).filter(function (c) {
+        return !q || String(c.name || c.id).toLowerCase().indexOf(q) !== -1 || String(c.id).toLowerCase().indexOf(q) !== -1;
+    }).sort(function (a, b) {
+        return String(a.name || a.id).localeCompare(String(b.name || b.id));
+    });
+    if (!list.length) {
+      grid.innerHTML = '<p class="cg-empty">' + (q ? 'No cloaks match “' + escapeHtml(q) + '”.' : 'No cloaks found.') + '</p>';
+      return;
+    }
+    grid.innerHTML = list.map(function (c) {
+      const tags = [c.animated ? 'Animated' : ''].filter(Boolean);
+      return '<button type="button" class="cg-card' + (c.id === selected ? ' is-selected' : '') + '" data-id="' + escapeHtml(c.id) + '" aria-pressed="' + (c.id === selected) + '">' +
+        '<span class="cg-thumb" style="background-image:url(\'' + escapeHtml(CAPE_GIFT_CAPES_BASE + encodeURIComponent(c.file)) + '\')"></span>' +
+        '<span class="cg-name">' + escapeHtml(c.name || c.id) + '</span>' +
+        (tags.length ? '<span class="cg-tags">' + escapeHtml(tags.join(' · ')) + '</span>' : '') +
+        '</button>';
+    }).join('');
+    grid.querySelectorAll('.cg-card').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const select = document.getElementById('capeGiftCape');
+        select.value = btn.dataset.id;
+        select.dispatchEvent(new Event('change'));
+        renderCapeGiftGrid();
+      });
+    });
+  }
   function loadCapeGiftCatalog() {
     if (capeGiftCatalog) return Promise.resolve(capeGiftCatalog);
     const select = document.getElementById('capeGiftCape');
@@ -4625,7 +4778,7 @@
         capeGiftCatalog = Array.isArray(list) ? list.filter(function (c) {
             return c.id !== 'default';
         }) : [];
-        select.innerHTML = '';
+        select.innerHTML = '<option value=""></option>';
         capeGiftCatalog.slice().sort(function (a, b) {
             return String(a.name || a.id).localeCompare(String(b.name || b.id));
         }).forEach(function (c) {
@@ -4634,10 +4787,13 @@
           opt.textContent = (c.name || c.id) + (c.tag === 'hidden' ? ' (hidden)' : '');
           select.appendChild(opt);
         });
+        select.value = '';
         updateCapeGiftThumb();
+        renderCapeGiftGrid();
         return capeGiftCatalog;
       })
       .catch(function () {
+        document.getElementById('capeGiftGrid').innerHTML = '<p class="cg-empty">Could not load cloaks.</p>';
         select.innerHTML = '<option value="">Could not load cloaks</option>';
         capeGiftCatalog = null;
       });
@@ -4690,7 +4846,14 @@
       ta.remove();
     });
   }
-  document.getElementById('capeGiftCape').addEventListener('change', updateCapeGiftThumb);
+  document.getElementById('capeGiftCape').addEventListener('change', function () {
+    updateCapeGiftThumb();
+    const cape = (capeGiftCatalog || []).find(function (c) { return c.id === document.getElementById('capeGiftCape').value; });
+    const label = document.getElementById('capeGiftSelected');
+    label.textContent = cape ? 'Selected: ' + (cape.name || cape.id) : 'No cloak selected';
+    label.classList.toggle('is-set', !!cape);
+  });
+  document.getElementById('capeGiftSearch').addEventListener('input', renderCapeGiftGrid);
   document.getElementById('capeGiftUnlimited').addEventListener('change', function () {
       document.getElementById('capeGiftMax').disabled = this.checked;
   });
