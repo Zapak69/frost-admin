@@ -2948,7 +2948,7 @@ a.btn-small {
   width: 1px; height: 18px; margin: 0 5px; background: var(--border);
 }
 .pe-editor {
-  position: relative; min-height: 220px; max-height: 480px; overflow-y: auto;
+  position: relative; height: 260px; min-height: 160px; max-height: 85vh; overflow-y: auto; resize: vertical;
   padding: 14px 16px; outline: none; font-size: 14px; line-height: 1.6; color: var(--text);
   overflow-wrap: anywhere;
 }
