@@ -2910,7 +2910,7 @@ a.btn-small {
 }
 .pe-preview {
   display: block; width: 100%; height: 160px; margin-top: 12px;
-  border: 1px solid var(--border); border-radius: 12px; background: #fff;
+  border: 1px solid var(--border); border-radius: 12px; background: var(--bg-elevated); color-scheme: dark;
 }
 .pe-error {
   margin-top: 10px; font-size: 12.5px; color: var(--danger);
@@ -2969,4 +2969,77 @@ a.btn-small {
 }
 .pe-note {
   font-size: 12.5px; color: var(--muted); margin: 4px 0 14px;
+}
+.modal-box.pe-mail-box {
+  max-width: 760px; padding: 0; overflow: hidden;
+  display: flex; flex-direction: column; max-height: calc(100vh - 48px);
+}
+.pe-mail-head {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 22px 22px 16px 26px;
+}
+.pe-mail-subject {
+  flex: 1; min-width: 0; font-size: 19px; font-weight: 700; letter-spacing: -0.3px; line-height: 1.35;
+  overflow-wrap: anywhere; text-wrap: balance;
+}
+.pe-mail-head .pill {
+  margin-top: 3px;
+}
+.pe-mail-close {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
+  background: var(--bg-elevated); border: 1px solid var(--border); color: var(--muted);
+  transition: background 0.2s, color 0.2s;
+}
+.pe-mail-close svg {
+  width: 15px; height: 15px;
+}
+.pe-mail-close:hover {
+  background: var(--bg-hover); color: var(--text);
+}
+.pe-mail-close:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.pe-mail-sender {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 26px; border-top: 1px solid var(--border);
+}
+.pe-mail-avatar {
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 38px; height: 38px; border-radius: 50%;
+  background: linear-gradient(145deg, var(--accent), var(--accent-deep));
+  color: #04121c; font-weight: 800; font-size: 16px;
+}
+.pe-mail-lines {
+  flex: 1; min-width: 0; font-size: 13px; line-height: 1.5;
+}
+.pe-mail-from strong {
+  color: var(--text);
+}
+.pe-mail-from span, .pe-mail-to {
+  color: var(--muted);
+}
+.pe-mail-to span {
+  color: var(--text); overflow-wrap: anywhere;
+}
+.pe-mail-date {
+  flex-shrink: 0; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right;
+}
+.pe-mail-info {
+  padding: 8px 26px; font-size: 12px; color: var(--muted-dim);
+  background: rgba(255,255,255,0.025); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+}
+.pe-mail-body {
+  flex: 1; min-height: 0; overflow-y: auto; padding: 6px 10px 14px;
+}
+.pe-preview.pe-mail-frame {
+  margin-top: 0; border: none; background: transparent;
+}
+@media (max-width: 600px) {
+  .pe-mail-sender {
+    flex-wrap: wrap;
+  }
+  .pe-mail-date {
+    width: 100%; text-align: left; padding-left: 50px;
+  }
 }

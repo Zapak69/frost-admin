@@ -4614,7 +4614,6 @@
   const PE_STATUS = { pending: ['pending', 'Pending'], sent: ['sent', 'Sent'], denied: ['denied', 'Denied'] };
   let peState = null;
   let peReviewFilter = 'pending';
-  const peOpen = new Set();
   function peError(d) {
     return (d && (PE_ERRORS[d.error] || d.detail || d.error)) || 'unknown error';
   }
@@ -4635,10 +4634,10 @@
     f.setAttribute('sandbox', 'allow-same-origin');
     f.setAttribute('referrerpolicy', 'no-referrer');
     f.title = 'Email preview';
-    f.srcdoc = '<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>body{margin:0;padding:18px 20px;font:15px/1.55 Arial,Helvetica,sans-serif;color:#111;background:#fff;word-wrap:break-word}blockquote{margin:8px 0;padding-left:12px;border-left:3px solid #ccc;color:#444}h1,h2,h3{margin:12px 0 6px;line-height:1.25}a{color:#0a66c2}</style></head><body>' + (html || '') + '</body></html>';
+    f.srcdoc = '<!doctype html><html><head><meta charset="utf-8"><meta name="color-scheme" content="dark"><base target="_blank"><style>html,body{background:transparent}body{margin:0;padding:16px 18px;font:14px/1.6 -apple-system,BlinkMacSystemFont,\'SF Pro Text\',sans-serif;color:#e5e5ea;word-wrap:break-word}b,strong{color:#f5f5f7}blockquote{margin:8px 0;padding-left:12px;border-left:3px solid #4fc8f8;color:#a1a1a6}h1,h2,h3{margin:12px 0 6px;line-height:1.3;color:#f5f5f7}a{color:#4fc8f8}hr{border:0;border-top:1px solid rgba(255,255,255,0.12)}</style></head><body>' + (html || '') + '</body></html>';
     f.addEventListener('load', function () {
       try {
-          f.style.height = Math.min(Math.max(f.contentDocument.documentElement.scrollHeight, 80), 560) + 'px';
+          f.style.height = Math.min(Math.max(f.contentDocument.documentElement.scrollHeight, 80), f.classList.contains('pe-mail-frame') ? 20000 : 560) + 'px';
       } catch (e) {}
     });
     return f;
@@ -4646,7 +4645,6 @@
   function peCard(e, opts) {
     const st = PE_STATUS[e.status] || ['withdrawn', e.status];
     const alwaysOpen = opts.review && e.status === 'pending';
-    const isOpen = alwaysOpen || peOpen.has(e.id);
     const card = document.createElement('div');
     card.className = 'app-card pe-card';
     card.innerHTML =
@@ -4654,7 +4652,7 @@
         '<div class="app-card-user pe-subject">' + escapeHtml(e.subject) + '</div>' +
         '<span class="pill ' + st[0] + '">' + (e.sending ? 'Sending' : st[1]) + '</span>' +
         '<div class="app-card-actions">' +
-          (alwaysOpen ? '' : '<button type="button" class="btn-small" data-pe="toggle">' + (isOpen ? 'Hide email' : 'Show email') + '</button>') +
+          (alwaysOpen ? '' : '<button type="button" class="btn-small" data-pe="view">View email</button>') +
           (alwaysOpen ? '<button type="button" class="btn-small danger" data-pe="deny"' + (e.sending ? ' disabled' : '') + '>Deny</button><button type="button" class="btn-small success" data-pe="send"' + (e.sending ? ' disabled' : '') + '>Send</button>' : '') +
         '</div>' +
       '</div>' +
@@ -4665,11 +4663,10 @@
         (e.decidedAt ? '<span>' + (e.status === 'sent' ? 'Sent' : 'Denied') + ': <strong>' + formatRelative(e.decidedAt) + (e.decidedByName ? ' by ' + escapeHtml(e.decidedByName) : '') + '</strong></span>' : '') +
       '</div>' +
       (e.lastError ? '<p class="pe-error">Last attempt failed: ' + escapeHtml(e.lastError) + '</p>' : '');
-    if (isOpen) card.appendChild(peFrame(e.html));
-    const toggle = card.querySelector('[data-pe="toggle"]');
-    if (toggle) toggle.addEventListener('click', function () {
-      if (peOpen.has(e.id)) peOpen.delete(e.id); else peOpen.add(e.id);
-      renderPartnerEmails();
+    if (alwaysOpen) card.appendChild(peFrame(e.html));
+    const viewBtn = card.querySelector('[data-pe="view"]');
+    if (viewBtn) viewBtn.addEventListener('click', function () {
+        openPartnerEmail(e);
     });
     card.querySelectorAll('[data-pe="send"], [data-pe="deny"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -4689,6 +4686,41 @@
     });
     return card;
   }
+  const peEmailModal = document.getElementById('peEmailModal');
+  function peFullDate(ms) {
+    return ms ? new Date(ms).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+  }
+  function openPartnerEmail(e) {
+    const st = PE_STATUS[e.status] || ['withdrawn', e.status];
+    document.getElementById('peMailSubject').textContent = e.subject;
+    const pill = document.getElementById('peMailStatus');
+    pill.className = 'pill ' + st[0];
+    pill.textContent = e.sending ? 'Sending' : st[1];
+    document.getElementById('peMailTo').textContent = e.to;
+    document.getElementById('peMailDate').textContent = peFullDate(e.status === 'sent' ? e.decidedAt : e.createdAt);
+    const info = ['Written by ' + (e.authorName || e.authorId) + ' · ' + peFullDate(e.createdAt)];
+    if (e.status === 'sent') info.push('Approved and sent' + (e.decidedByName ? ' by ' + e.decidedByName : ''));
+    else if (e.status === 'denied') info.push('Denied' + (e.decidedByName ? ' by ' + e.decidedByName : '') + ' · ' + peFullDate(e.decidedAt));
+    else info.push('Waiting for management review');
+    document.getElementById('peMailInfo').textContent = info.join('  ·  ');
+    const body = document.getElementById('peMailBody');
+    body.textContent = '';
+    const f = peFrame(e.html);
+    f.classList.add('pe-mail-frame');
+    body.appendChild(f);
+    peEmailModal.classList.add('active');
+    document.getElementById('peMailCloseBtn').focus();
+  }
+  function closePartnerEmail() {
+    peEmailModal.classList.remove('active');
+  }
+  document.getElementById('peMailCloseBtn').addEventListener('click', closePartnerEmail);
+  peEmailModal.addEventListener('click', function (ev) {
+      if (ev.target === peEmailModal) closePartnerEmail();
+  });
+  document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape' && peEmailModal.classList.contains('active')) closePartnerEmail();
+  });
   function peFill(id, items, empty, opts) {
     const list = document.getElementById(id);
     list.textContent = '';

@@ -15,8 +15,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="admin.css?v=20261110a">
-<link rel="stylesheet" href="glass.css?v=20261110a">
+<link rel="stylesheet" href="admin.css?v=20261110c">
+<link rel="stylesheet" href="glass.css?v=20261110c">
 </head>
 <body>
 <canvas id="snowCanvas"></canvas>
@@ -1093,6 +1093,26 @@
   </div>
 </div>
 
+<div id="peEmailModal" class="modal-overlay">
+  <div class="modal-box pe-mail-box" role="dialog" aria-modal="true" aria-labelledby="peMailSubject">
+    <div class="pe-mail-head">
+      <div class="pe-mail-subject" id="peMailSubject"></div>
+      <span class="pill" id="peMailStatus"></span>
+      <button type="button" class="pe-mail-close" id="peMailCloseBtn" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div class="pe-mail-sender">
+      <div class="pe-mail-avatar" aria-hidden="true">F</div>
+      <div class="pe-mail-lines">
+        <div class="pe-mail-from"><strong>Frost Client Partners</strong> <span>&lt;partners@frostclient.eu&gt;</span></div>
+        <div class="pe-mail-to">to <span id="peMailTo"></span></div>
+      </div>
+      <div class="pe-mail-date" id="peMailDate"></div>
+    </div>
+    <div class="pe-mail-info" id="peMailInfo"></div>
+    <div class="pe-mail-body" id="peMailBody"></div>
+  </div>
+</div>
+
 <div id="confirmModal" class="modal-overlay">
   <div class="modal-box">
     <div class="modal-title" id="confirmTitle">Are you sure?</div>
@@ -1373,6 +1393,6 @@
   </div>
 </div>
 
-<script src="admin.js?v=20261110a"></script>
+<script src="admin.js?v=20261110c"></script>
 </body>
 </html>
