@@ -557,6 +557,8 @@
         return loadPartnerAssets();
     },
     partnerEmails: function () {
+        const view = document.getElementById('view-partnerEmails');
+        if (view._tabPanes) selectViewTab(view, 0);
         return loadPartnerEmails();
     }
   };
@@ -4609,7 +4611,8 @@
     smtp_not_configured: "The partners@ mailbox isn't connected on the server yet.",
     send_failed: 'The mail server refused the email.',
     already_decided: 'Someone already reviewed this email.',
-    already_sending: 'This email is being sent right now.'
+    already_sending: 'This email is being sent right now.',
+    not_found: 'This email no longer exists.'
   };
   const PE_STATUS = { pending: ['pending', 'Pending'], sent: ['sent', 'Sent'], denied: ['denied', 'Denied'] };
   let peState = null;
@@ -4653,6 +4656,7 @@
         '<span class="pill ' + st[0] + '">' + (e.sending ? 'Sending' : st[1]) + '</span>' +
         '<div class="app-card-actions">' +
           (alwaysOpen ? '' : '<button type="button" class="btn-small" data-pe="view">View email</button>') +
+          (!alwaysOpen && peState && peState.access.review && !e.sending ? '<button type="button" class="btn-small danger" data-pe="delete">Delete</button>' : '') +
           (alwaysOpen ? '<button type="button" class="btn-small danger" data-pe="deny"' + (e.sending ? ' disabled' : '') + '>Deny</button><button type="button" class="btn-small success" data-pe="send"' + (e.sending ? ' disabled' : '') + '>Send</button>' : '') +
         '</div>' +
       '</div>' +
@@ -4664,6 +4668,16 @@
       '</div>' +
       (e.lastError ? '<p class="pe-error">Last attempt failed: ' + escapeHtml(e.lastError) + '</p>' : '');
     if (alwaysOpen) card.appendChild(peFrame(e.html));
+    const deleteBtn = card.querySelector('[data-pe="delete"]');
+    if (deleteBtn) deleteBtn.addEventListener('click', function () {
+      askConfirm('Delete this email?', '"' + e.subject + '" to ' + e.to + ' will be removed from the list for everyone. This can\'t be undone.', { okLabel: 'Delete' }, function () {
+        return callAdmin('partnerEmails.delete', { id: e.id }).then(function (d) {
+          if (d && d.access) applyPartnerEmails(d);
+          if (d && d.ok) showToast('Email deleted.', 'success');
+          else showToast("Couldn't delete: " + peError(d), 'error');
+        });
+      });
+    });
     const viewBtn = card.querySelector('[data-pe="view"]');
     if (viewBtn) viewBtn.addEventListener('click', function () {
         openPartnerEmail(e);

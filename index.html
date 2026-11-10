@@ -15,8 +15,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="admin.css?v=20261110c">
-<link rel="stylesheet" href="glass.css?v=20261110c">
+<link rel="stylesheet" href="admin.css?v=20261110e">
+<link rel="stylesheet" href="glass.css?v=20261110e">
 </head>
 <body>
 <canvas id="snowCanvas"></canvas>
@@ -414,20 +414,6 @@
     </div>
 
     <div class="view" id="view-partnerEmails" data-tabs>
-      <div class="panel" data-tab="Pending review" data-requires="management" style="display:none;">
-        <div class="panel-head">
-          <h2>Emails waiting for review</h2>
-          <div class="filter-pills" id="peReviewFilter">
-            <button type="button" class="filter-pill active" data-status="pending">Waiting</button>
-            <button type="button" class="filter-pill" data-status="history">Reviewed</button>
-          </div>
-        </div>
-        <div id="peReviewList" class="app-list"></div>
-      </div>
-      <div class="panel" data-tab="Sent">
-        <div class="panel-head"><h2>Your sent emails</h2></div>
-        <div id="peSentList" class="app-list"></div>
-      </div>
       <div class="panel panel-narrow" data-tab="New email">
         <div class="panel-head"><h2>New partner email</h2></div>
         <div class="form-field">
@@ -460,6 +446,20 @@
         </div>
         <p class="pe-note">Management checks every email before it goes out from partners@frostclient.eu.</p>
         <button type="button" class="btn-primary" id="peSendBtn"><span class="btn-spinner"></span><span class="btn-label">Send email</span></button>
+      </div>
+      <div class="panel" data-tab="Pending review" data-requires="management" style="display:none;">
+        <div class="panel-head">
+          <h2>Emails waiting for review</h2>
+          <div class="filter-pills" id="peReviewFilter">
+            <button type="button" class="filter-pill active" data-status="pending">Waiting</button>
+            <button type="button" class="filter-pill" data-status="history">Reviewed</button>
+          </div>
+        </div>
+        <div id="peReviewList" class="app-list"></div>
+      </div>
+      <div class="panel" data-tab="Sent">
+        <div class="panel-head"><h2>Your sent emails</h2></div>
+        <div id="peSentList" class="app-list"></div>
       </div>
     </div>
 
@@ -1393,6 +1393,6 @@
   </div>
 </div>
 
-<script src="admin.js?v=20261110c"></script>
+<script src="admin.js?v=20261110e"></script>
 </body>
 </html>
