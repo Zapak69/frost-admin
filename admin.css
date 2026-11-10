@@ -2897,3 +2897,76 @@ textarea.text-input {
 a.btn-small {
   display: inline-flex; align-items: center; text-decoration: none;
 }
+
+.pill.sent {
+  background: rgba(50,215,75,0.14);
+  color: var(--success);
+}
+.pe-subject {
+  font-weight: 600; overflow-wrap: anywhere;
+}
+.btn-small:disabled {
+  opacity: 0.45; cursor: not-allowed;
+}
+.pe-preview {
+  display: block; width: 100%; height: 160px; margin-top: 12px;
+  border: 1px solid var(--border); border-radius: 12px; background: #fff;
+}
+.pe-error {
+  margin-top: 10px; font-size: 12.5px; color: var(--danger);
+}
+.pe-editor-wrap {
+  border: 1px solid var(--border); border-radius: 12px; background: var(--bg-elevated);
+  overflow: hidden; transition: border-color 0.2s;
+}
+.pe-editor-wrap:focus-within {
+  border-color: var(--accent);
+}
+.pe-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 2px;
+  padding: 6px; border-bottom: 1px solid var(--border);
+}
+.pe-tool {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px;
+  background: none; border: none; cursor: pointer; color: var(--muted);
+  transition: background 0.15s, color 0.15s;
+}
+.pe-tool svg {
+  width: 17px; height: 17px;
+}
+.pe-tool:hover {
+  background: var(--bg-hover); color: var(--text);
+}
+.pe-tool.active {
+  background: rgba(79,200,248,0.16); color: var(--accent);
+}
+.pe-tool:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
+.pe-tool-sep {
+  width: 1px; height: 18px; margin: 0 5px; background: var(--border);
+}
+.pe-editor {
+  position: relative; min-height: 220px; max-height: 480px; overflow-y: auto;
+  padding: 14px 16px; outline: none; font-size: 14px; line-height: 1.6; color: var(--text);
+  overflow-wrap: anywhere;
+}
+.pe-editor.empty::before {
+  content: attr(data-placeholder); color: var(--muted-dim); pointer-events: none; position: absolute;
+}
+.pe-editor h2 {
+  font-size: 18px; margin: 10px 0 4px; line-height: 1.3;
+}
+.pe-editor blockquote {
+  margin: 6px 0; padding-left: 12px; border-left: 3px solid var(--accent); color: var(--muted);
+}
+.pe-editor ul, .pe-editor ol {
+  padding-left: 22px; margin: 4px 0;
+}
+.pe-editor a {
+  color: var(--accent);
+}
+.pe-note {
+  font-size: 12.5px; color: var(--muted); margin: 4px 0 14px;
+}

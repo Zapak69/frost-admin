@@ -490,7 +490,7 @@
     staffApps: 'Staff Applications', partnerLogs: 'Creators', partnerRankup: 'Partner Rankup Requests', reports: 'Bug Reports', scams: 'Scam Database',
     logs: 'Action Logs', excuses: 'Excuses', warns: 'Warns', reviews: 'Reviews', drops: 'Publish Drop', capeGift: 'Cloak Gift', giveaway: 'Publish Giveaway', tickets: 'Tickets',
     ticketArchive: 'Ticket Archive', autoreplies: 'Auto Replies', scamFilter: 'Scam Filter', statusPage: 'Status Page', liteBoosts: 'Lite Boosts', linkFilter: 'Link Filter', launcherBans: 'Launcher Bans', partnerPage: 'Partner Page', trials: 'Trials', myTrial: 'My Trial',
-    partnerData: 'Partner Data', partnerAssets: 'Partner Assets'
+    partnerData: 'Partner Data', partnerAssets: 'Partner Assets', partnerEmails: 'Partner Emails'
   };
   const VIEW_LOADERS = {
     overview: loadOverview, members: function () {}, leaderboard: loadLeaderboard, staff: loadStaff,
@@ -555,6 +555,9 @@
     },
     partnerAssets: function () {
         return loadPartnerAssets();
+    },
+    partnerEmails: function () {
+        return loadPartnerEmails();
     }
   };
   let currentView = 'overview';
@@ -618,6 +621,7 @@
   let canKickStaff = false;
   let isOwner = false;
   let hasTrial = false;
+  let canPartnerEmails = false;
   let myUserId = '';
   function updateNavGroupVisibility() {
     const children = Array.from(document.getElementById('sidebarNav').children);
@@ -648,6 +652,9 @@
     document.querySelectorAll('[data-requires="trial"]').forEach(function (el) {
         el.style.display = hasTrial ? '' : 'none';
     });
+    document.querySelectorAll('[data-requires="partnerEmails"]').forEach(function (el) {
+        el.style.display = canPartnerEmails ? '' : 'none';
+    });
     updateNavGroupVisibility();
   }
   function renderStatGrid(containerId, cards) {
@@ -670,8 +677,10 @@
       canKickStaff = !!d.canKickStaff;
       isOwner = !!d.isOwner;
       hasTrial = !!d.hasTrial;
+      canPartnerEmails = !!d.canPartnerEmails;
       myUserId = (d.user && d.user.id) || '';
       applyRolePermissions();
+      setBadge('badgePartnerEmails', d.partnerEmailsPending || 0);
       if (hasTrial && location.hash === '#trial' && currentView !== 'myTrial') {
         history.replaceState(null, '', location.pathname + location.search);
         showView('myTrial');
@@ -4592,6 +4601,206 @@
       });
     }
   }
+  const PE_ERRORS = {
+    invalid_to: 'Enter a valid recipient email address.',
+    invalid_subject: 'Add a subject (up to 200 characters).',
+    invalid_body: 'Write the email before sending it.',
+    rate_limited: 'Too many emails in a short time. Try again later.',
+    smtp_not_configured: "The partners@ mailbox isn't connected on the server yet.",
+    send_failed: 'The mail server refused the email.',
+    already_decided: 'Someone already reviewed this email.',
+    already_sending: 'This email is being sent right now.'
+  };
+  const PE_STATUS = { pending: ['pending', 'Pending'], sent: ['sent', 'Sent'], denied: ['denied', 'Denied'] };
+  let peState = null;
+  let peReviewFilter = 'pending';
+  const peOpen = new Set();
+  function peError(d) {
+    return (d && (PE_ERRORS[d.error] || d.detail || d.error)) || 'unknown error';
+  }
+  function loadPartnerEmails() {
+    return callAdmin('partnerEmails.state').then(function (d) {
+      if (d && d.ok) applyPartnerEmails(d);
+    });
+  }
+  function applyPartnerEmails(d) {
+    if (!d || !d.access) return;
+    peState = d;
+    if (d.pending) setBadge('badgePartnerEmails', d.pending.length);
+    renderPartnerEmails();
+  }
+  function peFrame(html) {
+    const f = document.createElement('iframe');
+    f.className = 'pe-preview';
+    f.setAttribute('sandbox', 'allow-same-origin');
+    f.setAttribute('referrerpolicy', 'no-referrer');
+    f.title = 'Email preview';
+    f.srcdoc = '<!doctype html><html><head><meta charset="utf-8"><base target="_blank"><style>body{margin:0;padding:18px 20px;font:15px/1.55 Arial,Helvetica,sans-serif;color:#111;background:#fff;word-wrap:break-word}blockquote{margin:8px 0;padding-left:12px;border-left:3px solid #ccc;color:#444}h1,h2,h3{margin:12px 0 6px;line-height:1.25}a{color:#0a66c2}</style></head><body>' + (html || '') + '</body></html>';
+    f.addEventListener('load', function () {
+      try {
+          f.style.height = Math.min(Math.max(f.contentDocument.documentElement.scrollHeight, 80), 560) + 'px';
+      } catch (e) {}
+    });
+    return f;
+  }
+  function peCard(e, opts) {
+    const st = PE_STATUS[e.status] || ['withdrawn', e.status];
+    const alwaysOpen = opts.review && e.status === 'pending';
+    const isOpen = alwaysOpen || peOpen.has(e.id);
+    const card = document.createElement('div');
+    card.className = 'app-card pe-card';
+    card.innerHTML =
+      '<div class="app-card-head">' +
+        '<div class="app-card-user pe-subject">' + escapeHtml(e.subject) + '</div>' +
+        '<span class="pill ' + st[0] + '">' + (e.sending ? 'Sending' : st[1]) + '</span>' +
+        '<div class="app-card-actions">' +
+          (alwaysOpen ? '' : '<button type="button" class="btn-small" data-pe="toggle">' + (isOpen ? 'Hide email' : 'Show email') + '</button>') +
+          (alwaysOpen ? '<button type="button" class="btn-small danger" data-pe="deny"' + (e.sending ? ' disabled' : '') + '>Deny</button><button type="button" class="btn-small success" data-pe="send"' + (e.sending ? ' disabled' : '') + '>Send</button>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="app-card-details">' +
+        '<span>To: <strong>' + escapeHtml(e.to) + '</strong></span>' +
+        (opts.showAuthor ? '<span>By: <strong>' + escapeHtml(e.authorName || e.authorId) + '</strong></span>' : '') +
+        '<span>Written: <strong>' + formatRelative(e.createdAt) + '</strong></span>' +
+        (e.decidedAt ? '<span>' + (e.status === 'sent' ? 'Sent' : 'Denied') + ': <strong>' + formatRelative(e.decidedAt) + (e.decidedByName ? ' by ' + escapeHtml(e.decidedByName) : '') + '</strong></span>' : '') +
+      '</div>' +
+      (e.lastError ? '<p class="pe-error">Last attempt failed: ' + escapeHtml(e.lastError) + '</p>' : '');
+    if (isOpen) card.appendChild(peFrame(e.html));
+    const toggle = card.querySelector('[data-pe="toggle"]');
+    if (toggle) toggle.addEventListener('click', function () {
+      if (peOpen.has(e.id)) peOpen.delete(e.id); else peOpen.add(e.id);
+      renderPartnerEmails();
+    });
+    card.querySelectorAll('[data-pe="send"], [data-pe="deny"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const decision = btn.dataset.pe;
+        const title = decision === 'send' ? 'Send this email?' : 'Deny this email?';
+        const text = decision === 'send'
+          ? '"' + e.subject + '" goes out from partners@frostclient.eu to ' + e.to + '.'
+          : '"' + e.subject + '" by ' + (e.authorName || e.authorId) + ' won\'t be sent. They will see it as denied.';
+        askConfirm(title, text, { tone: decision === 'send' ? 'primary' : 'danger', okLabel: decision === 'send' ? 'Send email' : 'Deny' }, function () {
+          return callAdmin('partnerEmails.decide', { id: e.id, decision: decision }).then(function (d) {
+            if (d && d.access) applyPartnerEmails(d);
+            if (d && d.ok) showToast(decision === 'send' ? 'Email sent to ' + e.to + '.' : 'Email denied.', 'success');
+            else showToast((decision === 'send' ? "Couldn't send: " : "Couldn't deny: ") + peError(d), 'error');
+          });
+        });
+      });
+    });
+    return card;
+  }
+  function peFill(id, items, empty, opts) {
+    const list = document.getElementById(id);
+    list.textContent = '';
+    if (!items || !items.length) {
+      list.innerHTML = '<p style="color:var(--muted);font-size:13px;">' + escapeHtml(empty) + '</p>';
+      return;
+    }
+    items.forEach(function (e) {
+        list.appendChild(peCard(e, opts));
+    });
+  }
+  function renderPartnerEmails() {
+    if (!peState) return;
+    peFill('peSentList', peState.mine, "You haven't sent any partner emails yet.", {});
+    if (peState.access.review) {
+      if (peReviewFilter === 'pending') peFill('peReviewList', peState.pending, 'Nothing is waiting for review.', { review: true, showAuthor: true });
+      else peFill('peReviewList', peState.history, 'No reviewed emails yet.', { showAuthor: true });
+    }
+  }
+  document.querySelectorAll('#peReviewFilter .filter-pill').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('#peReviewFilter .filter-pill').forEach(function (b) {
+          b.classList.toggle('active', b === btn);
+      });
+      peReviewFilter = btn.dataset.status;
+      renderPartnerEmails();
+    });
+  });
+  const peEditor = document.getElementById('peEditor');
+  function peSyncPlaceholder() {
+    peEditor.classList.toggle('empty', !peEditor.textContent.trim() && !peEditor.querySelector('li,hr'));
+  }
+  function peUpdateToolbar() {
+    document.querySelectorAll('.pe-tool').forEach(function (b) {
+      let on = false;
+      try {
+        if (b.dataset.cmd === 'formatBlock') on = String(document.queryCommandValue('formatBlock')).toLowerCase() === b.dataset.value;
+        else if (['bold', 'italic', 'underline', 'strikeThrough', 'insertUnorderedList', 'insertOrderedList'].indexOf(b.dataset.cmd) !== -1) on = document.queryCommandState(b.dataset.cmd);
+      } catch (e) {}
+      b.classList.toggle('active', on);
+    });
+  }
+  document.querySelectorAll('.pe-tool').forEach(function (b) {
+    b.addEventListener('mousedown', function (e) {
+        e.preventDefault();
+    });
+    b.addEventListener('click', function () {
+      peEditor.focus();
+      const cmd = b.dataset.cmd;
+      if (cmd === 'createLink') {
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed) return showToast('Select the text you want to turn into a link first.', 'error');
+        const range = sel.getRangeAt(0).cloneRange();
+        const url = (window.prompt('Link address', 'https://') || '').trim();
+        if (!url || url === 'https://') return;
+        if (!/^(https?:\/\/|mailto:)/i.test(url)) return showToast('Links have to start with https://, http:// or mailto:.', 'error');
+        sel.removeAllRanges();
+        sel.addRange(range);
+        document.execCommand('createLink', false, url);
+      } else if (cmd === 'formatBlock') {
+        const current = String(document.queryCommandValue('formatBlock')).toLowerCase();
+        document.execCommand('formatBlock', false, current === b.dataset.value ? 'div' : b.dataset.value);
+      } else if (cmd === 'removeFormat') {
+        document.execCommand('removeFormat');
+        document.execCommand('unlink');
+        document.execCommand('formatBlock', false, 'div');
+      } else {
+        document.execCommand(cmd);
+      }
+      peUpdateToolbar();
+      peSyncPlaceholder();
+    });
+  });
+  peEditor.addEventListener('focus', function () {
+    try {
+        document.execCommand('defaultParagraphSeparator', false, 'div');
+    } catch (e) {}
+  });
+  peEditor.addEventListener('input', peSyncPlaceholder);
+  peEditor.addEventListener('keyup', peUpdateToolbar);
+  peEditor.addEventListener('mouseup', peUpdateToolbar);
+  peEditor.addEventListener('paste', function (e) {
+    const text = e.clipboardData && e.clipboardData.getData('text/plain');
+    if (text == null) return;
+    e.preventDefault();
+    document.execCommand('insertText', false, text);
+  });
+  peEditor.addEventListener('drop', function (e) {
+      e.preventDefault();
+  });
+  document.getElementById('peSendBtn').addEventListener('click', function () {
+    const btn = this;
+    const to = document.getElementById('peTo').value.trim();
+    const subject = document.getElementById('peSubject').value.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return showToast(PE_ERRORS.invalid_to, 'error');
+    if (!subject) return showToast(PE_ERRORS.invalid_subject, 'error');
+    if (!peEditor.textContent.trim()) return showToast(PE_ERRORS.invalid_body, 'error');
+    setBtnLoading(btn, true);
+    callAdmin('partnerEmails.submit', { to: to, subject: subject, html: peEditor.innerHTML }).then(function (d) {
+      setBtnLoading(btn, false);
+      if (!d || !d.ok) return showToast("Couldn't send: " + peError(d), 'error');
+      applyPartnerEmails(d);
+      document.getElementById('peTo').value = '';
+      document.getElementById('peSubject').value = '';
+      peEditor.innerHTML = '';
+      peSyncPlaceholder();
+      showToast('Email sent.', 'success');
+    }).catch(function () {
+      setBtnLoading(btn, false);
+      showToast('Network error. Please try again.', 'error');
+    });
+  });
   let currentScamsFilter = '';
   document.querySelectorAll('#scamsFilter .filter-pill').forEach(function (btn) {
     btn.addEventListener('click', function () {

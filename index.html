@@ -15,8 +15,8 @@
 <meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="admin.css?v=20261104h">
-<link rel="stylesheet" href="glass.css?v=20261104h">
+<link rel="stylesheet" href="admin.css?v=20261110a">
+<link rel="stylesheet" href="glass.css?v=20261110a">
 </head>
 <body>
 <canvas id="snowCanvas"></canvas>
@@ -85,6 +85,7 @@
       <div class="nav-group-label">Creators</div>
       <button type="button" class="nav-item" data-view="partnerLogs" data-requires="management" style="display:none;"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg></span>Creators<span class="nav-dot" id="navDotPartnerLogs" style="display:none;"></span></button>
       <button type="button" class="nav-item" data-view="partnerRankup" data-requires="highStaff" style="display:none;"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></svg></span>Partner Rankups<span class="nav-badge" id="badgePartnerRankup" style="display:none;">0</span><span class="nav-dot" id="navDotPartnerRankup" style="display:none;"></span></button>
+      <button type="button" class="nav-item" data-view="partnerEmails" data-requires="partnerEmails" style="display:none;"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg></span>Partner Emails<span class="nav-badge" id="badgePartnerEmails" style="display:none;">0</span></button>
       <button type="button" class="nav-item" data-view="partnerData" data-requires="owner" style="display:none;"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>Partner Data</button>
       <button type="button" class="nav-item" data-view="partnerAssets" data-requires="management" style="display:none;"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>Partner Assets</button>
       <button type="button" class="nav-item" data-view="partnerPage" data-requires="management" style="display:none;"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></span>Partner Page</button>
@@ -409,6 +410,56 @@
           <button type="button" class="btn-primary" id="bannedWordAddBtn"><span class="btn-spinner"></span><span class="btn-label">Add</span></button>
         </div>
         <div id="bannedWordsList" class="banned-words-list"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-partnerEmails" data-tabs>
+      <div class="panel" data-tab="Pending review" data-requires="management" style="display:none;">
+        <div class="panel-head">
+          <h2>Emails waiting for review</h2>
+          <div class="filter-pills" id="peReviewFilter">
+            <button type="button" class="filter-pill active" data-status="pending">Waiting</button>
+            <button type="button" class="filter-pill" data-status="history">Reviewed</button>
+          </div>
+        </div>
+        <div id="peReviewList" class="app-list"></div>
+      </div>
+      <div class="panel" data-tab="Sent">
+        <div class="panel-head"><h2>Your sent emails</h2></div>
+        <div id="peSentList" class="app-list"></div>
+      </div>
+      <div class="panel panel-narrow" data-tab="New email">
+        <div class="panel-head"><h2>New partner email</h2></div>
+        <div class="form-field">
+          <label for="peTo">To</label>
+          <input type="email" id="peTo" class="text-input" placeholder="partner@example.com" autocomplete="off" maxlength="254"/>
+        </div>
+        <div class="form-field">
+          <label for="peSubject">Subject</label>
+          <input type="text" id="peSubject" class="text-input" placeholder="Partnership with Frost Client" autocomplete="off" maxlength="200"/>
+        </div>
+        <div class="form-field">
+          <label id="peBodyLabel">Message</label>
+          <div class="pe-editor-wrap">
+            <div class="pe-toolbar" role="toolbar" aria-label="Formatting">
+              <button type="button" class="pe-tool" data-cmd="bold" title="Bold (Ctrl+B)" aria-label="Bold (Ctrl+B)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7z"/><path d="M7 12h7a3.5 3.5 0 0 1 0 7H7z"/></svg></button>
+              <button type="button" class="pe-tool" data-cmd="italic" title="Italic (Ctrl+I)" aria-label="Italic (Ctrl+I)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 4h-9M14 20H5M15 4 9 20"/></svg></button>
+              <button type="button" class="pe-tool" data-cmd="underline" title="Underline (Ctrl+U)" aria-label="Underline (Ctrl+U)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4v6a6 6 0 0 0 12 0V4"/><path d="M4 20h16"/></svg></button>
+              <button type="button" class="pe-tool" data-cmd="strikeThrough" title="Strikethrough" aria-label="Strikethrough"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 6.5C15.2 5 13.8 4 12 4c-2.5 0-4.5 1.5-4.5 3.5 0 1.3.8 2.3 2 3"/><path d="M4 12h16"/><path d="M8 17.5c.8 1.5 2.2 2.5 4 2.5 2.5 0 4.5-1.5 4.5-3.5 0-.6-.2-1.2-.5-1.7"/></svg></button>
+              <span class="pe-tool-sep"></span>
+              <button type="button" class="pe-tool" data-cmd="formatBlock" data-value="h2" title="Heading" aria-label="Heading"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4v16M18 4v16M6 12h12"/></svg></button>
+              <button type="button" class="pe-tool" data-cmd="formatBlock" data-value="blockquote" title="Quote" aria-label="Quote"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h4v4c0 3-2 5-4 6"/><path d="M14 7h4v4c0 3-2 5-4 6"/></svg></button>
+              <button type="button" class="pe-tool" data-cmd="insertUnorderedList" title="Bulleted list" aria-label="Bulleted list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg></button>
+              <button type="button" class="pe-tool" data-cmd="insertOrderedList" title="Numbered list" aria-label="Numbered list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 4h1v4M4 8h2"/><path d="M4 14.5a1.2 1.2 0 0 1 2 .8c0 .9-2 1.7-2 2.7h2"/></svg></button>
+              <span class="pe-tool-sep"></span>
+              <button type="button" class="pe-tool" data-cmd="createLink" title="Insert link" aria-label="Insert link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg></button>
+              <button type="button" class="pe-tool" data-cmd="removeFormat" title="Clear formatting" aria-label="Clear formatting"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7V5h13v2"/><path d="M10 5 7.5 19"/><path d="m14 14 6 6M20 14l-6 6"/></svg></button>
+            </div>
+            <div class="pe-editor empty" id="peEditor" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="peBodyLabel" data-placeholder="Write your email…"></div>
+          </div>
+        </div>
+        <p class="pe-note">Management checks every email before it goes out from partners@frostclient.eu.</p>
+        <button type="button" class="btn-primary" id="peSendBtn"><span class="btn-spinner"></span><span class="btn-label">Send email</span></button>
       </div>
     </div>
 
@@ -1322,6 +1373,6 @@
   </div>
 </div>
 
-<script src="admin.js?v=20261104h"></script>
+<script src="admin.js?v=20261110a"></script>
 </body>
 </html>
