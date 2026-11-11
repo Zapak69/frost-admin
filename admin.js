@@ -155,15 +155,11 @@
       if (e.target === confirmModal && !confirmOkBtn.disabled) closeConfirm(false);
   });
 
-  const NOTIF_TOAST_SECONDS = 6;
-  const MAX_INDIVIDUAL_NOTIF_TOASTS = 3;
   const notifPanel = document.getElementById('notifPanel');
   const notifBellBtn = document.getElementById('notifBellBtn');
   const notifList = document.getElementById('notifList');
-  const notifToastStack = document.getElementById('notifToastStack');
   let notifPanelOpen = false;
   let notifCache = [];
-  const seenNotifToastIds = new Set();
 
   function setNotifUnread(count) {
     setBadge('notifBadge', count);
@@ -178,7 +174,8 @@
     partnerLogs: ['partner_signup_logged'],
     partnerRankup: ['partner_rankup_submitted'],
     reports: ['bug_report_submitted'],
-    launcherBans: ['launcher_appeal_submitted']
+    launcherBans: ['launcher_appeal_submitted'],
+    partnerEmails: ['partner_email_submitted']
   };
   const NAV_DOT_IDS = {
     warns: 'navDotWarns', excuses: 'navDotExcuses', scams: 'navDotScams',
@@ -234,42 +231,9 @@
     if (type === 'partner_signup_logged') return { icon: NOTIF_ICON_USER_PLUS, title: 'New Media partner signup' };
     if (type === 'new_review') return { icon: NOTIF_ICON_STAR, title: 'New review' };
     if (type === 'reputation_received') return { icon: NOTIF_ICON_STAR, title: 'New reputation' };
+    if (type === 'partner_email_submitted') return { icon: NOTIF_ICON_PENCIL, title: 'New partner email' };
     if (type === 'test') return { icon: NOTIF_ICON_BELL, title: 'Test notification' };
     return { icon: NOTIF_ICON_BELL, title: 'Notification' };
-  }
-
-  function renderNotifToastEl(title, msg) {
-    const el = document.createElement('div');
-    el.className = 'notif-toast';
-    el.innerHTML =
-      '<div class="notif-toast-title">' + title + '</div>' +
-      '<div class="notif-toast-msg">' + msg + '</div>' +
-      '<div class="notif-toast-progress"></div>';
-    el.querySelector('.notif-toast-progress').style.animationDuration = NOTIF_TOAST_SECONDS + 's';
-    let removed = false;
-    function removeToast() {
-      if (removed) return;
-      removed = true;
-      el.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
-      el.style.opacity = '0';
-      el.style.transform = 'translateX(24px)';
-      setTimeout(function () {
-          el.remove();
-      }, 250);
-    }
-    el.addEventListener('click', function () {
-        openNotifPanel();
-        removeToast();
-    });
-    notifToastStack.appendChild(el);
-    setTimeout(removeToast, NOTIF_TOAST_SECONDS * 1000);
-  }
-  function showNotifToast(n) {
-    const meta = notifTypeMeta(n.type);
-    renderNotifToastEl(meta.icon + ' ' + escapeHtml(meta.title), escapeHtml(n.message));
-  }
-  function showAggregateNotifToast(count) {
-    renderNotifToastEl(NOTIF_ICON_BELL + ' ' + count + ' new notifications', 'Click to view them all.');
   }
 
   function wireNotifSwipe(item) {
@@ -286,6 +250,7 @@
     inner.addEventListener('pointermove', function (e) {
       if (!dragging) return;
       currentX = Math.min(0, e.clientX - startX);
+      item.classList.toggle('swiping', currentX < -4);
       inner.style.transform = 'translateX(' + currentX + 'px)';
     });
     function endDrag() {
@@ -314,6 +279,9 @@
         }, 450);
       } else {
         inner.style.transform = 'translateX(0)';
+        setTimeout(function () {
+            item.classList.remove('swiping');
+        }, 250);
       }
       currentX = 0;
     }
@@ -409,16 +377,6 @@
   function loadNotifications() {
     return callAdmin('notifications.list').then(function (d) {
       if (!d || !d.ok) return;
-      const fresh = d.notifications.filter(function (n) {
-          return !n.read && !seenNotifToastIds.has(n.id);
-      });
-      fresh.forEach(function (n) {
-          seenNotifToastIds.add(n.id);
-      });
-      if (!isMobileDevice() && fresh.length) {
-        if (fresh.length > MAX_INDIVIDUAL_NOTIF_TOASTS) showAggregateNotifToast(fresh.length);
-        else fresh.forEach(showNotifToast);
-      }
       notifCache = d.notifications;
       if (!notifPanelOpen) renderNotifList(notifCache);
       updateNavDots();
@@ -5745,6 +5703,7 @@
     { type: 'staff_app_submitted', label: 'New staff application', desc: 'Someone applies for the staff team on the website.', gate: 'highStaff' },
     { type: 'partner_signup_logged', label: 'New Media partner signup', desc: 'Someone signs up for (or is granted) the Media creator tier.', gate: 'management' },
     { type: 'partner_rankup_submitted', label: 'New rank-up request', desc: 'A creator requests a rank-up to Partner or Partner+.', gate: 'highStaff' },
+    { type: 'partner_email_submitted', label: 'New partner email', desc: 'Partner Management writes an email that needs your review before it goes out.', gate: 'management' },
     { type: 'launcher_appeal_submitted', label: 'New ban appeal', desc: 'A banned player appeals a launcher ban on the website.', gate: 'management' },
     { type: 'scam_report', label: 'New scam report', desc: 'Someone reports a suspected scam message for review.', gate: null },
     { type: 'inactivity_reminder', label: 'Inactivity reminder', desc: 'You\'ve been inactive for 2+ days with no excuse on file.', gate: null }

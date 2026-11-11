@@ -494,7 +494,6 @@ body {
 .notif-item {
   position: relative;
   overflow: hidden;
-  background: var(--danger);
 }
 .notif-item-inner {
   position: relative; background: var(--bg-panel); padding: 13px 18px; border-bottom: 1px solid var(--border);
@@ -530,6 +529,10 @@ body {
 .notif-item-delete-hint {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end;
   padding-right: 20px; color: #fff; font-size: 12px; font-weight: 700; pointer-events: none;
+  background: var(--danger); opacity: 0; transition: opacity 0.15s ease;
+}
+.notif-item.swiping .notif-item-delete-hint {
+  opacity: 1;
 }
 
 .view {
