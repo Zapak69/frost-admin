@@ -534,6 +534,36 @@ body {
 .notif-item.swiping .notif-item-delete-hint {
   opacity: 1;
 }
+.notif-item-delete-hint svg {
+  width: 18px; height: 18px;
+}
+.notif-item-inner {
+  padding-right: 44px;
+}
+.notif-item-close {
+  position: absolute; top: 50%; right: 12px; transform: translateY(-50%);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 50%; padding: 0;
+  background: none; border: none; cursor: pointer; color: var(--muted-dim);
+  opacity: 0; transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+.notif-item-close svg {
+  width: 13px; height: 13px;
+}
+.notif-item:hover .notif-item-close, .notif-item-close:focus-visible {
+  opacity: 1;
+}
+.notif-item-close:hover {
+  background: rgba(255,105,97,0.14); color: var(--danger);
+}
+.notif-item-close:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
+@media (hover: none) {
+  .notif-item-close {
+    opacity: 1;
+  }
+}
 
 .view {
   display: none;

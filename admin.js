@@ -241,6 +241,38 @@
     const id = item.dataset.id;
     const THRESHOLD = 90;
     let startX = 0, currentX = 0, dragging = false;
+    function removeItem() {
+      inner.style.transition = 'transform 0.25s cubic-bezier(0.16,1,0.3,1)';
+      item.classList.add('swiping');
+      inner.style.transform = 'translateX(-110%)';
+      item.style.overflow = 'hidden';
+      item.style.maxHeight = item.offsetHeight + 'px';
+      requestAnimationFrame(function () {
+        item.style.transition = 'max-height 0.25s ease 0.1s, opacity 0.25s ease 0.1s';
+        item.style.maxHeight = '0px';
+        item.style.opacity = '0';
+      });
+      callAdmin('notifications.delete', { id: id });
+      notifCache = notifCache.filter(function (n) {
+          return n.id !== id;
+      });
+      updateNavDots();
+      setNotifUnread(notifCache.filter(function (n) {
+          return !n.read;
+      }).length);
+      setTimeout(function () {
+        item.remove();
+        if (!notifList.querySelector('.notif-item')) renderNotifList(notifCache);
+      }, 450);
+    }
+    const closeBtn = item.querySelector('.notif-item-close');
+    closeBtn.addEventListener('pointerdown', function (e) {
+        e.stopPropagation();
+    });
+    closeBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      removeItem();
+    });
     inner.addEventListener('pointerdown', function (e) {
       dragging = true;
       startX = e.clientX;
@@ -258,25 +290,7 @@
       dragging = false;
       inner.style.transition = 'transform 0.25s cubic-bezier(0.16,1,0.3,1)';
       if (currentX < -THRESHOLD) {
-        inner.style.transform = 'translateX(-110%)';
-        item.style.overflow = 'hidden';
-        item.style.maxHeight = item.offsetHeight + 'px';
-        requestAnimationFrame(function () {
-          item.style.transition = 'max-height 0.25s ease 0.1s, opacity 0.25s ease 0.1s';
-          item.style.maxHeight = '0px';
-          item.style.opacity = '0';
-        });
-        callAdmin('notifications.delete', { id: id });
-        notifCache = notifCache.filter(function (n) {
-            return n.id !== id;
-        });
-        updateNavDots();
-        setNotifUnread(notifCache.filter(function (n) {
-            return !n.read;
-        }).length);
-        setTimeout(function () {
-            item.remove();
-        }, 450);
+        removeItem();
       } else {
         inner.style.transform = 'translateX(0)';
         setTimeout(function () {
@@ -298,10 +312,11 @@
       const meta = notifTypeMeta(n.type);
       return (
         '<div class="notif-item' + (n.read ? '' : ' unread') + '" data-id="' + escapeHtml(n.id) + '">' +
-          '<div class="notif-item-delete-hint">Delete</div>' +
+          '<div class="notif-item-delete-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></div>' +
           '<div class="notif-item-inner">' +
             '<div class="notif-item-msg">' + meta.icon + ' ' + escapeHtml(n.message) + '</div>' +
             '<div class="notif-item-time">' + formatRelative(n.createdAt) + '</div>' +
+            '<button type="button" class="notif-item-close" aria-label="Delete notification" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>' +
           '</div>' +
         '</div>'
       );
